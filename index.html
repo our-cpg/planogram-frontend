@@ -1,685 +1,842 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Store Planogram Profit Tracker</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-</head>
-<body>
-  <div id="root"></div>
+import React, { useState, useRef, useEffect } from 'react';
+import { Plus, Trash2, DollarSign, Grid3x3, Box, Layers, AlignVerticalJustifyCenter, Package, BarChart3, Save, Upload, Download, Eye, EyeOff, Settings, Zap, TrendingUp, Camera, Grid, Maximize2 } from 'lucide-react';
 
-  <script type="text/babel">
-    const { useState, useEffect } = React;
-    const { createRoot } = ReactDOM;
+// Fixture type definitions with unique visuals
+const FIXTURE_TYPES = {
+  GRID_WALL: {
+    id: 'grid_wall',
+    name: 'Grid Wall',
+    icon: Grid3x3,
+    color: '#64748b',
+    defaultWidth: 6,
+    defaultHeight: 8,
+    subSectionType: 'zones',
+    defaultSubSections: 4
+  },
+  JEWELRY_CASE: {
+    id: 'jewelry_case',
+    name: 'Jewelry Case',
+    icon: Box,
+    color: '#8b5cf6',
+    defaultWidth: 4,
+    defaultHeight: 3,
+    subSectionType: 'compartments',
+    defaultSubSections: 6
+  },
+  GONDOLA: {
+    id: 'gondola',
+    name: 'Gondola Shelves',
+    icon: Layers,
+    color: '#f59e0b',
+    defaultWidth: 8,
+    defaultHeight: 6,
+    subSectionType: 'shelves',
+    defaultSubSections: 5
+  },
+  SLAT_WALL: {
+    id: 'slat_wall',
+    name: 'Slat Wall',
+    icon: AlignVerticalJustifyCenter,
+    color: '#10b981',
+    defaultWidth: 7,
+    defaultHeight: 8,
+    subSectionType: 'zones',
+    defaultSubSections: 6
+  },
+  ENDCAP: {
+    id: 'endcap',
+    name: 'End Cap Display',
+    icon: Package,
+    color: '#ef4444',
+    defaultWidth: 4,
+    defaultHeight: 6,
+    subSectionType: 'shelves',
+    defaultSubSections: 4
+  }
+};
 
-    const Icons = {
-      Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
-      Trash2: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>,
-      Save: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>,
-      Upload: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>,
-      Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>,
-      Package: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>,
-      BarChart3: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>,
-      DollarSign: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>,
-      Maximize2: () => <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+const BACKEND_URL = 'https://planogram-backend-v83z.onrender.com';
+
+const PlanogramProfitTrackerPro = () => {
+  const [fixtures, setFixtures] = useState([]);
+  const [selectedFixture, setSelectedFixture] = useState(null);
+  const [selectedSubSection, setSelectedSubSection] = useState(null);
+  const [scale, setScale] = useState(60); // pixels per foot
+  const [storeName, setStoreName] = useState('My Store Layout');
+  const [upcInput, setUpcInput] = useState('');
+  const [savedLayouts, setSavedLayouts] = useState([]);
+  const [feedback, setFeedback] = useState('');
+  const [timeFilter, setTimeFilter] = useState('monthly');
+  const [sortBy, setSortBy] = useState('profit');
+  const [viewMode, setViewMode] = useState('2d'); // 2d, heatmap, 3d
+  const [showLibrary, setShowLibrary] = useState(true);
+  const [showStats, setShowStats] = useState(true);
+  const [snapToGrid, setSnapToGrid] = useState(true);
+  const [gridSize, setGridSize] = useState(1); // feet
+  const [shopifyConfig, setShopifyConfig] = useState({
+    storeName: '',
+    accessToken: '',
+    connected: false
+  });
+  const [showSettings, setShowSettings] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [backgroundImage, setBackgroundImage] = useState(null);
+  const [showCharts, setShowCharts] = useState(false);
+  const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // Sample product database
+  const productDatabase = {
+    '052336912014': { name: 'Blasting Freeze Spray - 12 oz', price: 12.99, cost: 6.495, monthlySales: 244 },
+    '123456789012': { name: 'Premium Coffee Beans', price: 24.99, cost: 12.50, monthlySales: 145 },
+    '234567890123': { name: 'Organic Tea Set', price: 18.99, cost: 9.00, monthlySales: 89 },
+    '345678901234': { name: 'Artisan Chocolate', price: 12.99, cost: 6.50, monthlySales: 234 },
+    '456789012345': { name: 'Gourmet Cookies', price: 8.99, cost: 4.00, monthlySales: 312 },
+  };
+
+  useEffect(() => {
+    const layouts = JSON.parse(localStorage.getItem('planogramLayouts') || '[]');
+    setSavedLayouts(layouts);
+    
+    const lastLayout = localStorage.getItem('currentLayout');
+    if (lastLayout) {
+      const parsed = JSON.parse(lastLayout);
+      setFixtures(parsed.fixtures || []);
+      setStoreName(parsed.name || 'My Store Layout');
+    }
+  }, []);
+
+  useEffect(() => {
+    const autoSave = setInterval(() => {
+      if (fixtures.length > 0) {
+        const layout = { name: storeName, fixtures, savedAt: new Date().toISOString() };
+        localStorage.setItem('currentLayout', JSON.stringify(layout));
+      }
+    }, 30000);
+    return () => clearInterval(autoSave);
+  }, [fixtures, storeName]);
+
+  const showFeedback = (message, duration = 3000) => {
+    setFeedback(message);
+    setTimeout(() => setFeedback(''), duration);
+  };
+
+  const testShopifyConnection = async () => {
+    if (!shopifyConfig.storeName || !shopifyConfig.accessToken) {
+      showFeedback('⚠️ Please enter store name and access token');
+      return;
+    }
+
+    showFeedback('🔄 Testing connection...');
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/shopify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeName: shopifyConfig.storeName,
+          accessToken: shopifyConfig.accessToken,
+          action: 'test'
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setShopifyConfig({ ...shopifyConfig, connected: true });
+        showFeedback(`✅ Connected to ${data.shopName}!`);
+        setShowSettings(false);
+      } else {
+        throw new Error(data.error || 'Invalid credentials');
+      }
+    } catch (error) {
+      showFeedback(`❌ ${error.message}`, 5000);
+    }
+  };
+
+  const lookupProduct = async (upc) => {
+    if (!shopifyConfig.connected) {
+      if (productDatabase[upc]) {
+        return { ...productDatabase[upc], source: 'sample' };
+      }
+      return {
+        upc,
+        name: `Product ${upc}`,
+        price: 0,
+        cost: 0,
+        monthlySales: 0,
+        source: 'placeholder'
+      };
+    }
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/shopify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeName: shopifyConfig.storeName,
+          accessToken: shopifyConfig.accessToken,
+          action: 'getProduct',
+          upc
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success && data.product) {
+        return { ...data.product, source: 'shopify' };
+      }
+    } catch (error) {
+      console.error('Shopify lookup error:', error);
+    }
+
+    if (productDatabase[upc]) {
+      return { ...productDatabase[upc], source: 'sample' };
+    }
+
+    return {
+      upc,
+      name: `Product ${upc}`,
+      price: 0,
+      cost: 0,
+      monthlySales: 0,
+      source: 'placeholder'
+    };
+  };
+
+  const addFixtureFromLibrary = (fixtureType) => {
+    const type = FIXTURE_TYPES[fixtureType];
+    const newFixture = {
+      id: Date.now(),
+      type: fixtureType,
+      x: 2,
+      y: 2,
+      width: type.defaultWidth,
+      height: type.defaultHeight,
+      name: `${type.name} ${fixtures.filter(f => f.type === fixtureType).length + 1}`,
+      faceCount: 4,
+      subSections: Array.from({ length: type.defaultSubSections }, (_, i) => ({
+        id: `${Date.now()}-${i}`,
+        name: `${type.subSectionType.slice(0, -1)} ${i + 1}`,
+        products: []
+      }))
+    };
+    setFixtures([...fixtures, newFixture]);
+    setSelectedFixture(newFixture);
+  };
+
+  const deleteFixture = (id) => {
+    setFixtures(fixtures.filter(f => f.id !== id));
+    if (selectedFixture?.id === id) {
+      setSelectedFixture(null);
+      setSelectedSubSection(null);
+    }
+  };
+
+  const updateFixture = (id, updates) => {
+    setFixtures(fixtures.map(f => f.id === id ? { ...f, ...updates } : f));
+    if (selectedFixture?.id === id) {
+      setSelectedFixture({ ...selectedFixture, ...updates });
+    }
+  };
+
+  const handleScanUPC = async () => {
+    if (!upcInput.trim() || !selectedSubSection || !selectedFixture) {
+      showFeedback('⚠️ Please select a sub-section first!');
+      return;
+    }
+    
+    showFeedback('🔄 Looking up product...');
+    const product = await lookupProduct(upcInput.trim());
+    
+    const updatedFixtures = fixtures.map(f => {
+      if (f.id === selectedFixture.id) {
+        return {
+          ...f,
+          subSections: f.subSections.map(ss => {
+            if (ss.id === selectedSubSection.id) {
+              return {
+                ...ss,
+                products: [...ss.products, { ...product, id: Date.now() }]
+              };
+            }
+            return ss;
+          })
+        };
+      }
+      return f;
+    });
+    
+    setFixtures(updatedFixtures);
+    const updatedSelectedFixture = updatedFixtures.find(f => f.id === selectedFixture.id);
+    setSelectedFixture(updatedSelectedFixture);
+    setSelectedSubSection(updatedSelectedFixture.subSections.find(ss => ss.id === selectedSubSection.id));
+    setUpcInput('');
+    showFeedback(`✅ Added: ${product.name}`);
+  };
+
+  const deleteProduct = (subSectionId, productId) => {
+    const updatedFixtures = fixtures.map(f => {
+      if (f.id === selectedFixture.id) {
+        return {
+          ...f,
+          subSections: f.subSections.map(ss => {
+            if (ss.id === subSectionId) {
+              return {
+                ...ss,
+                products: ss.products.filter(p => p.id !== productId)
+              };
+            }
+            return ss;
+          })
+        };
+      }
+      return f;
+    });
+    
+    setFixtures(updatedFixtures);
+    const updatedSelectedFixture = updatedFixtures.find(f => f.id === selectedFixture.id);
+    setSelectedFixture(updatedSelectedFixture);
+    setSelectedSubSection(updatedSelectedFixture.subSections.find(ss => ss.id === subSectionId));
+  };
+
+  const calculateSubSectionMetrics = (subSection) => {
+    if (!subSection || !subSection.products) {
+      return { totalRevenue: 0, totalCost: 0, profit: 0, productCount: 0 };
+    }
+    
+    const timeMultipliers = {
+      daily: 1 / 30,
+      weekly: 7 / 30,
+      monthly: 1,
+      quarterly: 3,
+      yearly: 12
+    };
+    
+    const multiplier = timeMultipliers[timeFilter] || 1;
+    let totalRevenue = 0;
+    let totalCost = 0;
+    
+    subSection.products.forEach(p => {
+      const periodVolume = (p.monthlySales || 0) * multiplier;
+      totalRevenue += (p.price || 0) * periodVolume;
+      totalCost += (p.cost || 0) * periodVolume;
+    });
+    
+    const profit = totalRevenue - totalCost;
+    return { totalRevenue, totalCost, profit, productCount: subSection.products.length };
+  };
+
+  const calculateFixtureMetrics = (fixture) => {
+    if (!fixture || !fixture.subSections) {
+      return { totalRevenue: 0, totalCost: 0, profit: 0, profitPerSqFt: 0, totalProducts: 0, sqFt: 0 };
+    }
+    
+    let totalRevenue = 0;
+    let totalCost = 0;
+    let totalProducts = 0;
+    
+    fixture.subSections.forEach(ss => {
+      const metrics = calculateSubSectionMetrics(ss);
+      totalRevenue += metrics.totalRevenue;
+      totalCost += metrics.totalCost;
+      totalProducts += metrics.productCount;
+    });
+    
+    const profit = totalRevenue - totalCost;
+    const sqFt = (fixture.width || 0) * (fixture.height || 0);
+    const profitPerSqFt = sqFt > 0 ? profit / sqFt : 0;
+    
+    return { totalRevenue, totalCost, profit, profitPerSqFt, totalProducts, sqFt };
+  };
+
+  const getHeatmapColor = (profitPerSqFt) => {
+    const profit = profitPerSqFt || 0;
+    if (profit > 200) return '#10b981';
+    if (profit > 100) return '#84cc16';
+    if (profit > 50) return '#fbbf24';
+    if (profit > 25) return '#f97316';
+    return '#ef4444';
+  };
+
+  const handleCanvasClick = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
+    
+    let clickedFixture = null;
+    for (const fixture of fixtures) {
+      if (x >= fixture.x && x <= fixture.x + fixture.width &&
+          y >= fixture.y && y <= fixture.y + fixture.height) {
+        clickedFixture = fixture;
+        break;
+      }
+    }
+    
+    if (clickedFixture) {
+      setSelectedFixture(clickedFixture);
+      setSelectedSubSection(null);
+    } else {
+      setSelectedFixture(null);
+      setSelectedSubSection(null);
+    }
+  };
+
+  const DraggableFixture = ({ fixture }) => {
+    const [dragging, setDragging] = useState(false);
+    const [offset, setOffset] = useState({ x: 0, y: 0 });
+    
+    const type = FIXTURE_TYPES[fixture.type];
+    const metrics = calculateFixtureMetrics(fixture);
+    const isSelected = selectedFixture?.id === fixture.id;
+
+    const handleMouseDown = (e) => {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / scale;
+      const y = (e.clientY - rect.top) / scale;
+      
+      setDragging(true);
+      setOffset({ x: x - fixture.x, y: y - fixture.y });
+      setSelectedFixture(fixture);
+      e.stopPropagation();
     };
 
-    const PlanogramProfitTracker = () => {
-      const [sections, setSections] = useState([]);
-      const [selectedSection, setSelectedSection] = useState(null);
-      const [scale, setScale] = useState(20);
-      const [storeName, setStoreName] = useState('My Store Layout');
-      const [newProduct, setNewProduct] = useState({ upc: '' });
-      const [savedLayouts, setSavedLayouts] = useState([]);
-      const [showSaveModal, setShowSaveModal] = useState(false);
-      const [showLoadModal, setShowLoadModal] = useState(false);
-      const [feedback, setFeedback] = useState('');
-      const [timeFilter, setTimeFilter] = useState('monthly');
-      const [sortBy, setSortBy] = useState('profit');
-      const [showSettings, setShowSettings] = useState(false);
-      const [shopifyConfig, setShopifyConfig] = useState({
-        storeName: '1m3tfh-xt.myshopify.com',
-        accessToken: '',
-        connected: false
-      });
-      
-      const BACKEND_URL = 'https://planogram-backend-gx85.onrender.com';
-      
-      const productDatabase = {
-        '123456789012': { name: 'Premium Coffee Beans', price: 24.99, cost: 12.50, monthlySales: 145 },
-        '234567890123': { name: 'Organic Tea Set', price: 18.99, cost: 9.00, monthlySales: 89 },
-        '345678901234': { name: 'Artisan Chocolate', price: 12.99, cost: 6.50, monthlySales: 234 },
-        '456789012345': { name: 'Gourmet Cookies', price: 8.99, cost: 4.00, monthlySales: 312 },
-        '567890123456': { name: 'Specialty Honey', price: 15.99, cost: 7.50, monthlySales: 67 },
-      };
-
-      useEffect(() => {
-        const layouts = JSON.parse(localStorage.getItem('planogramLayouts') || '[]');
-        setSavedLayouts(layouts);
-        
-        // Load saved access token
-        const savedToken = localStorage.getItem('shopifyAccessToken');
-        if (savedToken) {
-          setShopifyConfig({
-            storeName: '1m3tfh-xt.myshopify.com',
-            accessToken: savedToken,
-            connected: false
-          });
-        }
-        
-        const lastLayout = localStorage.getItem('currentLayout');
-        if (lastLayout) {
-          const parsed = JSON.parse(lastLayout);
-          setSections(parsed.sections || []);
-          setStoreName(parsed.name || 'My Store Layout');
-        }
-      }, []);
-
-      useEffect(() => {
-        const autoSave = setInterval(() => {
-          if (sections.length > 0) {
-            const layout = { name: storeName, sections, savedAt: new Date().toISOString() };
-            localStorage.setItem('currentLayout', JSON.stringify(layout));
-          }
-        }, 30000);
-
-        return () => clearInterval(autoSave);
-      }, [sections, storeName]);
-
-      const saveLayout = () => {
-        const layout = {
-          id: Date.now(),
-          name: storeName,
-          sections: sections,
-          savedAt: new Date().toISOString()
-        };
-        
-        const layouts = [...savedLayouts, layout];
-        setSavedLayouts(layouts);
-        localStorage.setItem('planogramLayouts', JSON.stringify(layouts));
-        localStorage.setItem('currentLayout', JSON.stringify(layout));
-        setShowSaveModal(false);
-        setFeedback('✅ Layout saved successfully!');
-        setTimeout(() => setFeedback(''), 3000);
-      };
-
-      const loadLayout = (layout) => {
-        setSections(layout.sections);
-        setStoreName(layout.name);
-        setShowLoadModal(false);
-        localStorage.setItem('currentLayout', JSON.stringify(layout));
-      };
-
-      const deleteLayout = (id) => {
-        const layouts = savedLayouts.filter(l => l.id !== id);
-        setSavedLayouts(layouts);
-        localStorage.setItem('planogramLayouts', JSON.stringify(layouts));
-      };
-
-      const exportLayout = () => {
-        const layout = { name: storeName, sections, exportedAt: new Date().toISOString() };
-        const dataStr = JSON.stringify(layout, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${storeName.replace(/\s+/g, '_')}_layout.json`;
-        link.click();
-      };
-
-      const importLayout = (event) => {
-        const file = event.target.files[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            try {
-              const layout = JSON.parse(e.target.result);
-              setSections(layout.sections || []);
-              setStoreName(layout.name || 'Imported Layout');
-            } catch (error) {
-              setFeedback('⚠️ Error importing layout');
-              setTimeout(() => setFeedback(''), 3000);
-            }
-          };
-          reader.readAsText(file);
-        }
-      };
-
-      const addSection = () => {
-        const newSection = {
-          id: Date.now(),
-          x: 50,
-          y: 50,
-          width: 100,
-          height: 100,
-          name: `Section ${sections.length + 1}`,
-          products: [],
-          salesData: Math.floor(Math.random() * 5000) + 1000
-        };
-        setSections([...sections, newSection]);
-      };
-
-      const deleteSection = (id) => {
-        setSections(sections.filter(s => s.id !== id));
-        if (selectedSection?.id === id) setSelectedSection(null);
-      };
-
-      const updateSection = (id, updates) => {
-        setSections(sections.map(s => s.id === id ? { ...s, ...updates } : s));
-        if (selectedSection?.id === id) {
-          setSelectedSection({ ...selectedSection, ...updates });
-        }
-      };
-
-      const handleUPCChange = (value) => {
-        setNewProduct({ upc: value });
-      };
-
-      const testShopifyConnection = async () => {
-        if (!shopifyConfig.accessToken) {
-          setFeedback('⚠️ Please enter access token');
-          setTimeout(() => setFeedback(''), 3000);
-          return;
-        }
-
-        setFeedback('🔄 Testing connection...');
-        console.log('Testing Shopify connection...', { storeName: shopifyConfig.storeName });
-
-        try {
-          const response = await fetch(`${BACKEND_URL}/api/shopify`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              storeName: shopifyConfig.storeName,
-              accessToken: shopifyConfig.accessToken,
-              action: 'test'
-            })
-          });
-
-          console.log('Test response status:', response.status);
-          const data = await response.json();
-          console.log('Test response data:', data);
-
-          if (response.ok && data.success) {
-            // Save to localStorage
-            localStorage.setItem('shopifyAccessToken', shopifyConfig.accessToken);
-            
-            setShopifyConfig({ ...shopifyConfig, connected: true });
-            setFeedback(`✅ Connected to ${data.shopName}!`);
-            setTimeout(() => setFeedback(''), 3000);
-            setShowSettings(false);
-          } else {
-            throw new Error(data.error || 'Invalid credentials');
-          }
-        } catch (error) {
-          console.error('Connection error:', error);
-          setFeedback(`❌ ${error.message}`);
-          setTimeout(() => setFeedback(''), 5000);
-        }
-      };
-
-      const addProductToSection = async () => {
-        if (!selectedSection) {
-          setFeedback('⚠️ Please select a section first!');
-          setTimeout(() => setFeedback(''), 3000);
-          return;
-        }
-        
-        if (!newProduct.upc || newProduct.upc.trim() === '') {
-          setFeedback('⚠️ Please enter a UPC code');
-          setTimeout(() => setFeedback(''), 3000);
-          return;
-        }
-
-        setFeedback('🔄 Looking up product...');
-        console.log('Starting product lookup for UPC:', newProduct.upc);
-        
-        let product = null;
-        
-        // Try Shopify first if connected
-        if (shopifyConfig.connected) {
-          console.log('Shopify is connected, attempting fetch...');
-          try {
-            const response = await fetch(`${BACKEND_URL}/api/shopify`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                storeName: shopifyConfig.storeName,
-                accessToken: shopifyConfig.accessToken,
-                action: 'getProduct',
-                upc: newProduct.upc
-              })
-            });
-
-            console.log('Shopify API response status:', response.status);
-            const data = await response.json();
-            console.log('Shopify API response data:', data);
-
-            if (response.ok && data.success && data.product) {
-              product = {
-                upc: newProduct.upc,
-                name: data.product.name,
-                price: data.product.price,
-                cost: data.product.cost,
-                monthlySales: data.product.monthlySales || 0,
-                quantity: 1,
-                source: 'shopify'
-              };
-              console.log('Product found in Shopify:', product);
-              setFeedback(`✅ Added from Shopify: ${product.name}`);
-            } else {
-              console.log('Product not found in Shopify, trying local database');
-            }
-          } catch (error) {
-            console.error('Error fetching from Shopify:', error);
-            setFeedback('⚠️ Shopify lookup failed, trying local data...');
-            setTimeout(() => setFeedback(''), 3000);
-          }
-        } else {
-          console.log('Shopify not connected, skipping Shopify lookup');
-        }
-        
-        // Fall back to local database if Shopify didn't find it
-        if (!product && productDatabase[newProduct.upc]) {
-          product = { 
-            upc: newProduct.upc, 
-            ...productDatabase[newProduct.upc],
-            quantity: 1,
-            source: 'sample'
-          };
-          console.log('Product found in local database:', product);
-          setFeedback(`✅ Added: ${product.name} (Sample Data)`);
-        }
-        
-        // If still no product, create placeholder
-        if (!product) {
-          product = {
-            upc: newProduct.upc,
-            name: `Product ${newProduct.upc.slice(-4)}`,
-            price: 0,
-            cost: 0,
-            monthlySales: 0,
-            quantity: 1,
-            placeholder: true,
-            source: 'placeholder'
-          };
-          console.log('Created placeholder product:', product);
-          setFeedback(`✅ Added UPC ${newProduct.upc} (Connect Shopify for details)`);
-        }
-
-        const updatedProducts = [...(selectedSection.products || []), product];
-        updateSection(selectedSection.id, { products: updatedProducts });
-        setNewProduct({ upc: '' });
-        
-        setTimeout(() => setFeedback(''), 3000);
-      };
-
-      const calculateMetrics = (section) => {
-        const area = (section.width * section.height) / (scale * scale);
-        
-        const timeMultipliers = {
-          daily: 1 / 30,
-          weekly: 7 / 30,
-          monthly: 1,
-          quarterly: 3,
-          yearly: 12
-        };
-        
-        const multiplier = timeMultipliers[timeFilter];
-        
-        let productMetrics = section.products.map(p => {
-          const unitProfit = p.price - p.cost;
-          const periodVolume = (p.monthlySales || 0) * multiplier;
-          const periodRevenue = p.price * periodVolume;
-          const periodProfit = unitProfit * periodVolume;
+    useEffect(() => {
+      const handleMouseMove = (e) => {
+        if (dragging) {
+          const rect = canvasRef.current.getBoundingClientRect();
+          let newX = (e.clientX - rect.left) / scale - offset.x;
+          let newY = (e.clientY - rect.top) / scale - offset.y;
           
-          return {
-            ...p,
-            unitProfit,
-            periodVolume,
-            periodRevenue,
-            periodProfit,
-            velocity: p.monthlySales || 0
-          };
-        });
-        
-        productMetrics.sort((a, b) => {
-          switch(sortBy) {
-            case 'profit':
-              return b.periodProfit - a.periodProfit;
-            case 'sales':
-              return b.periodRevenue - a.periodRevenue;
-            case 'velocity':
-              return b.velocity - a.velocity;
-            case 'volume':
-              return b.periodVolume - a.periodVolume;
-            case 'name':
-              return a.name.localeCompare(b.name);
-            default:
-              return 0;
+          if (snapToGrid) {
+            newX = Math.round(newX / gridSize) * gridSize;
+            newY = Math.round(newY / gridSize) * gridSize;
           }
-        });
-        
-        const totalRevenue = productMetrics.reduce((sum, p) => sum + p.periodRevenue, 0);
-        const totalCost = productMetrics.reduce((sum, p) => sum + (p.cost * p.periodVolume), 0);
-        const totalProfit = productMetrics.reduce((sum, p) => sum + p.periodProfit, 0);
-        const totalVolume = productMetrics.reduce((sum, p) => sum + p.periodVolume, 0);
-        const totalVelocity = productMetrics.reduce((sum, p) => sum + p.velocity, 0);
-        const profitPerSqFt = area > 0 ? totalProfit / area : 0;
-
-        return { 
-          area, 
-          totalRevenue, 
-          totalCost, 
-          totalProfit, 
-          profitPerSqFt,
-          totalVelocity,
-          totalVolume,
-          productMetrics
-        };
+          
+          updateFixture(fixture.id, { x: Math.max(0, newX), y: Math.max(0, newY) });
+        }
       };
 
-      const DraggableSection = ({ section }) => {
-        const [dragging, setDragging] = useState(false);
-        const [resizing, setResizing] = useState(false);
-        const [offset, setOffset] = useState({ x: 0, y: 0 });
-        
-        const metrics = calculateMetrics(section);
-        const isSelected = selectedSection?.id === section.id;
-
-        const handleMouseDown = (e) => {
-          if (e.target.classList.contains('resize-handle')) {
-            setResizing(true);
-          } else {
-            setDragging(true);
-            setOffset({
-              x: e.clientX - section.x,
-              y: e.clientY - section.y
-            });
-          }
-          setSelectedSection(section);
-        };
-
-        useEffect(() => {
-          const handleMouseMove = (e) => {
-            if (dragging) {
-              updateSection(section.id, {
-                x: Math.max(0, e.clientX - offset.x),
-                y: Math.max(0, e.clientY - offset.y)
-              });
-            } else if (resizing) {
-              updateSection(section.id, {
-                width: Math.max(50, e.clientX - section.x),
-                height: Math.max(50, e.clientY - section.y)
-              });
-            }
-          };
-
-          const handleMouseUp = () => {
-            setDragging(false);
-            setResizing(false);
-          };
-
-          if (dragging || resizing) {
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-          }
-
-          return () => {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-          };
-        }, [dragging, resizing, offset]);
-
-        return (
-          <div
-            style={{
-              position: 'absolute',
-              left: section.x,
-              top: section.y,
-              width: section.width,
-              height: section.height,
-              border: isSelected ? '3px solid #3b82f6' : '2px solid #94a3b8',
-              backgroundColor: metrics.profitPerSqFt > 100 ? '#dcfce7' : 
-                              metrics.profitPerSqFt > 50 ? '#fef9c3' : '#fee2e2',
-              cursor: dragging ? 'grabbing' : 'grab',
-              borderRadius: '8px',
-              padding: '8px',
-              boxShadow: isSelected ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
-            }}
-            onMouseDown={handleMouseDown}
-          >
-            <div className="text-xs font-bold text-gray-700 mb-1">{section.name}</div>
-            <div className="text-xs text-gray-600">
-              {metrics.area.toFixed(0)} sq ft
-            </div>
-            <div className="text-xs font-semibold text-green-700 mt-1">
-              ${metrics.profitPerSqFt.toFixed(0)}/sq ft
-            </div>
-            <div
-              className="resize-handle"
-              style={{
-                position: 'absolute',
-                right: 0,
-                bottom: 0,
-                width: '20px',
-                height: '20px',
-                cursor: 'nwse-resize',
-                backgroundColor: '#3b82f6',
-                borderRadius: '0 0 8px 0'
-              }}
-            />
-          </div>
-        );
+      const handleMouseUp = () => {
+        setDragging(false);
       };
 
-      return (
-        <div className="flex h-screen bg-gray-50">
-          {showSettings && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 w-96">
-                <h2 className="text-xl font-bold mb-4">🛍️ Shopify Connection</h2>
-                
-                {shopifyConfig.connected ? (
-                  <div className="space-y-4">
-                    <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4">
-                      <div className="text-green-800 font-semibold mb-2">✅ Connected!</div>
-                      <div className="text-sm text-green-700">Store: {shopifyConfig.storeName}</div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        localStorage.removeItem('shopifyAccessToken');
-                        setShopifyConfig({ storeName: '1m3tfh-xt.myshopify.com', accessToken: '', connected: false });
-                        setFeedback('Disconnected from Shopify');
-                        setTimeout(() => setFeedback(''), 3000);
-                      }}
-                      className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-                    >
-                      Disconnect
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
-                      <strong>Note:</strong> Just enter your Admin API Access Token below.
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Admin API Access Token
-                      </label>
-                      <input
-                        type="password"
-                        value={shopifyConfig.accessToken}
-                        onChange={(e) => setShopifyConfig({...shopifyConfig, accessToken: e.target.value})}
-                        className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
-                        placeholder="shpat_..."
-                      />
-                    </div>
-                    
-                    <button
-                      onClick={testShopifyConnection}
-                      className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                    >
-                      Test Connection
-                    </button>
-                  </div>
-                )}
-                
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="w-full bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 mt-4"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
+      if (dragging) {
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+      }
 
-          {showSaveModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 w-96">
-                <h2 className="text-xl font-bold mb-4">Save Layout</h2>
-                <input
-                  type="text"
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg mb-4"
-                  placeholder="Layout name"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={saveLayout}
-                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => setShowSaveModal(false)}
-                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }, [dragging, offset]);
 
-          {showLoadModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 w-96 max-h-96 overflow-y-auto">
-                <h2 className="text-xl font-bold mb-4">Load Layout</h2>
-                {savedLayouts.length === 0 ? (
-                  <p className="text-gray-600 text-center py-4">No saved layouts yet</p>
-                ) : (
-                  <div className="space-y-2">
-                    {savedLayouts.map(layout => (
-                      <div key={layout.id} className="border rounded-lg p-3 flex justify-between items-center">
-                        <div>
-                          <div className="font-semibold">{layout.name}</div>
-                          <div className="text-xs text-gray-600">
-                            {new Date(layout.savedAt).toLocaleString()}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {layout.sections.length} sections
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => loadLayout(layout)}
-                            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
-                          >
-                            Load
-                          </button>
-                          <button
-                            onClick={() => deleteLayout(layout.id)}
-                            className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <button
-                  onClick={() => setShowLoadModal(false)}
-                  className="w-full bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 mt-4"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
+    const renderFixtureVisual = () => {
+      const baseProps = {
+        width: (fixture.width || 0) * scale,
+        height: (fixture.height || 0) * scale,
+        rx: 4
+      };
 
-          <div className="w-80 bg-white shadow-lg p-6 overflow-y-auto">
-            <h1 className="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-              <Icons.BarChart3 />
-              Store Planner
-              {shopifyConfig.connected && (
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                  Shopify ✓
-                </span>
-              )}
-            </h1>
+      const fillColor = viewMode === 'heatmap' ? getHeatmapColor(metrics.profitPerSqFt || 0) : type.color;
+      const fillOpacity = viewMode === 'heatmap' ? 0.7 : 0.2;
+
+      switch (fixture.type) {
+        case 'GRID_WALL':
+          return (
+            <g>
+              <rect {...baseProps} fill={fillColor} fillOpacity={fillOpacity} 
+                    stroke={isSelected ? '#3b82f6' : type.color} strokeWidth={isSelected ? 4 : 2} />
+              {Array.from({ length: 8 }).map((_, i) => (
+                <line key={`v-${i}`} x1={i * fixture.width * scale / 7} y1={0}
+                      x2={i * fixture.width * scale / 7} y2={fixture.height * scale}
+                      stroke={type.color} strokeWidth={1} opacity={0.3} />
+              ))}
+              {Array.from({ length: 10 }).map((_, i) => (
+                <line key={`h-${i}`} x1={0} y1={i * fixture.height * scale / 9}
+                      x2={fixture.width * scale} y2={i * fixture.height * scale / 9}
+                      stroke={type.color} strokeWidth={1} opacity={0.3} />
+              ))}
+            </g>
+          );
+
+        case 'JEWELRY_CASE':
+          return (
+            <g>
+              <rect {...baseProps} fill={fillColor} fillOpacity={fillOpacity}
+                    stroke={isSelected ? '#3b82f6' : type.color} strokeWidth={isSelected ? 4 : 2} />
+              <rect x={5} y={5} width={fixture.width * scale - 10} height={fixture.height * scale - 10}
+                    fill="white" fillOpacity={0.3} stroke={type.color} strokeWidth={1} rx={2} />
+              <line x1={fixture.width * scale / 2} y1={5}
+                    x2={fixture.width * scale / 2} y2={fixture.height * scale - 5}
+                    stroke={type.color} strokeWidth={1} opacity={0.4} />
+              <line x1={5} y1={fixture.height * scale / 2}
+                    x2={fixture.width * scale - 5} y2={fixture.height * scale / 2}
+                    stroke={type.color} strokeWidth={1} opacity={0.4} />
+            </g>
+          );
+
+        case 'GONDOLA':
+          return (
+            <g>
+              <rect {...baseProps} fill={fillColor} fillOpacity={fillOpacity}
+                    stroke={isSelected ? '#3b82f6' : type.color} strokeWidth={isSelected ? 4 : 2} />
+              {fixture.subSections.map((_, i) => (
+                <line key={i} x1={0} y1={i * fixture.height * scale / fixture.subSections.length}
+                      x2={fixture.width * scale} y2={i * fixture.height * scale / fixture.subSections.length}
+                      stroke={type.color} strokeWidth={2} opacity={0.6} />
+              ))}
+              <rect x={0} y={0} width={8} height={fixture.height * scale}
+                    fill={type.color} fillOpacity={0.5} />
+              <rect x={fixture.width * scale - 8} y={0} width={8} height={fixture.height * scale}
+                    fill={type.color} fillOpacity={0.5} />
+            </g>
+          );
+
+        case 'SLAT_WALL':
+          return (
+            <g>
+              <rect {...baseProps} fill={fillColor} fillOpacity={fillOpacity}
+                    stroke={isSelected ? '#3b82f6' : type.color} strokeWidth={isSelected ? 4 : 2} />
+              {Array.from({ length: 12 }).map((_, i) => (
+                <line key={i} x1={0} y1={i * fixture.height * scale / 11}
+                      x2={fixture.width * scale} y2={i * fixture.height * scale / 11}
+                      stroke={type.color} strokeWidth={2} opacity={0.4} />
+              ))}
+            </g>
+          );
+
+        case 'ENDCAP':
+          return (
+            <g>
+              <rect {...baseProps} fill={fillColor} fillOpacity={fillOpacity}
+                    stroke={isSelected ? '#3b82f6' : type.color} strokeWidth={isSelected ? 4 : 2} />
+              {fixture.subSections.map((_, i) => (
+                <line key={i} x1={0} y1={i * fixture.height * scale / fixture.subSections.length}
+                      x2={fixture.width * scale} y2={i * fixture.height * scale / fixture.subSections.length}
+                      stroke={type.color} strokeWidth={2} opacity={0.5} />
+              ))}
+              <rect x={0} y={0} width={fixture.width * scale} height={12}
+                    fill={type.color} fillOpacity={0.6} />
+            </g>
+          );
+
+        default:
+          return <rect {...baseProps} fill={fillColor} fillOpacity={fillOpacity}
+                       stroke={isSelected ? '#3b82f6' : type.color} strokeWidth={isSelected ? 4 : 2} />;
+      }
+    };
+
+    return (
+      <g transform={`translate(${fixture.x * scale}, ${fixture.y * scale})`}
+         onMouseDown={handleMouseDown}
+         style={{ cursor: dragging ? 'grabbing' : 'grab' }}>
+        {renderFixtureVisual()}
+        <text x={5} y={15} fontSize="12" fill={type.color} fontWeight="bold">
+          {fixture.name}
+        </text>
+        {viewMode !== 'heatmap' && (
+          <text x={5} y={(fixture.height || 0) * scale - 5} fontSize="10" fill="#059669" fontWeight="bold">
+            ${(metrics.profitPerSqFt || 0).toFixed(0)}/sqft
+          </text>
+        )}
+      </g>
+    );
+  };
+
+  const saveLayout = () => {
+    const layout = {
+      id: Date.now(),
+      name: storeName,
+      fixtures,
+      savedAt: new Date().toISOString()
+    };
+    
+    const layouts = [...savedLayouts, layout];
+    setSavedLayouts(layouts);
+    localStorage.setItem('planogramLayouts', JSON.stringify(layouts));
+    localStorage.setItem('currentLayout', JSON.stringify(layout));
+    setShowSaveModal(false);
+    showFeedback('✅ Layout saved successfully!');
+  };
+
+  const loadLayout = (layout) => {
+    setFixtures(layout.fixtures);
+    setStoreName(layout.name);
+    setShowLoadModal(false);
+    localStorage.setItem('currentLayout', JSON.stringify(layout));
+  };
+
+  const deleteLayout = (id) => {
+    const layouts = savedLayouts.filter(l => l.id !== id);
+    setSavedLayouts(layouts);
+    localStorage.setItem('planogramLayouts', JSON.stringify(layouts));
+  };
+
+  const exportLayout = () => {
+    const layout = { name: storeName, fixtures, exportedAt: new Date().toISOString() };
+    const dataStr = JSON.stringify(layout, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${storeName.replace(/\s+/g, '_')}_layout.json`;
+    link.click();
+  };
+
+  const importLayout = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const layout = JSON.parse(e.target.result);
+          setFixtures(layout.fixtures || []);
+          setStoreName(layout.name || 'Imported Layout');
+          showFeedback('✅ Layout imported successfully!');
+        } catch (error) {
+          showFeedback('⚠️ Error importing layout');
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleBackgroundUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setBackgroundImage(e.target.result);
+        showFeedback('✅ Background image uploaded!');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Modals */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-96 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+              <Settings className="text-blue-600" />
+              Shopify Connection
+            </h2>
             
-            {feedback && (
-              <div className="bg-blue-100 border-2 border-blue-400 text-blue-800 px-3 py-2 rounded-lg text-sm font-semibold mb-3">
-                {feedback}
+            {shopifyConfig.connected ? (
+              <div className="space-y-4">
+                <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4">
+                  <div className="text-green-800 font-semibold mb-2">✅ Connected!</div>
+                  <div className="text-sm text-green-700">Store: {shopifyConfig.storeName}</div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShopifyConfig({ storeName: '', accessToken: '', connected: false });
+                    showFeedback('Disconnected from Shopify');
+                  }}
+                  className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+                >
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+                  <strong>Note:</strong> Enter your Shopify credentials to connect.
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Store Name
+                  </label>
+                  <input
+                    type="text"
+                    value={shopifyConfig.storeName}
+                    onChange={(e) => setShopifyConfig({...shopifyConfig, storeName: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="your-store.myshopify.com"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Admin API Access Token
+                  </label>
+                  <input
+                    type="password"
+                    value={shopifyConfig.accessToken}
+                    onChange={(e) => setShopifyConfig({...shopifyConfig, accessToken: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    placeholder="shpat_..."
+                  />
+                </div>
+                
+                <button
+                  onClick={testShopifyConnection}
+                  className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                >
+                  Test Connection
+                </button>
               </div>
             )}
             
+            <button
+              onClick={() => setShowSettings(false)}
+              className="w-full bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 mt-4 transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-96 shadow-2xl">
+            <h2 className="text-xl font-bold mb-4">Save Layout</h2>
             <input
               type="text"
               value={storeName}
               onChange={(e) => setStoreName(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg mb-4 text-sm"
-              placeholder="Store layout name"
+              className="w-full px-3 py-2 border rounded-lg mb-4"
+              placeholder="Layout name"
             />
-
-            <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="flex gap-2">
               <button
-                onClick={() => setShowSaveModal(true)}
-                className="bg-green-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-green-700 text-sm"
+                onClick={saveLayout}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
               >
-                <Icons.Save />
                 Save
               </button>
               <button
-                onClick={() => setShowLoadModal(true)}
-                className="bg-purple-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 text-sm"
+                onClick={() => setShowSaveModal(false)}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition"
               >
-                <Icons.Upload />
-                Load
+                Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
 
+      {showLoadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-96 max-h-96 overflow-y-auto shadow-2xl">
+            <h2 className="text-xl font-bold mb-4">Load Layout</h2>
+            {savedLayouts.length === 0 ? (
+              <p className="text-gray-600 text-center py-4">No saved layouts yet</p>
+            ) : (
+              <div className="space-y-2">
+                {savedLayouts.map(layout => (
+                  <div key={layout.id} className="border rounded-lg p-3 flex justify-between items-center hover:bg-gray-50 transition">
+                    <div>
+                      <div className="font-semibold">{layout.name}</div>
+                      <div className="text-xs text-gray-600">
+                        {new Date(layout.savedAt).toLocaleString()}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {layout.fixtures?.length || 0} fixtures
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => loadLayout(layout)}
+                        className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition"
+                      >
+                        Load
+                      </button>
+                      <button
+                        onClick={() => deleteLayout(layout.id)}
+                        className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setShowLoadModal(false)}
+              className="w-full bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 mt-4 transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Fixture Library Sidebar */}
+      <div className={`${showLibrary ? 'w-72' : 'w-0'} bg-white border-r-2 border-gray-200 transition-all duration-300 flex-shrink-0 overflow-hidden shadow-lg`}>
+        <div className="p-4 overflow-y-auto h-full">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">Fixture Library</h2>
+            {shopifyConfig.connected && (
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                Shopify ✓
+              </span>
+            )}
+          </div>
+          
+          {feedback && (
+            <div className="bg-blue-100 border-2 border-blue-400 text-blue-800 px-3 py-2 rounded-lg text-sm font-semibold mb-3 animate-pulse">
+              {feedback}
+            </div>
+          )}
+          
+          <div className="space-y-2 mb-6">
+            {Object.entries(FIXTURE_TYPES).map(([key, type]) => {
+              const Icon = type.icon;
+              return (
+                <button
+                  key={key}
+                  onClick={() => addFixtureFromLibrary(key)}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all transform hover:scale-105"
+                  style={{ borderColor: type.color + '40' }}
+                >
+                  <Icon size={24} style={{ color: type.color }} />
+                  <span className="font-medium text-gray-700">{type.name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="space-y-2 mb-6">
             <button
               onClick={() => setShowSettings(true)}
-              className={`w-full ${shopifyConfig.connected ? 'bg-green-600' : 'bg-blue-600'} text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 text-sm mb-4`}
+              className={`w-full ${shopifyConfig.connected ? 'bg-green-600' : 'bg-blue-600'} text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition`}
             >
-              🛍️ {shopifyConfig.connected ? 'Shopify Connected' : 'Connect Shopify'}
+              <Settings size={16} />
+              {shopifyConfig.connected ? 'Shopify Connected' : 'Connect Shopify'}
             </button>
-
-            <div className="grid grid-cols-2 gap-2 mb-6">
+            
+            <button
+              onClick={() => setShowSaveModal(true)}
+              className="w-full bg-purple-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 transition"
+            >
+              <Save size={16} />
+              Save Layout
+            </button>
+            
+            <button
+              onClick={() => setShowLoadModal(true)}
+              className="w-full bg-orange-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-orange-700 transition"
+            >
+              <Upload size={16} />
+              Load Layout
+            </button>
+            
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={exportLayout}
-                className="bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-700 text-sm"
+                className="bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition text-sm"
               >
-                <Icons.Download />
+                <Download size={14} />
                 Export
               </button>
-              <label className="bg-orange-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-orange-700 text-sm cursor-pointer">
-                <Icons.Upload />
+              <label className="bg-teal-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-teal-700 transition text-sm cursor-pointer">
+                <Upload size={14} />
                 Import
                 <input
                   type="file"
@@ -689,374 +846,403 @@
                 />
               </label>
             </div>
+            
+            <label className="w-full bg-indigo-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition cursor-pointer">
+              <Camera size={16} />
+              Add Background
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleBackgroundUpload}
+                className="hidden"
+                ref={fileInputRef}
+              />
+            </label>
+          </div>
 
-            <button
-              onClick={addSection}
-              className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg mb-6 flex items-center justify-center gap-2 hover:bg-blue-700 transition"
-            >
-              <Icons.Plus />
-              Add Section
-            </button>
-
-            {selectedSection ? (
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-gray-800">
-                    ✓ Selected: {selectedSection.name}
-                  </h2>
-                  <button
-                    onClick={() => deleteSection(selectedSection.id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <Icons.Trash2 />
-                  </button>
-                </div>
-
-                <input
-                  type="text"
-                  value={selectedSection.name}
-                  onChange={(e) => updateSection(selectedSection.id, { name: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg mb-4"
-                  placeholder="Section name"
-                />
-
-                <div className="space-y-3 mb-4 bg-white p-3 rounded-lg">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-700 block mb-1">
-                      Square Footage
-                    </label>
-                    <input
-                      type="number"
-                      value={calculateMetrics(selectedSection).area.toFixed(1)}
-                      onChange={(e) => {
-                        const newArea = parseFloat(e.target.value) || 0;
-                        const currentAspectRatio = selectedSection.width / selectedSection.height;
-                        const newWidth = Math.sqrt(newArea * scale * scale * currentAspectRatio);
-                        const newHeight = newWidth / currentAspectRatio;
-                        updateSection(selectedSection.id, {
-                          width: Math.round(newWidth),
-                          height: Math.round(newHeight)
-                        });
-                      }}
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-semibold"
-                      placeholder="Square feet"
-                      step="0.1"
-                      min="0"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs font-semibold text-gray-700 block mb-1">
-                        Width (px)
-                      </label>
-                      <input
-                        type="number"
-                        value={selectedSection.width}
-                        onChange={(e) => updateSection(selectedSection.id, { 
-                          width: Math.max(50, parseInt(e.target.value) || 50)
-                        })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                        min="50"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-700 block mb-1">
-                        Height (px)
-                      </label>
-                      <input
-                        type="number"
-                        value={selectedSection.height}
-                        onChange={(e) => updateSection(selectedSection.id, { 
-                          height: Math.max(50, parseInt(e.target.value) || 50)
-                        })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                        min="50"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs font-semibold text-gray-700 block mb-1">
-                        X Position
-                      </label>
-                      <input
-                        type="number"
-                        value={selectedSection.x}
-                        onChange={(e) => updateSection(selectedSection.id, { 
-                          x: Math.max(0, parseInt(e.target.value) || 0)
-                        })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                        min="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-700 block mb-1">
-                        Y Position
-                      </label>
-                      <input
-                        type="number"
-                        value={selectedSection.y}
-                        onChange={(e) => updateSection(selectedSection.id, { 
-                          y: Math.max(0, parseInt(e.target.value) || 0)
-                        })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                        min="0"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <Icons.Package />
-                  Scan Product UPC
-                </h3>
-
-                <div className="space-y-2">
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Grid size={16} />
+              Grid Settings
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Snap to Grid</span>
+                <button
+                  onClick={() => setSnapToGrid(!snapToGrid)}
+                  className={`px-3 py-1 rounded ${snapToGrid ? 'bg-green-500 text-white' : 'bg-gray-300'} transition`}
+                >
+                  {snapToGrid ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              {snapToGrid && (
+                <div>
+                  <label className="text-xs text-gray-600 block mb-1">Grid Size (ft)</label>
                   <input
-                    type="text"
-                    value={newProduct.upc}
-                    onChange={(e) => handleUPCChange(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addProductToSection();
-                      }
-                    }}
-                    className="w-full px-3 py-2 border-2 border-blue-300 rounded-lg text-sm font-mono"
-                    placeholder="Scan UPC here..."
+                    type="number"
+                    value={gridSize}
+                    onChange={(e) => setGridSize(Math.max(0.5, parseFloat(e.target.value) || 1))}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                    step="0.5"
+                    min="0.5"
                   />
-                  <button
-                    onClick={addProductToSection}
-                    className="w-full bg-green-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-700"
-                  >
-                    Add to Section
-                  </button>
-                  <div className="text-xs text-gray-500 italic">
-                    {shopifyConfig.connected ? 'Will fetch from Shopify' : 'Connect Shopify for live data'}
-                  </div>
                 </div>
-
-                {selectedSection.products && selectedSection.products.length > 0 && (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-gray-700">Products in Section</h4>
-                    </div>
-                    
-                    <div className="mb-3 p-3 bg-gray-50 rounded-lg space-y-2">
-                      <div>
-                        <label className="text-xs font-semibold text-gray-700 block mb-1">
-                          Time Period
-                        </label>
-                        <select
-                          value={timeFilter}
-                          onChange={(e) => setTimeFilter(e.target.value)}
-                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                        >
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="monthly">Monthly</option>
-                          <option value="quarterly">Quarterly</option>
-                          <option value="yearly">Yearly</option>
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="text-xs font-semibold text-gray-700 block mb-1">
-                          Sort By
-                        </label>
-                        <select
-                          value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value)}
-                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                        >
-                          <option value="profit">Highest Profit</option>
-                          <option value="sales">Highest Sales</option>
-                          <option value="volume">Highest Volume</option>
-                          <option value="velocity">Fastest Moving</option>
-                          <option value="name">Product Name</option>
-                        </select>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {(() => {
-                        const metrics = calculateMetrics(selectedSection);
-                        return metrics.productMetrics.map((product, idx) => (
-                          <div key={idx} className="text-xs bg-white p-3 rounded border">
-                            <div className="font-medium flex items-center gap-2 mb-1">
-                              {product.name}
-                              {product.source === 'shopify' && (
-                                <span className="text-green-600 text-xs">🛍️ Shopify</span>
-                              )}
-                              {product.source === 'sample' && (
-                                <span className="text-blue-600 text-xs">📦 Sample</span>
-                              )}
-                              {product.placeholder && (
-                                <span className="text-orange-600 text-xs">⚠ Placeholder</span>
-                              )}
-                            </div>
-                            <div className="text-gray-600 font-mono text-xs mb-2">
-                              UPC: {product.upc}
-                            </div>
-                            {!product.placeholder && (
-                              <div className="grid grid-cols-2 gap-1 text-xs">
-                                <div className="text-gray-700">
-                                  <span className="font-semibold">Price:</span> ${product.price.toFixed(2)}
-                                </div>
-                                <div className="text-gray-700">
-                                  <span className="font-semibold">Cost:</span> ${product.cost.toFixed(2)}
-                                </div>
-                                <div className="text-green-700">
-                                  <span className="font-semibold">Profit/Unit:</span> ${product.unitProfit.toFixed(2)}
-                                </div>
-                                <div className="text-orange-700 font-bold">
-                                  <span className="font-semibold">Volume:</span> {Math.round(product.periodVolume)} units
-                                </div>
-                                <div className="text-blue-700">
-                                  <span className="font-semibold">Velocity:</span> {product.velocity} /mo
-                                </div>
-                                <div className="text-purple-700">
-                                  <span className="font-semibold">Sales:</span> ${product.periodRevenue.toFixed(0)}
-                                </div>
-                                <div className="text-green-700 font-bold col-span-2">
-                                  <span className="font-semibold">Profit ({timeFilter}):</span> ${product.periodProfit.toFixed(0)}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                    
-                    <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border-2 border-blue-200">
-                      <h4 className="font-bold text-gray-800 mb-2 text-sm">Section Totals ({timeFilter.charAt(0).toUpperCase() + timeFilter.slice(1)})</h4>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="text-orange-700 font-bold">
-                          <span className="font-semibold">Volume:</span> {Math.round(calculateMetrics(selectedSection).totalVolume)} units
-                        </div>
-                        <div className="text-blue-700">
-                          <span className="font-semibold">Velocity:</span> {calculateMetrics(selectedSection).totalVelocity} /mo
-                        </div>
-                        <div className="text-gray-700">
-                          <span className="font-semibold">Sales:</span> ${calculateMetrics(selectedSection).totalRevenue.toFixed(0)}
-                        </div>
-                        <div className="text-green-700 font-bold">
-                          <span className="font-semibold">Profit:</span> ${calculateMetrics(selectedSection).totalProfit.toFixed(0)}
-                        </div>
-                        <div className="text-purple-700 font-bold col-span-2">
-                          <span className="font-semibold">Profit/Sq Ft:</span> ${calculateMetrics(selectedSection).profitPerSqFt.toFixed(2)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-gray-100 rounded-lg p-4 text-center text-gray-600">
-                <p className="text-sm">Click on a section to select it</p>
-              </div>
-            )}
-
-            <div className="bg-gray-100 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <Icons.DollarSign />
-                Sample UPCs (Try These!)
-              </h3>
-              <div className="space-y-1 text-xs text-gray-600">
-                {Object.entries(productDatabase).map(([upc, product]) => (
-                  <div key={upc} className="bg-white p-2 rounded">
-                    <div className="font-medium">{product.name}</div>
-                    <div className="font-mono">{upc}</div>
-                  </div>
-                ))}
-              </div>
+              )}
             </div>
           </div>
 
-          <div className="flex-1 relative overflow-hidden">
-            <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-4 z-10 max-w-sm">
-              <div className="text-sm font-semibold text-gray-700 mb-3 border-b pb-2">
-                📊 Store Performance ({timeFilter.charAt(0).toUpperCase() + timeFilter.slice(1)})
-              </div>
-              {sections.length === 0 ? (
-                <div className="text-xs text-gray-500 italic">Add sections to see metrics</div>
-              ) : (
-                <>
-                  {sections.map(section => {
-                    const metrics = calculateMetrics(section);
-                    return (
-                      <div key={section.id} className="text-xs mb-3 pb-3 border-b last:border-b-0">
-                        <div className="font-bold text-gray-800 mb-1">{section.name}</div>
-                        <div className="grid grid-cols-2 gap-1">
-                          <div className="text-gray-600">
-                            <span className="font-semibold">Area:</span> {metrics.area.toFixed(0)} sq ft
-                          </div>
-                          <div className="text-purple-700 font-bold">
-                            <span className="font-semibold">$/sq ft:</span> ${metrics.profitPerSqFt.toFixed(0)}
-                          </div>
-                          <div className="text-orange-700 font-bold">
-                            <span className="font-semibold">Volume:</span> {Math.round(metrics.totalVolume)} units
-                          </div>
-                          <div className="text-blue-700">
-                            <span className="font-semibold">Velocity:</span> {metrics.totalVelocity} /mo
-                          </div>
-                          <div className="text-gray-700">
-                            <span className="font-semibold">Sales:</span> ${metrics.totalRevenue.toFixed(0)}
-                          </div>
-                          <div className="text-green-700 font-bold">
-                            <span className="font-semibold">Profit:</span> ${metrics.totalProfit.toFixed(0)}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  
-                  {sections.length > 1 && (
-                    <div className="mt-3 pt-3 border-t-2 border-gray-300">
-                      <div className="font-bold text-gray-800 mb-2">🏪 Store Totals</div>
-                      <div className="grid grid-cols-2 gap-1 text-xs">
-                        <div className="text-orange-700 font-bold">
-                          Volume: {Math.round(sections.reduce((sum, s) => sum + calculateMetrics(s).totalVolume, 0))} units
-                        </div>
-                        <div className="text-blue-700">
-                          Sales: ${sections.reduce((sum, s) => sum + calculateMetrics(s).totalRevenue, 0).toFixed(0)}
-                        </div>
-                        <div className="text-green-700 font-bold col-span-2">
-                          Profit: ${sections.reduce((sum, s) => sum + calculateMetrics(s).totalProfit, 0).toFixed(0)}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            <div className="w-full h-full bg-white relative" style={{ 
-              backgroundImage: 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)',
-              backgroundSize: '20px 20px'
-            }}>
-              {sections.map(section => (
-                <DraggableSection key={section.id} section={section} />
-              ))}
-              
-              {sections.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                  <div className="text-center">
-                    <Icons.Maximize2 />
-                    <div>Click "Add Section" to start designing your store</div>
-                  </div>
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4">
+            <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Package size={16} />
+              Sample UPCs
+            </h3>
+            <div className="space-y-2 text-xs">
+              {Object.entries(productDatabase).slice(0, 3).map(([upc, product]) => (
+                <div key={upc} className="bg-white p-2 rounded border border-blue-200">
+                  <div className="font-medium text-gray-700">{product.name}</div>
+                  <div className="font-mono text-gray-500">{upc}</div>
                 </div>
-              )}
+              ))}
             </div>
           </div>
         </div>
-      );
-    };
+      </div>
 
-    const root = createRoot(document.getElementById('root'));
-    root.render(<PlanogramProfitTracker />);
-  </script>
-</body>
-</html>
+      {/* Main Canvas Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Top Toolbar */}
+        <div className="bg-white border-b-2 border-gray-200 p-4 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowLibrary(!showLibrary)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition flex items-center gap-2"
+            >
+              {showLibrary ? <EyeOff size={16} /> : <Eye size={16} />}
+              {showLibrary ? 'Hide' : 'Show'} Library
+            </button>
+            
+            <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg">
+              <span className="text-sm font-medium text-gray-700">View:</span>
+              <button
+                onClick={() => setViewMode('2d')}
+                className={`px-3 py-1 rounded ${viewMode === '2d' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'} transition text-sm`}
+              >
+                2D
+              </button>
+              <button
+                onClick={() => setViewMode('heatmap')}
+                className={`px-3 py-1 rounded ${viewMode === 'heatmap' ? 'bg-red-600 text-white' : 'bg-white text-gray-700'} transition text-sm`}
+              >
+                Heatmap
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Scale:</span>
+              <input
+                type="range"
+                min="30"
+                max="100"
+                value={scale}
+                onChange={(e) => setScale(Number(e.target.value))}
+                className="w-32"
+              />
+              <span className="text-sm font-medium">{scale}px/ft</span>
+            </div>
+            
+            <button
+              onClick={() => setShowStats(!showStats)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition flex items-center gap-2"
+            >
+              <TrendingUp size={16} />
+              {showStats ? 'Hide' : 'Show'} Stats
+            </button>
+          </div>
+        </div>
+
+        {/* Canvas */}
+        <div className="flex-1 overflow-auto bg-gray-100 relative">
+          <svg
+            ref={canvasRef}
+            width={100 * scale}
+            height={100 * scale}
+            className="bg-white"
+            onClick={handleCanvasClick}
+            style={{ 
+              cursor: 'default',
+              backgroundImage: backgroundImage ? `url(${backgroundImage})` : 
+                snapToGrid ? `
+                  linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px)
+                ` : 'none',
+              backgroundSize: backgroundImage ? 'cover' : `${gridSize * scale}px ${gridSize * scale}px`,
+              backgroundPosition: backgroundImage ? 'center' : '0 0'
+            }}
+          >
+            {fixtures.map(fixture => (
+              <DraggableFixture key={fixture.id} fixture={fixture} />
+            ))}
+            
+            {fixtures.length === 0 && !backgroundImage && (
+              <text x="50%" y="50%" textAnchor="middle" fontSize="24" fill="#9ca3af">
+                Click fixture types to add them to your store
+              </text>
+            )}
+          </svg>
+        </div>
+      </div>
+
+      {/* Right Panel - Fixture Details */}
+      {selectedFixture && (
+        <div className="w-96 bg-white border-l-2 border-gray-200 overflow-y-auto shadow-lg">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-800">{selectedFixture.name}</h2>
+              <button
+                onClick={() => deleteFixture(selectedFixture.id)}
+                className="p-2 text-red-600 hover:bg-red-50 rounded transition"
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
+
+            {/* Fixture-level metrics */}
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl mb-6 border-2 border-green-200">
+              {(() => {
+                const metrics = calculateFixtureMetrics(selectedFixture);
+                return (
+                  <>
+                    <div className="text-3xl font-bold text-green-700 mb-1">
+                      ${(metrics.profitPerSqFt || 0).toFixed(2)}/sq ft
+                    </div>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Profit:</span>
+                        <span className="font-bold">${(metrics.profit || 0).toFixed(2)}/mo</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Area:</span>
+                        <span className="font-bold">{(metrics.sqFt || 0).toFixed(1)} sq ft</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Products:</span>
+                        <span className="font-bold">{metrics.totalProducts || 0}</span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Fixture Properties */}
+            <div className="mb-6 space-y-4 bg-gray-50 p-4 rounded-lg">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Fixture Name</label>
+                <input
+                  type="text"
+                  value={selectedFixture.name}
+                  onChange={(e) => updateFixture(selectedFixture.id, { name: e.target.value })}
+                  className="w-full p-2 border rounded-lg"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Dimensions (feet)</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Width</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={(selectedFixture.width || 0).toFixed(1)}
+                      onChange={(e) => updateFixture(selectedFixture.id, { width: Math.max(1, parseFloat(e.target.value) || 1) })}
+                      className="w-full p-2 border rounded text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Height</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={(selectedFixture.height || 0).toFixed(1)}
+                      onChange={(e) => updateFixture(selectedFixture.id, { height: Math.max(1, parseFloat(e.target.value) || 1) })}
+                      className="w-full p-2 border rounded text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {((selectedFixture.width || 0) * (selectedFixture.height || 0)).toFixed(1)} sq ft total
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Face Count</label>
+                <input
+                  type="number"
+                  value={selectedFixture.faceCount}
+                  onChange={(e) => updateFixture(selectedFixture.id, { faceCount: Math.max(1, parseInt(e.target.value)) })}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+            </div>
+
+            {/* UPC Scanner */}
+            {selectedSubSection && (
+              <div className="mb-6 p-4 bg-blue-50 rounded-xl border-2 border-blue-300 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-bold text-blue-900">Scanning: {selectedSubSection.name}</h4>
+                  <button
+                    onClick={() => setSelectedSubSection(null)}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Scan UPC..."
+                    value={upcInput}
+                    onChange={(e) => setUpcInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleScanUPC()}
+                    className="flex-1 p-2 border-2 border-blue-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleScanUPC}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Sub-sections */}
+            <div>
+              <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <Layers size={16} />
+                {FIXTURE_TYPES[selectedFixture.type].subSectionType.charAt(0).toUpperCase() + 
+                 FIXTURE_TYPES[selectedFixture.type].subSectionType.slice(1)}
+              </h3>
+              
+              <div className="space-y-3">
+                {selectedFixture.subSections.map((subSection) => {
+                  const metrics = calculateSubSectionMetrics(subSection);
+                  const isSelected = selectedSubSection?.id === subSection.id;
+                  
+                  return (
+                    <div
+                      key={subSection.id}
+                      className={`border-2 rounded-xl p-3 cursor-pointer transition-all transform hover:scale-102 ${
+                        isSelected ? 'border-blue-500 bg-blue-50 shadow-lg' : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => setSelectedSubSection(subSection)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-gray-800">{subSection.name}</span>
+                        <span className="text-sm font-bold text-green-600">
+                          ${(metrics.profit || 0).toFixed(0)}/mo
+                        </span>
+                      </div>
+                      
+                      <div className="text-xs text-gray-600 mb-2">
+                        {metrics.productCount || 0} products
+                      </div>
+
+                      {subSection.products.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                          {subSection.products.map((product) => (
+                            <div key={product.id} className="flex items-start justify-between text-xs bg-white p-2 rounded border border-gray-200 shadow-sm">
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-800 flex items-center gap-1">
+                                  {product.name}
+                                  {product.source === 'shopify' && <span className="text-green-600">🛍️</span>}
+                                </div>
+                                <div className="text-gray-600">${(product.price || 0).toFixed(2)} | Cost: ${(product.cost || 0).toFixed(2)}</div>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteProduct(subSection.id, product.id);
+                                }}
+                                className="ml-2 text-red-500 hover:text-red-700 transition"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stats Overlay */}
+      {showStats && fixtures.length > 0 && (
+        <div className="fixed bottom-4 right-4 bg-white rounded-xl shadow-2xl p-6 max-w-md border-2 border-gray-200 z-40">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <BarChart3 size={20} />
+              Store Performance
+            </h3>
+            <button
+              onClick={() => setShowStats(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="space-y-3">
+            {fixtures.map(fixture => {
+              const metrics = calculateFixtureMetrics(fixture);
+              return (
+                <div key={fixture.id} className="bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg border border-gray-200">
+                  <div className="font-bold text-gray-800 mb-2">{fixture.name}</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="text-gray-700">
+                      <span className="font-semibold">Area:</span> {(metrics.sqFt || 0).toFixed(1)} sq ft
+                    </div>
+                    <div className="text-purple-700 font-bold">
+                      <span className="font-semibold">$/sq ft:</span> ${(metrics.profitPerSqFt || 0).toFixed(0)}
+                    </div>
+                    <div className="text-blue-700">
+                      <span className="font-semibold">Revenue:</span> ${(metrics.totalRevenue || 0).toFixed(0)}
+                    </div>
+                    <div className="text-green-700 font-bold">
+                      <span className="font-semibold">Profit:</span> ${(metrics.totalProfit || 0).toFixed(0)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {fixtures.length > 1 && (
+              <div className="mt-4 pt-4 border-t-2 border-gray-300 bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg">
+                <div className="font-bold text-gray-800 mb-2">🏪 Store Totals</div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-blue-700 font-bold">
+                    Revenue: ${fixtures.reduce((sum, f) => sum + calculateFixtureMetrics(f).totalRevenue, 0).toFixed(0)}
+                  </div>
+                  <div className="text-green-700 font-bold">
+                    Profit: ${fixtures.reduce((sum, f) => sum + calculateFixtureMetrics(f).totalProfit, 0).toFixed(0)}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PlanogramProfitTrackerPro;
