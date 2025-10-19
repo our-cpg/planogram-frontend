@@ -43,12 +43,12 @@
       const [sortBy, setSortBy] = useState('profit');
       const [showSettings, setShowSettings] = useState(false);
       const [shopifyConfig, setShopifyConfig] = useState({
-        storeName: '',
+        storeName: '1m3tfh-xt.myshopify.com',
         accessToken: '',
         connected: false
       });
       
-const BACKEND_URL = 'https://planogram-backend-jbf4.onrender.com';
+const BACKEND_URL = 'https://planogram-backend-jbf4.onrender.com';   
       
       const productDatabase = {
         '123456789012': { name: 'Premium Coffee Beans', price: 24.99, cost: 12.50, monthlySales: 145 },
@@ -61,6 +61,16 @@ const BACKEND_URL = 'https://planogram-backend-jbf4.onrender.com';
       useEffect(() => {
         const layouts = JSON.parse(localStorage.getItem('planogramLayouts') || '[]');
         setSavedLayouts(layouts);
+        
+        // Load saved access token
+        const savedToken = localStorage.getItem('shopifyAccessToken');
+        if (savedToken) {
+          setShopifyConfig({
+            storeName: '1m3tfh-xt.myshopify.com',
+            accessToken: savedToken,
+            connected: false
+          });
+        }
         
         const lastLayout = localStorage.getItem('currentLayout');
         if (lastLayout) {
@@ -171,8 +181,8 @@ const BACKEND_URL = 'https://planogram-backend-jbf4.onrender.com';
       };
 
       const testShopifyConnection = async () => {
-        if (!shopifyConfig.storeName || !shopifyConfig.accessToken) {
-          setFeedback('⚠️ Please enter store name and access token');
+        if (!shopifyConfig.accessToken) {
+          setFeedback('⚠️ Please enter access token');
           setTimeout(() => setFeedback(''), 3000);
           return;
         }
@@ -198,6 +208,9 @@ const BACKEND_URL = 'https://planogram-backend-jbf4.onrender.com';
           console.log('Test response data:', data);
 
           if (response.ok && data.success) {
+            // Save to localStorage
+            localStorage.setItem('shopifyAccessToken', shopifyConfig.accessToken);
+            
             setShopifyConfig({ ...shopifyConfig, connected: true });
             setFeedback(`✅ Connected to ${data.shopName}!`);
             setTimeout(() => setFeedback(''), 3000);
@@ -484,7 +497,8 @@ const BACKEND_URL = 'https://planogram-backend-jbf4.onrender.com';
                     </div>
                     <button
                       onClick={() => {
-                        setShopifyConfig({ storeName: '', accessToken: '', connected: false });
+                        localStorage.removeItem('shopifyAccessToken');
+                        setShopifyConfig({ storeName: '1m3tfh-xt.myshopify.com', accessToken: '', connected: false });
                         setFeedback('Disconnected from Shopify');
                         setTimeout(() => setFeedback(''), 3000);
                       }}
@@ -496,20 +510,7 @@ const BACKEND_URL = 'https://planogram-backend-jbf4.onrender.com';
                 ) : (
                   <div className="space-y-4">
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
-                      <strong>Note:</strong> Enter your Shopify credentials to connect.
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Store Name
-                      </label>
-                      <input
-                        type="text"
-                        value={shopifyConfig.storeName}
-                        onChange={(e) => setShopifyConfig({...shopifyConfig, storeName: e.target.value})}
-                        className="w-full px-3 py-2 border rounded-lg text-sm"
-                        placeholder="your-store.myshopify.com"
-                      />
+                      <strong>Note:</strong> Just enter your Admin API Access Token below.
                     </div>
                     
                     <div>
