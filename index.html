@@ -348,6 +348,45 @@ const PlanogramProfitTracker = () => {
     }
   };
 
+  // NEW: Refresh product cache on backend
+  const refreshProductCache = async () => {
+    if (!shopifyConfig.connected || !shopifyConfig.accessToken) {
+      setFeedback('⚠️ Connect to Shopify first');
+      setTimeout(() => setFeedback(''), 3000);
+      return;
+    }
+
+    setFeedback('🔄 Refreshing product cache...');
+    
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/shopify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          storeName: shopifyConfig.storeName,
+          accessToken: shopifyConfig.accessToken,
+          action: 'refreshCache'
+        })
+      });
+
+      const data = await response.json();
+      console.log('Cache refresh response:', data);
+
+      if (response.ok && data.success) {
+        setFeedback(`✅ Cache refreshed! ${data.productsLoaded || 1000} products loaded`);
+        setTimeout(() => setFeedback(''), 5000);
+      } else {
+        throw new Error(data.error || 'Failed to refresh cache');
+      }
+    } catch (error) {
+      console.error('Cache refresh error:', error);
+      setFeedback(`❌ ${error.message}`);
+      setTimeout(() => setFeedback(''), 5000);
+    }
+  };
+
   const addProductToSection = async () => {
     if (!selectedSection) {
       setFeedback('⚠️ Please select a section first!');
