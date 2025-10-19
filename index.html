@@ -170,44 +170,6 @@ const BACKEND_URL = 'https://planogram-backend-v83z.onrender.com';
         setNewProduct({ upc: value });
       };
 
-      const fetchProductFromShopify = async (upc) => {
-        if (!shopifyConfig.connected) {
-          return null;
-        }
-
-        try {
-          const response = await fetch(`${BACKEND_URL}/api/shopify`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              storeName: shopifyConfig.storeName,
-              accessToken: shopifyConfig.accessToken,
-              action: 'getProduct',
-              upc: upc
-            })
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to fetch from Shopify');
-          }
-
-          const data = await response.json();
-          
-          if (data.success && data.product) {
-            return data.product;
-          }
-          
-          return null;
-        } catch (error) {
-          console.error('Shopify API Error:', error);
-          setFeedback(`⚠️ Shopify Error: ${error.message}`);
-          setTimeout(() => setFeedback(''), 5000);
-          return null;
-        }
-      };
-
       const testShopifyConnection = async () => {
         if (!shopifyConfig.storeName || !shopifyConfig.accessToken) {
           setFeedback('⚠️ Please enter store name and access token');
@@ -216,6 +178,7 @@ const BACKEND_URL = 'https://planogram-backend-v83z.onrender.com';
         }
 
         setFeedback('🔄 Testing connection...');
+        console.log('Testing Shopify connection...', { storeName: shopifyConfig.storeName });
 
         try {
           const response = await fetch(`${BACKEND_URL}/api/shopify`, {
@@ -230,7 +193,9 @@ const BACKEND_URL = 'https://planogram-backend-v83z.onrender.com';
             })
           });
 
+          console.log('Test response status:', response.status);
           const data = await response.json();
+          console.log('Test response data:', data);
 
           if (response.ok && data.success) {
             setShopifyConfig({ ...shopifyConfig, connected: true });
@@ -241,6 +206,7 @@ const BACKEND_URL = 'https://planogram-backend-v83z.onrender.com';
             throw new Error(data.error || 'Invalid credentials');
           }
         } catch (error) {
+          console.error('Connection error:', error);
           setFeedback(`❌ ${error.message}`);
           setTimeout(() => setFeedback(''), 5000);
         }
@@ -260,22 +226,56 @@ const BACKEND_URL = 'https://planogram-backend-v83z.onrender.com';
         }
 
         setFeedback('🔄 Looking up product...');
+        console.log('Starting product lookup for UPC:', newProduct.upc);
         
-        let product;
+        let product = null;
         
+        // Try Shopify first if connected
         if (shopifyConfig.connected) {
-          const shopifyProduct = await fetchProductFromShopify(newProduct.upc);
-          if (shopifyProduct) {
-            product = {
-              upc: newProduct.upc,
-              ...shopifyProduct,
-              quantity: 1,
-              source: 'shopify'
-            };
-            setFeedback(`✅ Added from Shopify: ${product.name}`);
+          console.log('Shopify is connected, attempting fetch...');
+          try {
+            const response = await fetch(`${BACKEND_URL}/api/shopify`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                storeName: shopifyConfig.storeName,
+                accessToken: shopifyConfig.accessToken,
+                action: 'getProduct',
+                upc: newProduct.upc
+              })
+            });
+
+            console.log('Shopify API response status:', response.status);
+            const data = await response.json();
+            console.log('Shopify API response data:', data);
+
+            if (response.ok && data.success && data.product) {
+              product = {
+                upc: newProduct.upc,
+                name: data.product.name,
+                price: data.product.price,
+                cost: data.product.cost,
+                monthlySales: data.product.monthlySales || 0,
+                quantity: 1,
+                source: 'shopify'
+              };
+              console.log('Product found in Shopify:', product);
+              setFeedback(`✅ Added from Shopify: ${product.name}`);
+            } else {
+              console.log('Product not found in Shopify, trying local database');
+            }
+          } catch (error) {
+            console.error('Error fetching from Shopify:', error);
+            setFeedback('⚠️ Shopify lookup failed, trying local data...');
+            setTimeout(() => setFeedback(''), 3000);
           }
+        } else {
+          console.log('Shopify not connected, skipping Shopify lookup');
         }
         
+        // Fall back to local database if Shopify didn't find it
         if (!product && productDatabase[newProduct.upc]) {
           product = { 
             upc: newProduct.upc, 
@@ -283,9 +283,11 @@ const BACKEND_URL = 'https://planogram-backend-v83z.onrender.com';
             quantity: 1,
             source: 'sample'
           };
+          console.log('Product found in local database:', product);
           setFeedback(`✅ Added: ${product.name} (Sample Data)`);
         }
         
+        // If still no product, create placeholder
         if (!product) {
           product = {
             upc: newProduct.upc,
@@ -297,6 +299,7 @@ const BACKEND_URL = 'https://planogram-backend-v83z.onrender.com';
             placeholder: true,
             source: 'placeholder'
           };
+          console.log('Created placeholder product:', product);
           setFeedback(`✅ Added UPC ${newProduct.upc} (Connect Shopify for details)`);
         }
 
@@ -830,7 +833,7 @@ const BACKEND_URL = 'https://planogram-backend-v83z.onrender.com';
                     Add to Section
                   </button>
                   <div className="text-xs text-gray-500 italic">
-                    Product details will come from Shopify
+                    {shopifyConfig.connected ? 'Will fetch from Shopify' : 'Connect Shopify for live data'}
                   </div>
                 </div>
 
