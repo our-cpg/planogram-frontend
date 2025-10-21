@@ -398,47 +398,36 @@ const PlanogramProfitTracker = () => {
     let product = null;
     
     if (shopifyConfig.connected) {
-      console.log('Shopify is connected, attempting fetch...');
+      console.log('Checking database for product...');
       try {
-        const response = await fetch(`${BACKEND_URL}/api/shopify`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            storeName: shopifyConfig.storeName,
-            accessToken: shopifyConfig.accessToken,
-            action: 'getProduct',
-            upc: newProduct.upc
-          })
-        });
+        const response = await fetch(`${BACKEND_URL}/api/product/${newProduct.upc}`);
 
-        console.log('Shopify API response status:', response.status);
+        console.log('Database lookup response status:', response.status);
         const data = await response.json();
-        console.log('Shopify API response data:', data);
+        console.log('Database response data:', data);
 
-        if (response.ok && data.success && data.product) {
+        if (response.ok && data.title) {
           product = {
             upc: newProduct.upc,
-            name: data.product.name,
-            price: data.product.price,
-            cost: data.product.cost,
-            monthlySales: data.product.monthlySales || 0,
+            name: data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title,
+            price: data.price,
+            cost: data.cost,
+            monthlySales: data.monthlySales || 0,
             quantity: 1,
-            source: 'shopify'
+            source: 'database'
           };
-          console.log('Product found in Shopify:', product);
-          setFeedback(`✅ Added from Shopify: ${product.name}`);
+          console.log('Product found in database:', product);
+          setFeedback(`✅ Added: ${product.name}`);
         } else {
-          console.log('Product not found in Shopify, trying local database');
+          console.log('Product not found in database');
         }
       } catch (error) {
-        console.error('Error fetching from Shopify:', error);
-        setFeedback('⚠️ Shopify lookup failed, trying local data...');
+        console.error('Error fetching from database:', error);
+        setFeedback('⚠️ Database lookup failed');
         setTimeout(() => setFeedback(''), 3000);
       }
     } else {
-      console.log('Shopify not connected, skipping Shopify lookup');
+      console.log('Shopify not connected, skipping database lookup');
     }
     
     if (!product && productDatabase[newProduct.upc]) {
