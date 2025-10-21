@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Store Planogram Profit Tracker - Enhanced</title>
+  <title>Store Planogram Profit Tracker - Enhanced v2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -34,7 +34,9 @@ const Icons = {
   Camera: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>,
   Eye: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
   Flame: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>,
-  RefreshCw: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+  RefreshCw: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>,
+  X: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+  Move: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="15 19 12 22 9 19"></polyline><polyline points="19 9 22 12 19 15"></polyline><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>
 };
 
 // Fixture type definitions
@@ -52,41 +54,74 @@ const FIXTURE_TYPES = {
     name: 'Jewelry Case',
     icon: 'Box',
     color: '#8b5cf6',
-    defaultWidth: 80,
-    defaultHeight: 60
+    defaultWidth: 100,
+    defaultHeight: 80
   },
   GONDOLA: {
     id: 'gondola',
     name: 'Gondola',
     icon: 'Layers',
-    color: '#f59e0b',
-    defaultWidth: 160,
+    color: '#ef4444',
+    defaultWidth: 180,
     defaultHeight: 120
   },
   SLAT_WALL: {
     id: 'slat_wall',
     name: 'Slat Wall',
     icon: 'AlignVertical',
-    color: '#10b981',
-    defaultWidth: 140,
-    defaultHeight: 200
+    color: '#f59e0b',
+    defaultWidth: 150,
+    defaultHeight: 180
   },
-  ENDCAP: {
-    id: 'endcap',
+  END_CAP: {
+    id: 'end_cap',
     name: 'End Cap',
     icon: 'Package',
-    color: '#ef4444',
+    color: '#10b981',
     defaultWidth: 80,
     defaultHeight: 120
   }
 };
 
+// Helper functions for resize handles
+const getCursor = (position) => {
+  const cursors = {
+    'nw': 'nwse-resize',
+    'ne': 'nesw-resize',
+    'se': 'nwse-resize',
+    'sw': 'nesw-resize',
+    'n': 'ns-resize',
+    's': 'ns-resize',
+    'e': 'ew-resize',
+    'w': 'ew-resize'
+  };
+  return cursors[position];
+};
+
+const getHandlePosition = (position) => {
+  const positions = {
+    'nw': { top: -6, left: -6, width: '12px', height: '12px' },
+    'n': { top: -6, left: '50%', transform: 'translateX(-50%)', width: '60px', height: '12px' },
+    'ne': { top: -6, right: -6, width: '12px', height: '12px' },
+    'e': { right: -6, top: '50%', transform: 'translateY(-50%)', width: '12px', height: '60px' },
+    'se': { bottom: -6, right: -6, width: '12px', height: '12px' },
+    's': { bottom: -6, left: '50%', transform: 'translateX(-50%)', width: '60px', height: '12px' },
+    'sw': { bottom: -6, left: -6, width: '12px', height: '12px' },
+    'w': { left: -6, top: '50%', transform: 'translateY(-50%)', width: '12px', height: '60px' }
+  };
+  return positions[position];
+};
+
 const PlanogramProfitTracker = () => {
+  // State declarations
+  const [fixtures, setFixtures] = useState([]);
+  const [selectedFixture, setSelectedFixture] = useState(null);
   const [sections, setSections] = useState([]);
   const [selectedSection, setSelectedSection] = useState(null);
   const [scale, setScale] = useState(20);
   const [storeName, setStoreName] = useState('My Store Layout');
-  const [newProduct, setNewProduct] = useState({ upc: '' });
+  const [newProduct, setNewProduct] = useState({ upc: '', sectionId: '' });
+  const [scanning, setScanning] = useState(false);
   const [savedLayouts, setSavedLayouts] = useState([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
@@ -103,6 +138,12 @@ const PlanogramProfitTracker = () => {
   const [showLibrary, setShowLibrary] = useState(true);
   const [heatMapMode, setHeatMapMode] = useState(false);
   const [backgroundImage, setBackgroundImage] = useState(null);
+  
+  // ✅ NEW: Background image dragging states
+  const [bgImagePosition, setBgImagePosition] = useState({ x: 0, y: 0 });
+  const [isDraggingBg, setIsDraggingBg] = useState(false);
+  const [bgDragStart, setBgDragStart] = useState({ x: 0, y: 0 });
+  
   const fileInputRef = useRef(null);
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -118,188 +159,86 @@ const PlanogramProfitTracker = () => {
     '567890123456': { name: 'Specialty Honey', price: 15.99, cost: 7.50, monthlySales: 67 },
   };
 
+  // Load data from localStorage on mount
   useEffect(() => {
-    const layouts = JSON.parse(localStorage.getItem('planogramLayouts') || '[]');
-    setSavedLayouts(layouts);
-    
-    const savedToken = localStorage.getItem('shopifyAccessToken');
-    if (savedToken) {
-      setShopifyConfig({
-        storeName: '1m3tfh-xt.myshopify.com',
-        accessToken: savedToken,
-        connected: false
-      });
-    }
-    
-    const lastLayout = localStorage.getItem('currentLayout');
-    if (lastLayout) {
-      const parsed = JSON.parse(lastLayout);
-      setSections(parsed.sections || []);
-      setStoreName(parsed.name || 'My Store Layout');
+    try {
+      const savedSections = localStorage.getItem('planogram_sections');
+      const savedFixtures = localStorage.getItem('planogram_fixtures');
+      const savedBg = localStorage.getItem('planogram_background');
+      const savedBgPos = localStorage.getItem('planogram_bg_position');
+      const savedShopify = localStorage.getItem('planogram_shopify');
+      
+      if (savedSections) setSections(JSON.parse(savedSections));
+      if (savedFixtures) setFixtures(JSON.parse(savedFixtures));
+      if (savedBg) setBackgroundImage(savedBg);
+      if (savedBgPos) setBgImagePosition(JSON.parse(savedBgPos));
+      if (savedShopify) {
+        const config = JSON.parse(savedShopify);
+        setShopifyConfig(config);
+      }
+    } catch (error) {
+      console.error('Error loading saved data:', error);
     }
   }, []);
 
-  useEffect(() => {
-    const autoSave = setInterval(() => {
-      if (sections.length > 0) {
-        const layout = { name: storeName, sections, savedAt: new Date().toISOString() };
-        localStorage.setItem('currentLayout', JSON.stringify(layout));
-      }
-    }, 30000);
-
-    return () => clearInterval(autoSave);
-  }, [sections, storeName]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const handleWheel = (e) => {
-      e.preventDefault();
-      
-      if (e.ctrlKey) {
-        const delta = -e.deltaY;
-        const zoomFactor = delta > 0 ? 1.1 : 0.9;
-        const newZoom = Math.min(Math.max(0.1, zoom * zoomFactor), 3);
-        setZoom(newZoom);
-      } else {
-        setPanOffset({
-          x: panOffset.x - e.deltaX,
-          y: panOffset.y - e.deltaY
-        });
-      }
-    };
-
-    canvas.addEventListener('wheel', handleWheel, { passive: false });
-
-    return () => {
-      canvas.removeEventListener('wheel', handleWheel);
-    };
-  }, [zoom, panOffset]);
-
-  const saveLayout = () => {
-    const layout = {
-      id: Date.now(),
-      name: storeName,
-      sections: sections,
-      savedAt: new Date().toISOString()
-    };
-    
-    const layouts = [...savedLayouts, layout];
-    setSavedLayouts(layouts);
-    localStorage.setItem('planogramLayouts', JSON.stringify(layouts));
-    localStorage.setItem('currentLayout', JSON.stringify(layout));
-    setShowSaveModal(false);
-    setFeedback('✅ Layout saved successfully!');
-    setTimeout(() => setFeedback(''), 3000);
-  };
-
-  const loadLayout = (layout) => {
-    setSections(layout.sections);
-    setStoreName(layout.name);
-    setShowLoadModal(false);
-    localStorage.setItem('currentLayout', JSON.stringify(layout));
-  };
-
-  const deleteLayout = (id) => {
-    const layouts = savedLayouts.filter(l => l.id !== id);
-    setSavedLayouts(layouts);
-    localStorage.setItem('planogramLayouts', JSON.stringify(layouts));
-  };
-
-  const exportLayout = () => {
-    const layout = { name: storeName, sections, exportedAt: new Date().toISOString() };
-    const dataStr = JSON.stringify(layout, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${storeName.replace(/\s+/g, '_')}_layout.json`;
-    link.click();
-  };
-
-  const importLayout = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const layout = JSON.parse(e.target.result);
-          setSections(layout.sections || []);
-          setStoreName(layout.name || 'Imported Layout');
-        } catch (error) {
-          setFeedback('⚠️ Error importing layout');
-          setTimeout(() => setFeedback(''), 3000);
-        }
-      };
-      reader.readAsText(file);
+  // ✅ AUTO-SAVE helper function
+  const autoSave = (updatedSections, message = 'Auto-saved') => {
+    try {
+      localStorage.setItem('planogram_sections', JSON.stringify(updatedSections));
+      localStorage.setItem('planogram_last_save', new Date().toISOString());
+      console.log(`✅ ${message}`);
+    } catch (error) {
+      console.error('❌ Auto-save failed:', error);
     }
   };
 
-  const addFixtureFromLibrary = (fixtureType) => {
-    const type = FIXTURE_TYPES[fixtureType];
-    const newSection = {
-      id: Date.now(),
-      x: 50,
-      y: 50,
-      width: type.defaultWidth,
-      height: type.defaultHeight,
-      name: `${type.name} ${sections.length + 1}`,
-      fixtureType: fixtureType,
-      products: [],
-      salesData: Math.floor(Math.random() * 5000) + 1000
+  // ✅ FEATURE 4: Background image drag handlers
+  const handleBgMouseDown = (e) => {
+    if (e.target.tagName !== 'IMG') return;
+    
+    setIsDraggingBg(true);
+    setBgDragStart({
+      x: e.clientX - bgImagePosition.x,
+      y: e.clientY - bgImagePosition.y
+    });
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleBgMouseMove = (e) => {
+    if (!isDraggingBg) return;
+    
+    const newPosition = {
+      x: e.clientX - bgDragStart.x,
+      y: e.clientY - bgDragStart.y
     };
-    setSections([...sections, newSection]);
-    setFeedback(`✅ Added ${type.name}!`);
+    setBgImagePosition(newPosition);
+  };
+
+  const handleBgMouseUp = () => {
+    if (isDraggingBg) {
+      setIsDraggingBg(false);
+      try {
+        localStorage.setItem('planogram_bg_position', JSON.stringify(bgImagePosition));
+        console.log('✅ Background position saved');
+      } catch (error) {
+        console.error('Failed to save background position:', error);
+      }
+    }
+  };
+
+  const resetBackgroundPosition = () => {
+    const resetPos = { x: 0, y: 0 };
+    setBgImagePosition(resetPos);
+    localStorage.setItem('planogram_bg_position', JSON.stringify(resetPos));
+    setFeedback('✅ Background position reset');
     setTimeout(() => setFeedback(''), 2000);
   };
 
-  const addSection = () => {
-    const newSection = {
-      id: Date.now(),
-      x: 50,
-      y: 50,
-      width: 100,
-      height: 100,
-      name: `Section ${sections.length + 1}`,
-      products: [],
-      salesData: Math.floor(Math.random() * 5000) + 1000
-    };
-    setSections([...sections, newSection]);
-  };
-
-  const handleBackgroundUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setBackgroundImage(e.target.result);
-        setFeedback('✅ Background uploaded!');
-        setTimeout(() => setFeedback(''), 2000);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const deleteSection = (id) => {
-    setSections(sections.filter(s => s.id !== id));
-    if (selectedSection?.id === id) setSelectedSection(null);
-  };
-
-  const updateSection = (id, updates) => {
-    setSections(sections.map(s => s.id === id ? { ...s, ...updates } : s));
-    if (selectedSection?.id === id) {
-      setSelectedSection({ ...selectedSection, ...updates });
-    }
-  };
-
-  const handleUPCChange = (value) => {
-    setNewProduct({ upc: value });
-  };
-
+  // Test Shopify connection
   const testShopifyConnection = async () => {
-    if (!shopifyConfig.accessToken) {
-      setFeedback('⚠️ Please enter access token');
+    if (!shopifyConfig.storeName || !shopifyConfig.accessToken) {
+      setFeedback('⚠️ Please enter store name and access token');
       setTimeout(() => setFeedback(''), 3000);
       return;
     }
@@ -325,20 +264,35 @@ const PlanogramProfitTracker = () => {
       console.log('Test response data:', data);
 
       if (response.ok && data.success) {
-        localStorage.setItem('shopifyAccessToken', shopifyConfig.accessToken);
-        
-        setShopifyConfig({ ...shopifyConfig, connected: true });
-        setFeedback(`✅ Connected to ${data.shopName}!`);
-        setTimeout(() => setFeedback(''), 3000);
-        setShowSettings(false);
+        const updatedConfig = { ...shopifyConfig, connected: true };
+        setShopifyConfig(updatedConfig);
+        localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
+        setFeedback(`✅ Connected to ${data.shop || 'Shopify'}!`);
+        setTimeout(() => {
+          setFeedback('');
+          setShowSettings(false);
+        }, 2000);
       } else {
-        throw new Error(data.error || 'Invalid credentials');
+        setFeedback(`❌ Connection failed: ${data.error || 'Unknown error'}`);
+        setTimeout(() => setFeedback(''), 5000);
       }
     } catch (error) {
       console.error('Connection error:', error);
-      setFeedback(`❌ ${error.message}`);
+      setFeedback('❌ Connection error - check console');
       setTimeout(() => setFeedback(''), 5000);
     }
+  };
+
+  const disconnectShopify = () => {
+    const updatedConfig = {
+      storeName: shopifyConfig.storeName,
+      accessToken: '',
+      connected: false
+    };
+    setShopifyConfig(updatedConfig);
+    localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
+    setFeedback('✅ Disconnected from Shopify');
+    setTimeout(() => setFeedback(''), 2000);
   };
 
   const refreshProductCache = async () => {
@@ -367,32 +321,36 @@ const PlanogramProfitTracker = () => {
       console.log('Cache refresh response:', data);
 
       if (response.ok && data.success) {
-        setFeedback(`✅ Cache refreshed! ${data.productsLoaded || 1000} products loaded`);
+        setFeedback(`✅ ${data.message}`);
         setTimeout(() => setFeedback(''), 5000);
       } else {
-        throw new Error(data.error || 'Failed to refresh cache');
+        setFeedback(`❌ ${data.error || 'Refresh failed'}`);
+        setTimeout(() => setFeedback(''), 5000);
       }
     } catch (error) {
       console.error('Cache refresh error:', error);
-      setFeedback(`❌ ${error.message}`);
+      setFeedback('❌ Cache refresh failed');
       setTimeout(() => setFeedback(''), 5000);
     }
   };
 
+  // ✅ FEATURE 2: Add product with AUTO-SAVE
   const addProductToSection = async () => {
-    if (!selectedSection) {
-      setFeedback('⚠️ Please select a section first!');
-      setTimeout(() => setFeedback(''), 3000);
-      return;
-    }
-    
-    if (!newProduct.upc || newProduct.upc.trim() === '') {
-      setFeedback('⚠️ Please enter a UPC code');
+    if (!newProduct.upc || !newProduct.sectionId) {
+      setFeedback('⚠️ Enter UPC and select section');
       setTimeout(() => setFeedback(''), 3000);
       return;
     }
 
-    setFeedback('🔄 Looking up product...');
+    setScanning(true);
+    const sectionIndex = sections.findIndex(s => s.id === newProduct.sectionId);
+    
+    if (sectionIndex === -1) {
+      setFeedback('⚠️ Section not found');
+      setScanning(false);
+      return;
+    }
+
     console.log('Starting product lookup for UPC:', newProduct.upc);
     
     let product = null;
@@ -449,54 +407,196 @@ const PlanogramProfitTracker = () => {
         cost: 0,
         monthlySales: 0,
         quantity: 1,
-        placeholder: true,
         source: 'placeholder'
       };
       console.log('Created placeholder product:', product);
-      setFeedback(`✅ Added UPC ${newProduct.upc} (Connect Shopify for details)`);
+      setFeedback('⚠️ Product not found - added as placeholder');
     }
 
-    const updatedProducts = [...(selectedSection.products || []), product];
-    updateSection(selectedSection.id, { products: updatedProducts });
-    setNewProduct({ upc: '' });
-    
+    // Add product to section
+    const updatedSections = [...sections];
+    updatedSections[sectionIndex].products.push(product);
+    setSections(updatedSections);
+
+    // ✅ AUTO-SAVE immediately after adding product
+    autoSave(updatedSections, 'Auto-saved after adding product');
+
+    setScanning(false);
+    setNewProduct({ upc: '', sectionId: '' });
     setTimeout(() => setFeedback(''), 3000);
   };
 
-  const calculateMetrics = (section) => {
-    const area = (section.width * section.height) / (scale * scale);
+  // ✅ FEATURE 2: Update quantity with AUTO-SAVE
+  const updateProductQuantity = (sectionId, productIndex, delta) => {
+    const updatedSections = sections.map(section => {
+      if (section.id === sectionId) {
+        const updatedProducts = [...section.products];
+        updatedProducts[productIndex] = {
+          ...updatedProducts[productIndex],
+          quantity: Math.max(0, updatedProducts[productIndex].quantity + delta)
+        };
+        return { ...section, products: updatedProducts };
+      }
+      return section;
+    });
     
-    const timeMultipliers = {
-      daily: 1 / 30,
-      weekly: 7 / 30,
-      monthly: 1,
-      quarterly: 3,
-      yearly: 12
+    setSections(updatedSections);
+    
+    // ✅ AUTO-SAVE after quantity update
+    autoSave(updatedSections, 'Auto-saved after quantity update');
+  };
+
+  // ✅ FEATURE 3: Delete product from section with AUTO-SAVE
+  const deleteProduct = (sectionId, productIndex) => {
+    if (!confirm('Delete this product from the section?')) {
+      return;
+    }
+
+    const updatedSections = sections.map(section => {
+      if (section.id === sectionId) {
+        const updatedProducts = section.products.filter((_, idx) => idx !== productIndex);
+        return { ...section, products: updatedProducts };
+      }
+      return section;
+    });
+    
+    setSections(updatedSections);
+    
+    // ✅ AUTO-SAVE after deleting product
+    autoSave(updatedSections, 'Auto-saved after deleting product');
+    
+    setFeedback('✅ Product deleted');
+    setTimeout(() => setFeedback(''), 2000);
+  };
+
+  const addFixture = (type) => {
+    const fixtureType = FIXTURE_TYPES[type];
+    const newFixture = {
+      id: `fixture-${Date.now()}`,
+      type: fixtureType.id,
+      name: fixtureType.name,
+      x: 100,
+      y: 100,
+      width: fixtureType.defaultWidth,
+      height: fixtureType.defaultHeight,
+      color: fixtureType.color,
+      sections: []
     };
     
-    const multiplier = timeMultipliers[timeFilter];
+    const updatedFixtures = [...fixtures, newFixture];
+    setFixtures(updatedFixtures);
+    localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
+    setSelectedFixture(newFixture.id);
+  };
+
+  const deleteFixture = (fixtureId) => {
+    if (!confirm('Delete this fixture and all its sections?')) return;
     
-    let productMetrics = section.products.map(p => {
-      const unitProfit = p.price - p.cost;
-      const periodVolume = (p.monthlySales || 0) * multiplier;
+    const updatedFixtures = fixtures.filter(f => f.id !== fixtureId);
+    setFixtures(updatedFixtures);
+    localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
+    
+    const updatedSections = sections.filter(s => s.fixtureId !== fixtureId);
+    setSections(updatedSections);
+    autoSave(updatedSections, 'Auto-saved after deleting fixture');
+    
+    if (selectedFixture === fixtureId) {
+      setSelectedFixture(null);
+    }
+  };
+
+  const updateFixture = (updatedFixture) => {
+    const updatedFixtures = fixtures.map(f => 
+      f.id === updatedFixture.id ? updatedFixture : f
+    );
+    setFixtures(updatedFixtures);
+    localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
+  };
+
+  const addSection = (fixtureId) => {
+    const fixture = fixtures.find(f => f.id === fixtureId);
+    if (!fixture) return;
+
+    const newSection = {
+      id: `section-${Date.now()}`,
+      fixtureId: fixtureId,
+      name: `Section ${sections.filter(s => s.fixtureId === fixtureId).length + 1}`,
+      products: [],
+      area: 10 // sq ft
+    };
+
+    const updatedSections = [...sections, newSection];
+    setSections(updatedSections);
+    autoSave(updatedSections, 'Auto-saved after adding section');
+  };
+
+  const deleteSection = (sectionId) => {
+    if (!confirm('Delete this section and all its products?')) return;
+    
+    const updatedSections = sections.filter(s => s.id !== sectionId);
+    setSections(updatedSections);
+    autoSave(updatedSections, 'Auto-saved after deleting section');
+    
+    if (selectedSection === sectionId) {
+      setSelectedSection(null);
+    }
+  };
+
+  const handleBackgroundUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageData = event.target.result;
+        setBackgroundImage(imageData);
+        localStorage.setItem('planogram_background', imageData);
+        setFeedback('✅ Background uploaded');
+        setTimeout(() => setFeedback(''), 2000);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeBackground = () => {
+    setBackgroundImage(null);
+    setBgImagePosition({ x: 0, y: 0 });
+    localStorage.removeItem('planogram_background');
+    localStorage.removeItem('planogram_bg_position');
+    setFeedback('✅ Background removed');
+    setTimeout(() => setFeedback(''), 2000);
+  };
+
+  const calculateMetrics = (section, filter) => {
+    const multipliers = {
+      daily: 365,
+      weekly: 52,
+      monthly: 12,
+      yearly: 1
+    };
+
+    const multiplier = multipliers[filter];
+    const area = section.area || 1;
+
+    const productMetrics = section.products.map(p => {
+      const periodVolume = (p.monthlySales || 0) * (multiplier / 12);
       const periodRevenue = p.price * periodVolume;
-      const periodProfit = unitProfit * periodVolume;
-      
+      const periodProfit = (p.price - p.cost) * periodVolume;
+      const velocity = periodVolume / area;
+
       return {
         ...p,
-        unitProfit,
         periodVolume,
         periodRevenue,
         periodProfit,
-        velocity: p.monthlySales || 0
+        velocity
       };
     });
-    
+
     productMetrics.sort((a, b) => {
       switch(sortBy) {
         case 'profit':
           return b.periodProfit - a.periodProfit;
-        case 'sales':
+        case 'revenue':
           return b.periodRevenue - a.periodRevenue;
         case 'velocity':
           return b.velocity - a.velocity;
@@ -522,955 +622,591 @@ const PlanogramProfitTracker = () => {
       totalCost, 
       totalProfit, 
       profitPerSqFt,
-      totalVelocity,
       totalVolume,
-      productMetrics
+      totalVelocity,
+      productMetrics 
     };
   };
 
   const getHeatMapColor = (profitPerSqFt) => {
-    if (!heatMapMode) return null;
-    const profit = profitPerSqFt || 0;
-    if (profit > 200) return 'rgba(16, 185, 129, 0.7)';
-    if (profit > 100) return 'rgba(132, 204, 22, 0.7)';
-    if (profit > 50) return 'rgba(251, 191, 36, 0.7)';
-    if (profit > 25) return 'rgba(249, 115, 22, 0.7)';
-    return 'rgba(239, 68, 68, 0.7)';
-  };
-
-  const renderFixtureVisual = (section) => {
-    const fixtureType = section.fixtureType;
-    if (!fixtureType) return null;
-
-    const style = {
-      position: 'absolute',
-      inset: 0,
-      pointerEvents: 'none',
-      opacity: 0.3
-    };
-
-    switch(fixtureType) {
-      case 'GRID_WALL':
-        return (
-          <div style={style}>
-            <svg width="100%" height="100%" style={{position: 'absolute'}}>
-              {Array.from({length: 5}).map((_, i) => (
-                <line key={`h${i}`} x1="0" y1={`${(i+1)*20}%`} x2="100%" y2={`${(i+1)*20}%`} stroke="#64748b" strokeWidth="1"/>
-              ))}
-              {Array.from({length: 5}).map((_, i) => (
-                <line key={`v${i}`} x1={`${(i+1)*20}%`} y1="0" x2={`${(i+1)*20}%`} y2="100%" stroke="#64748b" strokeWidth="1"/>
-              ))}
-            </svg>
-          </div>
-        );
-      case 'GONDOLA':
-        return (
-          <div style={style}>
-            {Array.from({length: 4}).map((_, i) => (
-              <div key={i} style={{
-                position: 'absolute',
-                left: '10%',
-                right: '10%',
-                top: `${(i+1)*20}%`,
-                height: '2px',
-                backgroundColor: '#f59e0b'
-              }}/>
-            ))}
-          </div>
-        );
-      case 'SLAT_WALL':
-        return (
-          <div style={style}>
-            {Array.from({length: 8}).map((_, i) => (
-              <div key={i} style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                top: `${(i+1)*10}%`,
-                height: '3px',
-                backgroundColor: '#10b981'
-              }}/>
-            ))}
-          </div>
-        );
-      case 'JEWELRY_CASE':
-        return (
-          <div style={{...style, opacity: 0.2}}>
-            <div style={{
-              position: 'absolute',
-              inset: '10%',
-              border: '2px solid #8b5cf6',
-              borderRadius: '4px',
-              background: 'linear-gradient(135deg, transparent 25%, rgba(139, 92, 246, 0.1) 25%, rgba(139, 92, 246, 0.1) 50%, transparent 50%, transparent 75%, rgba(139, 92, 246, 0.1) 75%)',
-              backgroundSize: '20px 20px'
-            }}/>
-          </div>
-        );
-      case 'ENDCAP':
-        return (
-          <div style={style}>
-            {Array.from({length: 3}).map((_, i) => (
-              <div key={i} style={{
-                position: 'absolute',
-                left: '15%',
-                right: '15%',
-                top: `${(i+1)*25}%`,
-                height: '2px',
-                backgroundColor: '#ef4444'
-              }}/>
-            ))}
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  const DraggableSection = ({ section }) => {
-    const [dragging, setDragging] = useState(false);
-    const [resizing, setResizing] = useState(false);
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
+    const maxProfit = Math.max(...sections.map(s => calculateMetrics(s, timeFilter).profitPerSqFt));
+    const intensity = maxProfit > 0 ? profitPerSqFt / maxProfit : 0;
     
-    const metrics = calculateMetrics(section);
-    const isSelected = selectedSection?.id === section.id;
-    const fixtureType = section.fixtureType ? FIXTURE_TYPES[section.fixtureType] : null;
+    if (intensity > 0.7) return 'rgba(34, 197, 94, 0.6)';
+    if (intensity > 0.4) return 'rgba(234, 179, 8, 0.6)';
+    if (intensity > 0.1) return 'rgba(249, 115, 22, 0.6)';
+    return 'rgba(239, 68, 68, 0.6)';
+  };
+
+  // ✅ FEATURE 1: Enhanced Fixture component with 8 resize handles
+  const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
+    const [dragging, setDragging] = useState(false);
 
     const handleMouseDown = (e) => {
+      // ✅ FEATURE 1: Handle resizing from 8 different positions
       if (e.target.classList.contains('resize-handle')) {
-        setResizing(true);
-      } else {
-        setDragging(true);
-        setOffset({
-          x: e.clientX - section.x,
-          y: e.clientY - section.y
-        });
-      }
-      setSelectedSection(section);
-    };
+        e.stopPropagation();
+        const resizePosition = e.target.dataset.position;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startWidth = fixture.width;
+        const startHeight = fixture.height;
+        const startLeft = fixture.x;
+        const startTop = fixture.y;
 
-    useEffect(() => {
+        const handleMouseMove = (e) => {
+          const deltaX = e.clientX - startX;
+          const deltaY = e.clientY - startY;
+
+          let newWidth = startWidth;
+          let newHeight = startHeight;
+          let newX = startLeft;
+          let newY = startTop;
+
+          // Handle resizing based on position
+          if (resizePosition.includes('e')) {
+            newWidth = Math.max(60, startWidth + deltaX);
+          }
+          if (resizePosition.includes('w')) {
+            newWidth = Math.max(60, startWidth - deltaX);
+            newX = startLeft + (startWidth - newWidth);
+          }
+          if (resizePosition.includes('s')) {
+            newHeight = Math.max(60, startHeight + deltaY);
+          }
+          if (resizePosition.includes('n')) {
+            newHeight = Math.max(60, startHeight - deltaY);
+            newY = startTop + (startHeight - newHeight);
+          }
+
+          onUpdate({ 
+            ...fixture, 
+            width: newWidth, 
+            height: newHeight,
+            x: newX,
+            y: newY
+          });
+        };
+
+        const handleMouseUp = () => {
+          document.removeEventListener('mousemove', handleMouseMove);
+          document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        return;
+      }
+
+      // Handle dragging the fixture
+      e.stopPropagation();
+      setDragging(true);
+      onSelect();
+      
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startLeft = fixture.x;
+      const startTop = fixture.y;
+
       const handleMouseMove = (e) => {
-        if (dragging) {
-          updateSection(section.id, {
-            x: Math.max(0, e.clientX - offset.x),
-            y: Math.max(0, e.clientY - offset.y)
-          });
-        } else if (resizing) {
-          updateSection(section.id, {
-            width: Math.max(50, e.clientX - section.x),
-            height: Math.max(50, e.clientY - section.y)
-          });
-        }
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        
+        onUpdate({ 
+          ...fixture, 
+          x: startLeft + deltaX, 
+          y: startTop + deltaY 
+        });
       };
 
       const handleMouseUp = () => {
         setDragging(false);
-        setResizing(false);
-      };
-
-      if (dragging || resizing) {
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-      }
-
-      return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
       };
-    }, [dragging, resizing, offset]);
 
-    const heatColor = getHeatMapColor(metrics.profitPerSqFt);
-    const defaultBgColor = metrics.profitPerSqFt > 100 ? '#dcfce7' : 
-                          metrics.profitPerSqFt > 50 ? '#fef9c3' : '#fee2e2';
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    };
+
+    const fixtureSections = sections.filter(s => s.fixtureId === fixture.id);
+    const totalProfit = fixtureSections.reduce((sum, s) => {
+      const metrics = calculateMetrics(s, timeFilter);
+      return sum + metrics.totalProfit;
+    }, 0);
 
     return (
       <div
         style={{
           position: 'absolute',
-          left: section.x,
-          top: section.y,
-          width: section.width,
-          height: section.height,
-          border: isSelected ? `3px solid ${fixtureType?.color || '#3b82f6'}` : '2px solid #94a3b8',
-          backgroundColor: heatColor || defaultBgColor,
-          cursor: dragging ? 'grabbing' : 'grab',
+          left: fixture.x,
+          top: fixture.y,
+          width: fixture.width,
+          height: fixture.height,
+          backgroundColor: heatMapMode ? getHeatMapColor(totalProfit / (fixtureSections.length || 1)) : fixture.color,
+          border: isSelected ? '3px solid #3b82f6' : '2px solid #cbd5e1',
           borderRadius: '8px',
-          padding: '8px',
-          boxShadow: isSelected ? `0 4px 12px ${fixtureType?.color || '#3b82f6'}40` : '0 2px 4px rgba(0,0,0,0.1)',
-          transition: 'all 0.2s'
+          cursor: dragging ? 'grabbing' : 'grab',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: 0.9,
+          zIndex: isSelected ? 100 : 10
         }}
         onMouseDown={handleMouseDown}
       >
-        {renderFixtureVisual(section)}
-        
-        <div className="text-xs font-bold text-gray-700 mb-1 relative z-10">
-          {section.name}
+        <div className="text-white text-center p-2 pointer-events-none">
+          <div className="font-bold text-sm">{fixture.name}</div>
+          <div className="text-xs">{fixtureSections.length} sections</div>
+          {heatMapMode && (
+            <div className="text-xs mt-1">${totalProfit.toFixed(0)}</div>
+          )}
         </div>
-        <div className="text-xs text-gray-600 relative z-10">
-          {metrics.area.toFixed(0)} sq ft
-        </div>
-        <div className="text-xs font-semibold text-green-700 mt-1 relative z-10">
-          ${metrics.profitPerSqFt.toFixed(0)}/sq ft
-        </div>
-        <div
-          className="resize-handle"
-          style={{
-            position: 'absolute',
-            right: 0,
-            bottom: 0,
-            width: '20px',
-            height: '20px',
-            cursor: 'nwse-resize',
-            backgroundColor: fixtureType?.color || '#3b82f6',
-            borderRadius: '0 0 8px 0',
-            zIndex: 10
-          }}
-        />
+
+        {/* Delete button */}
+        {isSelected && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(fixture.id);
+            }}
+            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+            style={{ pointerEvents: 'auto' }}
+          >
+            <Icons.X />
+          </button>
+        )}
+
+        {/* ✅ FEATURE 1: 8 Resize Handles (corners + edges) */}
+        {isSelected && ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(position => (
+          <div
+            key={position}
+            className="resize-handle"
+            data-position={position}
+            style={{
+              position: 'absolute',
+              background: 'white',
+              border: '2px solid #3b82f6',
+              cursor: getCursor(position),
+              zIndex: 110,
+              pointerEvents: 'auto',
+              ...getHandlePosition(position)
+            }}
+          />
+        ))}
       </div>
     );
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {showSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h2 className="text-xl font-bold mb-4">🛍️ Shopify Connection</h2>
-            
-            {shopifyConfig.connected ? (
-              <div className="space-y-4">
-                <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4">
-                  <div className="text-green-800 font-semibold mb-2">✅ Connected!</div>
-                  <div className="text-sm text-green-700">Store: {shopifyConfig.storeName}</div>
-                </div>
-                <button
-                  onClick={refreshProductCache}
-                  className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
-                >
-                  <Icons.RefreshCw />
-                  Refresh Product Cache
-                </button>
-                <button
-                  onClick={() => {
-                    localStorage.removeItem('shopifyAccessToken');
-                    setShopifyConfig({ storeName: '1m3tfh-xt.myshopify.com', accessToken: '', connected: false });
-                    setFeedback('Disconnected from Shopify');
-                    setTimeout(() => setFeedback(''), 3000);
-                  }}
-                  className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-                >
-                  Disconnect
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
-                  <strong>Note:</strong> Just enter your Admin API Access Token below.
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Admin API Access Token
-                  </label>
-                  <input
-                    type="password"
-                    value={shopifyConfig.accessToken}
-                    onChange={(e) => setShopifyConfig({...shopifyConfig, accessToken: e.target.value})}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
-                    placeholder="shpat_..."
-                  />
-                </div>
-                
-                <button
-                  onClick={testShopifyConnection}
-                  className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                >
-                  Test Connection
-                </button>
-              </div>
-            )}
-            
-            <button
-              onClick={() => setShowSettings(false)}
-              className="w-full bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 mt-4"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showSaveModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h2 className="text-xl font-bold mb-4">Save Layout</h2>
-            <input
-              type="text"
-              value={storeName}
-              onChange={(e) => setStoreName(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg mb-4"
-              placeholder="Layout name"
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={saveLayout}
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setShowSaveModal(false)}
-                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showLoadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-h-96 overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Load Layout</h2>
-            {savedLayouts.length === 0 ? (
-              <p className="text-gray-600 text-center py-4">No saved layouts yet</p>
-            ) : (
-              <div className="space-y-2">
-                {savedLayouts.map(layout => (
-                  <div key={layout.id} className="border rounded-lg p-3 flex justify-between items-center">
-                    <div>
-                      <div className="font-semibold">{layout.name}</div>
-                      <div className="text-xs text-gray-600">
-                        {new Date(layout.savedAt).toLocaleString()}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {layout.sections.length} sections
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => loadLayout(layout)}
-                        className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
-                      >
-                        Load
-                      </button>
-                      <button
-                        onClick={() => deleteLayout(layout.id)}
-                        className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button
-              onClick={() => setShowLoadModal(false)}
-              className="w-full bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 mt-4"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-
+    <div className="flex h-screen bg-gray-100">
+      {/* Fixture Library Sidebar */}
       {showLibrary && (
-        <div className="w-64 bg-white shadow-lg p-4 overflow-y-auto border-r-2 border-gray-200">
+        <div className="w-64 bg-white shadow-lg p-4 overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-800">Fixture Library</h2>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Icons.Package />
+              Fixture Library
+            </h2>
             <button
               onClick={() => setShowLibrary(false)}
-              className="text-gray-500 hover:text-gray-700"
+              className="p-1 hover:bg-gray-100 rounded"
             >
-              ✕
+              <Icons.X />
             </button>
           </div>
 
-          <div className="space-y-2 mb-6">
+          <div className="space-y-2">
             {Object.entries(FIXTURE_TYPES).map(([key, type]) => {
               const IconComponent = Icons[type.icon];
               return (
                 <button
                   key={key}
-                  onClick={() => addFixtureFromLibrary(key)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg border-2 hover:shadow-md transition-all"
-                  style={{ 
-                    borderColor: type.color + '40',
-                    backgroundColor: type.color + '10'
-                  }}
+                  onClick={() => addFixture(key)}
+                  className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
                 >
-                  <div style={{ color: type.color }}>
-                    <IconComponent />
+                  <div 
+                    className="w-10 h-10 rounded flex items-center justify-center"
+                    style={{ backgroundColor: type.color }}
+                  >
+                    {IconComponent && <IconComponent />}
                   </div>
-                  <span className="font-medium text-gray-700 text-sm">{type.name}</span>
+                  <span className="font-medium">{type.name}</span>
                 </button>
               );
             })}
           </div>
 
-          <div className="border-t pt-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Quick Add</h3>
-            <button
-              onClick={addSection}
-              className="w-full bg-gray-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-700 text-sm"
-            >
-              <Icons.Plus />
-              Basic Section
-            </button>
+          <div className="mt-6 pt-6 border-t">
+            <h3 className="font-bold mb-2">Active Fixtures</h3>
+            <div className="space-y-1">
+              {fixtures.map(fixture => (
+                <div
+                  key={fixture.id}
+                  className={`p-2 rounded cursor-pointer flex items-center justify-between ${
+                    selectedFixture === fixture.id ? 'bg-blue-100' : 'hover:bg-gray-100'
+                  }`}
+                  onClick={() => setSelectedFixture(fixture.id)}
+                >
+                  <span className="text-sm">{fixture.name}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteFixture(fixture.id);
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Icons.Trash2 />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      <div className={`${showLibrary ? 'w-80' : 'w-96'} bg-white shadow-lg p-6 overflow-y-auto transition-all`}>
-        <h1 className="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-          <Icons.BarChart3 />
-          Store Planner Pro
-          {shopifyConfig.connected && (
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-              Shopify ✓
-            </span>
-          )}
-        </h1>
-        
-        {feedback && (
-          <div className="bg-blue-100 border-2 border-blue-400 text-blue-800 px-3 py-2 rounded-lg text-sm font-semibold mb-3 animate-pulse">
-            {feedback}
-          </div>
-        )}
-        
-        <input
-          type="text"
-          value={storeName}
-          onChange={(e) => setStoreName(e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg mb-4 text-sm"
-          placeholder="Store layout name"
-        />
-
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <button
-            onClick={() => setShowLibrary(!showLibrary)}
-            className="bg-purple-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 text-sm"
-          >
-            <Icons.Grid3x3 />
-            {showLibrary ? 'Hide' : 'Show'} Library
-          </button>
-          <button
-            onClick={() => setHeatMapMode(!heatMapMode)}
-            className={`${heatMapMode ? 'bg-orange-600' : 'bg-gray-600'} text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 text-sm`}
-          >
-            <Icons.Flame />
-            Heat Map
-          </button>
-        </div>
-
-        <div className="bg-gray-100 rounded-lg p-3 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-gray-700">Zoom: {(zoom * 100).toFixed(0)}%</span>
-            <button
-              onClick={() => {
-                setZoom(1);
-                setPanOffset({ x: 0, y: 0 });
-              }}
-              className="text-xs bg-gray-600 text-white px-2 py-1 rounded hover:bg-gray-700"
-            >
-              Reset
-            </button>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
-              className="flex-1 bg-gray-600 text-white px-2 py-1 rounded text-sm hover:bg-gray-700"
-            >
-              −
-            </button>
-            <button
-              onClick={() => setZoom(Math.min(3, zoom + 0.1))}
-              className="flex-1 bg-gray-600 text-white px-2 py-1 rounded text-sm hover:bg-gray-700"
-            >
-              +
-            </button>
-          </div>
-          <div className="text-xs text-gray-500 mt-2 text-center">
-            Pinch trackpad to zoom
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <button
-            onClick={() => setShowSaveModal(true)}
-            className="bg-green-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-green-700 text-sm"
-          >
-            <Icons.Save />
-            Save
-          </button>
-          <button
-            onClick={() => setShowLoadModal(true)}
-            className="bg-purple-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 text-sm"
-          >
-            <Icons.Upload />
-            Load
-          </button>
-        </div>
-
-        <button
-          onClick={() => setShowSettings(true)}
-          className={`w-full ${shopifyConfig.connected ? 'bg-green-600' : 'bg-blue-600'} text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 text-sm mb-4`}
-        >
-          🛍️ {shopifyConfig.connected ? 'Shopify Connected' : 'Connect Shopify'}
-        </button>
-
-        <div className="grid grid-cols-2 gap-2 mb-2">
-          <button
-            onClick={exportLayout}
-            className="bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-700 text-sm"
-          >
-            <Icons.Download />
-            Export
-          </button>
-          <label className="bg-orange-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-orange-700 text-sm cursor-pointer">
-            <Icons.Upload />
-            Import
-            <input
-              type="file"
-              accept=".json"
-              onChange={importLayout}
-              className="hidden"
-            />
-          </label>
-        </div>
-
-        <div className="mb-6">
-          <label className="w-full bg-indigo-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 text-sm cursor-pointer">
-            <Icons.Camera />
-            {backgroundImage ? 'Change Background' : 'Add Background Photo'}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleBackgroundUpload}
-              className="hidden"
-            />
-          </label>
-          {backgroundImage && (
-            <button
-              onClick={() => {
-                setBackgroundImage(null);
-                setFeedback('Background removed');
-                setTimeout(() => setFeedback(''), 2000);
-              }}
-              className="w-full mt-2 bg-gray-400 text-white px-3 py-2 rounded-lg text-xs hover:bg-gray-500"
-            >
-              Remove Background
-            </button>
-          )}
-        </div>
-
-        {selectedSection ? (
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-800">
-                ✓ Selected: {selectedSection.name}
-              </h2>
+      {/* Main Canvas Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Top Toolbar */}
+        <div className="bg-white shadow-md p-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {!showLibrary && (
               <button
-                onClick={() => deleteSection(selectedSection.id)}
-                className="text-red-600 hover:text-red-800"
+                onClick={() => setShowLibrary(true)}
+                className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
               >
-                <Icons.Trash2 />
+                Show Library
               </button>
-            </div>
-
-            <input
-              type="text"
-              value={selectedSection.name}
-              onChange={(e) => updateSection(selectedSection.id, { name: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg mb-4"
-              placeholder="Section name"
-            />
-
-            <div className="space-y-3 mb-4 bg-white p-3 rounded-lg">
-              <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1">
-                  Square Footage
-                </label>
-                <input
-                  type="number"
-                  value={calculateMetrics(selectedSection).area.toFixed(1)}
-                  onChange={(e) => {
-                    const newArea = parseFloat(e.target.value) || 0;
-                    const currentAspectRatio = selectedSection.width / selectedSection.height;
-                    const newWidth = Math.sqrt(newArea * scale * scale * currentAspectRatio);
-                    const newHeight = newWidth / currentAspectRatio;
-                    updateSection(selectedSection.id, {
-                      width: Math.round(newWidth),
-                      height: Math.round(newHeight)
-                    });
-                  }}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-semibold"
-                  placeholder="Square feet"
-                  step="0.1"
-                  min="0"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
-                    Width (px)
-                  </label>
-                  <input
-                    type="number"
-                    value={selectedSection.width}
-                    onChange={(e) => updateSection(selectedSection.id, { 
-                      width: Math.max(50, parseInt(e.target.value) || 50)
-                    })}
-                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                    min="50"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
-                    Height (px)
-                  </label>
-                  <input
-                    type="number"
-                    value={selectedSection.height}
-                    onChange={(e) => updateSection(selectedSection.id, { 
-                      height: Math.max(50, parseInt(e.target.value) || 50)
-                    })}
-                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                    min="50"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
-                    X Position
-                  </label>
-                  <input
-                    type="number"
-                    value={selectedSection.x}
-                    onChange={(e) => updateSection(selectedSection.id, { 
-                      x: Math.max(0, parseInt(e.target.value) || 0)
-                    })}
-                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
-                    Y Position
-                  </label>
-                  <input
-                    type="number"
-                    value={selectedSection.y}
-                    onChange={(e) => updateSection(selectedSection.id, { 
-                      y: Math.max(0, parseInt(e.target.value) || 0)
-                    })}
-                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                    min="0"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <Icons.Package />
-              Scan Product UPC
-            </h3>
-
-            <div className="space-y-2">
-              <input
-                type="text"
-                value={newProduct.upc}
-                onChange={(e) => handleUPCChange(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addProductToSection();
-                  }
-                }}
-                className="w-full px-3 py-2 border-2 border-blue-300 rounded-lg text-sm font-mono"
-                placeholder="Scan UPC here..."
-              />
-              <button
-                onClick={addProductToSection}
-                className="w-full bg-green-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-700"
-              >
-                Add to Section
-              </button>
-              <div className="text-xs text-gray-500 italic">
-                {shopifyConfig.connected ? 'Will fetch from Shopify' : 'Connect Shopify for live data'}
-              </div>
-            </div>
-
-            {selectedSection.products && selectedSection.products.length > 0 && (
-              <div className="mt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-gray-700">Products in Section</h4>
-                </div>
-                
-                <div className="mb-3 p-3 bg-gray-50 rounded-lg space-y-2">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-700 block mb-1">
-                      Time Period
-                    </label>
-                    <select
-                      value={timeFilter}
-                      onChange={(e) => setTimeFilter(e.target.value)}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                    >
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="quarterly">Quarterly</option>
-                      <option value="yearly">Yearly</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="text-xs font-semibold text-gray-700 block mb-1">
-                      Sort By
-                    </label>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                    >
-                      <option value="profit">Highest Profit</option>
-                      <option value="sales">Highest Sales</option>
-                      <option value="volume">Highest Volume</option>
-                      <option value="velocity">Fastest Moving</option>
-                      <option value="name">Product Name</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {(() => {
-                    const metrics = calculateMetrics(selectedSection);
-                    return metrics.productMetrics.map((product, idx) => (
-                      <div key={idx} className="text-xs bg-white p-3 rounded border">
-                        <div className="font-medium flex items-center gap-2 mb-1">
-                          {product.name}
-                          {product.source === 'shopify' && (
-                            <span className="text-green-600 text-xs">🛍️ Shopify</span>
-                          )}
-                          {product.source === 'sample' && (
-                            <span className="text-blue-600 text-xs">📦 Sample</span>
-                          )}
-                          {product.placeholder && (
-                            <span className="text-orange-600 text-xs">⚠ Placeholder</span>
-                          )}
-                        </div>
-                        <div className="text-gray-600 font-mono text-xs mb-2">
-                          UPC: {product.upc}
-                        </div>
-                        {!product.placeholder && (
-                          <div className="grid grid-cols-2 gap-1 text-xs">
-                            <div className="text-gray-700">
-                              <span className="font-semibold">Price:</span> ${product.price.toFixed(2)}
-                            </div>
-                            <div className="text-gray-700">
-                              <span className="font-semibold">Cost:</span> ${product.cost.toFixed(2)}
-                            </div>
-                            <div className="text-green-700">
-                              <span className="font-semibold">Profit/Unit:</span> ${product.unitProfit.toFixed(2)}
-                            </div>
-                            <div className="text-orange-700 font-bold">
-                              <span className="font-semibold">Volume:</span> {Math.round(product.periodVolume)} units
-                            </div>
-                            <div className="text-blue-700">
-                              <span className="font-semibold">Velocity:</span> {product.velocity} /mo
-                            </div>
-                            <div className="text-purple-700">
-                              <span className="font-semibold">Sales:</span> ${product.periodRevenue.toFixed(0)}
-                            </div>
-                            <div className="text-green-700 font-bold col-span-2">
-                              <span className="font-semibold">Profit ({timeFilter}):</span> ${product.periodProfit.toFixed(0)}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ));
-                  })()}
-                </div>
-                
-                <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border-2 border-blue-200">
-                  <h4 className="font-bold text-gray-800 mb-2 text-sm">Section Totals ({timeFilter.charAt(0).toUpperCase() + timeFilter.slice(1)})</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="text-orange-700 font-bold">
-                      <span className="font-semibold">Volume:</span> {Math.round(calculateMetrics(selectedSection).totalVolume)} units
-                    </div>
-                    <div className="text-blue-700">
-                      <span className="font-semibold">Velocity:</span> {calculateMetrics(selectedSection).totalVelocity} /mo
-                    </div>
-                    <div className="text-gray-700">
-                      <span className="font-semibold">Sales:</span> ${calculateMetrics(selectedSection).totalRevenue.toFixed(0)}
-                    </div>
-                    <div className="text-green-700 font-bold">
-                      <span className="font-semibold">Profit:</span> ${calculateMetrics(selectedSection).totalProfit.toFixed(0)}
-                    </div>
-                    <div className="text-purple-700 font-bold col-span-2">
-                      <span className="font-semibold">Profit/Sq Ft:</span> ${calculateMetrics(selectedSection).profitPerSqFt.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              </div>
             )}
-          </div>
-        ) : (
-          <div className="bg-gray-100 rounded-lg p-4 text-center text-gray-600">
-            <p className="text-sm">Click on a section to select it</p>
-          </div>
-        )}
+            
+            <button
+              onClick={() => setHeatMapMode(!heatMapMode)}
+              className={`px-3 py-2 rounded flex items-center gap-2 ${
+                heatMapMode ? 'bg-orange-500 text-white' : 'bg-gray-200'
+              }`}
+            >
+              <Icons.Flame />
+              Heat Map
+            </button>
 
-        <div className="bg-gray-100 rounded-lg p-4">
-          <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <Icons.DollarSign />
-            Sample UPCs (Try These!)
-          </h3>
-          <div className="space-y-1 text-xs text-gray-600">
-            {Object.entries(productDatabase).map(([upc, product]) => (
-              <div key={upc} className="bg-white p-2 rounded">
-                <div className="font-medium">{product.name}</div>
-                <div className="font-mono">{upc}</div>
-              </div>
-            ))}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleBackgroundUpload}
+              accept="image/*"
+              className="hidden"
+            />
+            
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2"
+            >
+              <Icons.Camera />
+              Upload Background
+            </button>
+
+            {backgroundImage && (
+              <>
+                <button
+                  onClick={removeBackground}
+                  className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                >
+                  Remove BG
+                </button>
+                
+                {/* ✅ FEATURE 4: Reset background position button */}
+                <button
+                  onClick={resetBackgroundPosition}
+                  className="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center gap-2"
+                  title="Reset background position"
+                >
+                  <Icons.Move />
+                  Reset BG
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={() => setShowSettings(true)}
+              className="px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+            >
+              Shopify Settings
+            </button>
           </div>
+
+          <div className="text-xl font-bold">{storeName}</div>
+
+          {feedback && (
+            <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg">
+              {feedback}
+            </div>
+          )}
+        </div>
+
+        {/* Canvas */}
+        <div 
+          ref={canvasRef}
+          className="flex-1 relative overflow-hidden bg-gray-50"
+          style={{ 
+            cursor: isDraggingBg ? 'grabbing' : 'default',
+            backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
+            backgroundSize: '20px 20px'
+          }}
+          onMouseMove={handleBgMouseMove}
+          onMouseUp={handleBgMouseUp}
+          onMouseLeave={handleBgMouseUp}
+        >
+          {/* ✅ FEATURE 4: Draggable Background Image */}
+          {backgroundImage && (
+            <img
+              src={backgroundImage}
+              alt="Store layout"
+              style={{
+                position: 'absolute',
+                top: bgImagePosition.y,
+                left: bgImagePosition.x,
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain',
+                opacity: 0.3,
+                pointerEvents: 'auto',
+                cursor: isDraggingBg ? 'grabbing' : 'grab',
+                zIndex: 0,
+                userSelect: 'none'
+              }}
+              onMouseDown={handleBgMouseDown}
+              draggable={false}
+            />
+          )}
+
+          {/* Fixtures */}
+          {fixtures.map(fixture => (
+            <Fixture
+              key={fixture.id}
+              fixture={fixture}
+              onUpdate={updateFixture}
+              onDelete={deleteFixture}
+              onSelect={() => setSelectedFixture(fixture.id)}
+              isSelected={selectedFixture === fixture.id}
+            />
+          ))}
         </div>
       </div>
 
-      <div className="flex-1 relative overflow-hidden">
-        <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-4 z-10 max-w-sm">
-          <div className="text-sm font-semibold text-gray-700 mb-3 border-b pb-2">
-            📊 Store Performance ({timeFilter.charAt(0).toUpperCase() + timeFilter.slice(1)})
-          </div>
-          {sections.length === 0 ? (
-            <div className="text-xs text-gray-500 italic">Add sections to see metrics</div>
-          ) : (
-            <>
-              {sections.map(section => {
-                const metrics = calculateMetrics(section);
+      {/* Right Sidebar - Section Management */}
+      {selectedFixture && (
+        <div className="w-80 bg-white shadow-lg p-4 overflow-y-auto">
+          <h2 className="text-xl font-bold mb-4">
+            {fixtures.find(f => f.id === selectedFixture)?.name}
+          </h2>
+
+          <button
+            onClick={() => addSection(selectedFixture)}
+            className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 mb-4 flex items-center justify-center gap-2"
+          >
+            <Icons.Plus />
+            Add Section
+          </button>
+
+          <div className="space-y-4">
+            {sections
+              .filter(s => s.fixtureId === selectedFixture)
+              .map(section => {
+                const metrics = calculateMetrics(section, timeFilter);
+                
                 return (
-                  <div key={section.id} className="text-xs mb-3 pb-3 border-b last:border-b-0">
-                    <div className="font-bold text-gray-800 mb-1">{section.name}</div>
-                    <div className="grid grid-cols-2 gap-1">
-                      <div className="text-gray-600">
-                        <span className="font-semibold">Area:</span> {metrics.area.toFixed(0)} sq ft
+                  <div
+                    key={section.id}
+                    className={`p-4 border-2 rounded-lg ${
+                      selectedSection === section.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                    }`}
+                    onClick={() => setSelectedSection(section.id)}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-bold">{section.name}</h3>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSection(section.id);
+                        }}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Icons.Trash2 />
+                      </button>
+                    </div>
+
+                    <div className="text-sm space-y-1 mb-3">
+                      <div>Area: {section.area} sq ft</div>
+                      <div className="font-bold text-green-600">
+                        Profit/sq ft: ${metrics.profitPerSqFt.toFixed(2)}
                       </div>
-                      <div className="text-purple-700 font-bold">
-                        <span className="font-semibold">$/sq ft:</span> ${metrics.profitPerSqFt.toFixed(0)}
-                      </div>
-                      <div className="text-orange-700 font-bold">
-                        <span className="font-semibold">Volume:</span> {Math.round(metrics.totalVolume)} units
-                      </div>
-                      <div className="text-blue-700">
-                        <span className="font-semibold">Velocity:</span> {metrics.totalVelocity} /mo
-                      </div>
-                      <div className="text-gray-700">
-                        <span className="font-semibold">Sales:</span> ${metrics.totalRevenue.toFixed(0)}
-                      </div>
-                      <div className="text-green-700 font-bold">
-                        <span className="font-semibold">Profit:</span> ${metrics.totalProfit.toFixed(0)}
-                      </div>
+                      <div>Total Profit: ${metrics.totalProfit.toFixed(2)}</div>
+                      <div>Products: {section.products.length}</div>
+                    </div>
+
+                    {/* Add Product Form */}
+                    <div className="space-y-2 mb-3 border-t pt-3">
+                      <input
+                        type="text"
+                        placeholder="Scan or enter UPC"
+                        value={selectedSection === section.id ? newProduct.upc : ''}
+                        onChange={(e) => {
+                          setSelectedSection(section.id);
+                          setNewProduct({ upc: e.target.value, sectionId: section.id });
+                        }}
+                        className="w-full px-3 py-2 border rounded text-sm"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && newProduct.upc) {
+                            setNewProduct({ ...newProduct, sectionId: section.id });
+                            addProductToSection();
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          setNewProduct({ ...newProduct, sectionId: section.id });
+                          addProductToSection();
+                        }}
+                        disabled={scanning || !newProduct.upc}
+                        className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 text-sm"
+                      >
+                        {scanning ? 'Adding...' : 'Add Product'}
+                      </button>
+                    </div>
+
+                    {/* Product List */}
+                    <div className="space-y-2">
+                      {section.products.map((product, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                          <div className="flex-1">
+                            <div className="font-medium">{product.name}</div>
+                            <div className="text-xs text-gray-600">
+                              ${product.price} | Qty: {product.quantity}
+                            </div>
+                          </div>
+                          
+                          {/* Quantity controls */}
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => updateProductQuantity(section.id, idx, -1)}
+                              className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
+                            >
+                              -
+                            </button>
+                            <button
+                              onClick={() => updateProductQuantity(section.id, idx, 1)}
+                              className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
+                            >
+                              +
+                            </button>
+                            
+                            {/* ✅ FEATURE 3: Delete product button */}
+                            <button
+                              onClick={() => deleteProduct(section.id, idx)}
+                              className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                              title="Delete product"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );
               })}
-              
-              {sections.length > 1 && (
-                <div className="mt-3 pt-3 border-t-2 border-gray-300">
-                  <div className="font-bold text-gray-800 mb-2">🏪 Store Totals</div>
-                  <div className="grid grid-cols-2 gap-1 text-xs">
-                    <div className="text-orange-700 font-bold">
-                      Volume: {Math.round(sections.reduce((sum, s) => sum + calculateMetrics(s).totalVolume, 0))} units
-                    </div>
-                    <div className="text-blue-700">
-                      Sales: ${sections.reduce((sum, s) => sum + calculateMetrics(s).totalRevenue, 0).toFixed(0)}
-                    </div>
-                    <div className="text-green-700 font-bold col-span-2">
-                      Profit: ${sections.reduce((sum, s) => sum + calculateMetrics(s).totalProfit, 0).toFixed(0)}
-                    </div>
-                  </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shopify Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+              🛍️ Shopify Connection
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Store Name
+                </label>
+                <input
+                  type="text"
+                  value={shopifyConfig.storeName}
+                  onChange={(e) => setShopifyConfig({ ...shopifyConfig, storeName: e.target.value })}
+                  placeholder="your-store.myshopify.com"
+                  className="w-full px-3 py-2 border rounded"
+                  disabled={shopifyConfig.connected}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Note: Just enter your Admin API Access Token below.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Admin API Access Token
+                </label>
+                <input
+                  type="password"
+                  value={shopifyConfig.accessToken}
+                  onChange={(e) => setShopifyConfig({ ...shopifyConfig, accessToken: e.target.value })}
+                  placeholder="shpat_xxxxx..."
+                  className="w-full px-3 py-2 border rounded"
+                  disabled={shopifyConfig.connected}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                {!shopifyConfig.connected ? (
+                  <button
+                    onClick={testShopifyConnection}
+                    className="flex-1 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                  >
+                    Test Connection
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={refreshProductCache}
+                      className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center gap-2"
+                    >
+                      <Icons.RefreshCw />
+                      Refresh Cache
+                    </button>
+                    <button
+                      onClick={disconnectShopify}
+                      className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                    >
+                      Disconnect
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {shopifyConfig.connected && (
+                <div className="p-3 bg-green-100 text-green-800 rounded">
+                  ✅ Connected to Shopify
                 </div>
               )}
-            </>
-          )}
-        </div>
-
-        {heatMapMode && (
-          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-10">
-            <h3 className="text-xs font-bold text-gray-800 mb-2">Heat Map Legend</h3>
-            <div className="space-y-1 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{backgroundColor: 'rgba(239, 68, 68, 0.7)'}}></div>
-                <span>&lt;$25/sq ft</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{backgroundColor: 'rgba(249, 115, 22, 0.7)'}}></div>
-                <span>$25-$50/sq ft</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{backgroundColor: 'rgba(251, 191, 36, 0.7)'}}></div>
-                <span>$50-$100/sq ft</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{backgroundColor: 'rgba(132, 204, 22, 0.7)'}}></div>
-                <span>$100-$200/sq ft</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{backgroundColor: 'rgba(16, 185, 129, 0.7)'}}></div>
-                <span>&gt;$200/sq ft</span>
-              </div>
             </div>
-          </div>
-        )}
 
-        <div 
-          ref={canvasRef}
-          className="w-full h-full bg-white relative overflow-hidden" 
-          style={{ 
-            backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)',
-            backgroundSize: backgroundImage ? 'cover' : '20px 20px',
-            backgroundPosition: 'center',
-            backgroundRepeat: backgroundImage ? 'no-repeat' : 'repeat',
-            cursor: 'grab'
-          }}
-        >
-          <div style={{
-            transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
-            transformOrigin: '0 0',
-            width: '100%',
-            height: '100%',
-            position: 'relative'
-          }}>
-            {sections.map(section => (
-              <DraggableSection key={section.id} section={section} />
-            ))}
-            
-            {sections.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                <div className="text-center">
-                  <Icons.Maximize2 />
-                  <div className="mt-4 text-lg">
-                    {showLibrary ? 'Select a fixture from the library' : 'Click "Show Library" to get started'}
-                  </div>
-                </div>
-              </div>
-            )}
+            <button
+              onClick={() => setShowSettings(false)}
+              className="mt-4 w-full px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+            >
+              Close
+            </button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
 
-const root = createRoot(document.getElementById('root'));
-root.render(<PlanogramProfitTracker />);
+    createRoot(document.getElementById('root')).render(<PlanogramProfitTracker />);
   </script>
 </body>
 </html>
