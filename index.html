@@ -261,7 +261,7 @@
 
           if (response.ok) {
             const data = await response.json();
-            setProductSearchResults(data.products || []);
+            setProductSearchResults(data.products ? data.products : []);
           }
         } catch (error) {
           console.error('Error searching products:', error);
@@ -474,9 +474,9 @@
           reader.onload = (e) => {
             try {
               const data = JSON.parse(e.target.result);
-              setFixtures(data.fixtures || []);
-              setSections(data.sections || {});
-              setBackgroundImage(data.backgroundImage || null);
+              setFixtures(data.fixtures ? data.fixtures : []);
+              setSections(data.sections ? data.sections : {});
+              setBackgroundImage(data.backgroundImage ? data.backgroundImage : null);
               alert('Layout imported successfully!');
             } catch (error) {
               alert('Error importing layout');
@@ -501,9 +501,9 @@
         const saved = localStorage.getItem('storePlannerLayout');
         if (saved) {
           const data = JSON.parse(saved);
-          setFixtures(data.fixtures || []);
+          setFixtures(data.fixtures ? data.fixtures : []);
           setSections(data.sections || {]);
-          setBackgroundImage(data.backgroundImage || null);
+          setBackgroundImage(data.backgroundImage ? data.backgroundImage : null);
         }
 
         // Load Shopify config from localStorage
