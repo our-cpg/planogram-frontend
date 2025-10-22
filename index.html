@@ -143,6 +143,8 @@ const PlanogramProfitTracker = () => {
   const [showVisualMode, setShowVisualMode] = useState(true);
   const [editingSection, setEditingSection] = useState(null);
   const [editingSectionName, setEditingSectionName] = useState('');
+  const [editingSectionArea, setEditingSectionArea] = useState(null);
+  const [editingAreaValue, setEditingAreaValue] = useState('');
   const [lastRefresh, setLastRefresh] = useState(null);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   
@@ -609,12 +611,38 @@ const PlanogramProfitTracker = () => {
     const fixture = fixtures.find(f => f.id === fixtureId);
     if (!fixture) return;
 
+    const existingSections = sections.filter(s => s.fixtureId === fixtureId);
+
+    // Smart default positioning - try to fit new section without overlap
+    const numExisting = existingSections.length;
+    let defaultX = 0;
+    let defaultY = 0;
+    let defaultWidth = 100;
+    let defaultHeight = 100;
+
+    if (numExisting > 0) {
+      // Place new sections in rows
+      const sectionsPerRow = 2;
+      const row = Math.floor(numExisting / sectionsPerRow);
+      const col = numExisting % sectionsPerRow;
+      
+      defaultWidth = 50;
+      defaultHeight = 50;
+      defaultX = col * 50;
+      defaultY = row * 50;
+    }
+
     const newSection = {
       id: `section-${Date.now()}`,
       fixtureId: fixtureId,
-      name: `Section ${sections.filter(s => s.fixtureId === fixtureId).length + 1}`,
+      name: `Section ${existingSections.length + 1}`,
       products: [],
-      area: 10
+      area: 10,
+      // Position and size within fixture (percentage-based 0-100)
+      layoutX: defaultX,
+      layoutY: defaultY,
+      layoutWidth: defaultWidth,
+      layoutHeight: defaultHeight
     };
 
     const updatedSections = [...sections, newSection];
@@ -647,6 +675,36 @@ const PlanogramProfitTracker = () => {
     setEditingSection(null);
     setFeedback('✅ Section renamed');
     setTimeout(() => setFeedback(''), 2000);
+  };
+
+  const updateSectionArea = (sectionId, newArea) => {
+    const area = parseFloat(newArea);
+    if (isNaN(area) || area <= 0) {
+      setFeedback('⚠️ Area must be a positive number');
+      setTimeout(() => setFeedback(''), 2000);
+      return;
+    }
+
+    const updatedSections = sections.map(section => {
+      if (section.id === sectionId) {
+        return { ...section, area };
+      }
+      return section;
+    });
+    
+    setSections(updatedSections);
+    autoSave(updatedSections, 'Auto-saved after updating area');
+    setEditingSectionArea(null);
+    setFeedback('✅ Area updated');
+    setTimeout(() => setFeedback(''), 2000);
+  };
+
+  const updateSection = (updatedSection) => {
+    const updatedSections = sections.map(s => 
+      s.id === updatedSection.id ? updatedSection : s
+    );
+    setSections(updatedSections);
+    autoSave(updatedSections, 'Auto-saved section layout');
   };
 
   const handleBackgroundUpload = (e) => {
@@ -784,45 +842,159 @@ const PlanogramProfitTracker = () => {
     );
   };
 
-  const SectionOverlay = ({ section, fixture }) => {
+  const DraggableSection = ({ section, fixture, isSelected, onSelect }) => {
+    const [isDragging, setIsDragging] = useState(false);
+    const [isResizing, setIsResizing] = useState(false);
+    
     const metrics = calculateMetrics(section, timeFilter);
-    const color = getHeatMapColor(metrics.profitPerSqFt);
+    const color = heatMapMode ? getHeatMapColor(metrics.profitPerSqFt) : 'rgba(100, 116, 139, 0.3)';
     
-    // Calculate section position within fixture (evenly distributed)
-    const fixtureSections = sections.filter(s => s.fixtureId === fixture.id);
-    const sectionIndex = fixtureSections.findIndex(s => s.id === section.id);
-    const numSections = fixtureSections.length;
+    // Use custom layout properties or default to full fixture
+    const layoutX = section.layoutX !== undefined ? section.layoutX : 0;
+    const layoutY = section.layoutY !== undefined ? section.layoutY : 0;
+    const layoutWidth = section.layoutWidth !== undefined ? section.layoutWidth : 100;
+    const layoutHeight = section.layoutHeight !== undefined ? section.layoutHeight : 100;
     
-    // Divide fixture into equal sections
-    const sectionWidth = fixture.width / Math.ceil(Math.sqrt(numSections));
-    const sectionHeight = fixture.height / Math.ceil(numSections / Math.ceil(Math.sqrt(numSections)));
-    const col = sectionIndex % Math.ceil(Math.sqrt(numSections));
-    const row = Math.floor(sectionIndex / Math.ceil(Math.sqrt(numSections)));
-    
+    const handleMouseDown = (e) => {
+      if (e.target.classList.contains('section-resize-handle')) {
+        e.stopPropagation();
+        setIsResizing(true);
+        const resizePosition = e.target.dataset.position;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startLayoutX = layoutX;
+        const startLayoutY = layoutY;
+        const startLayoutWidth = layoutWidth;
+        const startLayoutHeight = layoutHeight;
+
+        const handleMouseMove = (e) => {
+          const deltaX = ((e.clientX - startX) / fixture.width) * 100;
+          const deltaY = ((e.clientY - startY) / fixture.height) * 100;
+
+          let newLayoutX = startLayoutX;
+          let newLayoutY = startLayoutY;
+          let newLayoutWidth = startLayoutWidth;
+          let newLayoutHeight = startLayoutHeight;
+
+          if (resizePosition.includes('e')) {
+            newLayoutWidth = Math.max(10, Math.min(100 - startLayoutX, startLayoutWidth + deltaX));
+          }
+          if (resizePosition.includes('w')) {
+            const widthChange = Math.max(10, startLayoutWidth - deltaX);
+            newLayoutWidth = widthChange;
+            newLayoutX = startLayoutX + (startLayoutWidth - widthChange);
+          }
+          if (resizePosition.includes('s')) {
+            newLayoutHeight = Math.max(10, Math.min(100 - startLayoutY, startLayoutHeight + deltaY));
+          }
+          if (resizePosition.includes('n')) {
+            const heightChange = Math.max(10, startLayoutHeight - deltaY);
+            newLayoutHeight = heightChange;
+            newLayoutY = startLayoutY + (startLayoutHeight - heightChange);
+          }
+
+          updateSection({
+            ...section,
+            layoutX: Math.max(0, Math.min(100 - newLayoutWidth, newLayoutX)),
+            layoutY: Math.max(0, Math.min(100 - newLayoutHeight, newLayoutY)),
+            layoutWidth: newLayoutWidth,
+            layoutHeight: newLayoutHeight
+          });
+        };
+
+        const handleMouseUp = () => {
+          setIsResizing(false);
+          document.removeEventListener('mousemove', handleMouseMove);
+          document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        return;
+      }
+
+      // Handle dragging
+      e.stopPropagation();
+      setIsDragging(true);
+      onSelect();
+      
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startLayoutX = layoutX;
+      const startLayoutY = layoutY;
+
+      const handleMouseMove = (e) => {
+        const deltaX = ((e.clientX - startX) / fixture.width) * 100;
+        const deltaY = ((e.clientY - startY) / fixture.height) * 100;
+        
+        updateSection({
+          ...section,
+          layoutX: Math.max(0, Math.min(100 - layoutWidth, startLayoutX + deltaX)),
+          layoutY: Math.max(0, Math.min(100 - layoutHeight, startLayoutY + deltaY))
+        });
+      };
+
+      const handleMouseUp = () => {
+        setIsDragging(false);
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    };
+
+    // Calculate actual pixel positions
+    const left = (layoutX / 100) * fixture.width;
+    const top = (layoutY / 100) * fixture.height;
+    const width = (layoutWidth / 100) * fixture.width;
+    const height = (layoutHeight / 100) * fixture.height;
+
     return (
       <div
         style={{
           position: 'absolute',
-          left: col * sectionWidth,
-          top: row * sectionHeight,
-          width: sectionWidth,
-          height: sectionHeight,
+          left: left,
+          top: top,
+          width: width,
+          height: height,
           backgroundColor: color,
-          border: '1px solid rgba(255,255,255,0.3)',
-          pointerEvents: 'none',
+          border: isSelected ? '2px solid #3b82f6' : '1px solid rgba(255,255,255,0.5)',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          pointerEvents: 'auto',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '10px',
+          fontSize: '11px',
           color: 'white',
           fontWeight: 'bold',
-          textShadow: '1px 1px 2px rgba(0,0,0,0.8)'
+          textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+          zIndex: isSelected ? 60 : 40
         }}
+        onMouseDown={handleMouseDown}
       >
-        <div className="text-center">
+        <div className="text-center pointer-events-none">
           <div>{section.name}</div>
-          <div>${metrics.profitPerSqFt.toFixed(0)}/sqft</div>
+          {heatMapMode && <div>${metrics.profitPerSqFt.toFixed(0)}/sqft</div>}
         </div>
+
+        {/* Resize handles - only show when selected */}
+        {isSelected && ['nw', 'ne', 'se', 'sw', 'n', 's', 'e', 'w'].map(position => (
+          <div
+            key={position}
+            className="section-resize-handle"
+            data-position={position}
+            style={{
+              position: 'absolute',
+              background: '#3b82f6',
+              border: '1px solid white',
+              cursor: getCursor(position),
+              zIndex: 70,
+              pointerEvents: 'auto',
+              ...getHandlePosition(position)
+            }}
+          />
+        ))}
       </div>
     );
   };
@@ -926,12 +1098,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         }}
         onMouseDown={handleMouseDown}
       >
-        {/* Section-by-section heat map overlays */}
-        {heatMapMode && fixtureSections.map(section => (
-          <SectionOverlay
+        {/* Draggable/Resizable Sections - always visible */}
+        {fixtureSections.map(section => (
+          <DraggableSection
             key={section.id}
             section={section}
             fixture={fixture}
+            isSelected={selectedSection === section.id}
+            onSelect={() => setSelectedSection(section.id)}
           />
         ))}
 
@@ -1261,12 +1435,233 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     </div>
 
                     <div className="text-sm space-y-1 mb-3">
-                      <div>Area: {section.area} sq ft</div>
+                      <div className="flex items-center gap-2">
+                        {editingSectionArea === section.id ? (
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0.1"
+                            value={editingAreaValue}
+                            onChange={(e) => setEditingAreaValue(e.target.value)}
+                            onBlur={() => {
+                              if (editingAreaValue.trim()) {
+                                updateSectionArea(section.id, editingAreaValue);
+                              } else {
+                                setEditingSectionArea(null);
+                              }
+                            }}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && editingAreaValue.trim()) {
+                                updateSectionArea(section.id, editingAreaValue);
+                              }
+                              if (e.key === 'Escape') {
+                                setEditingSectionArea(null);
+                              }
+                            }}
+                            className="flex-1 px-2 py-1 border-2 border-blue-500 rounded text-sm"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <div
+                            className="cursor-pointer hover:text-blue-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingSectionArea(section.id);
+                              setEditingAreaValue(section.area.toString());
+                            }}
+                            title="Click to edit area"
+                          >
+                            Area: {section.area} sq ft
+                          </div>
+                        )}
+                      </div>
                       <div className="font-bold text-green-600">
                         Profit/sq ft: ${metrics.profitPerSqFt.toFixed(2)}
                       </div>
                       <div>Total Profit: ${metrics.totalProfit.toFixed(2)}</div>
                       <div>Products: {section.products.length}</div>
+                    </div>
+
+                    {/* Section Layout Controls */}
+                    <div className="space-y-2 mb-3 border-t pt-3">
+                      <div className="text-xs font-bold text-gray-600">SECTION LAYOUT</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-600">X Position %</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={section.layoutX || 0}
+                            onChange={(e) => {
+                              const updatedSections = sections.map(s => 
+                                s.id === section.id ? { ...s, layoutX: parseFloat(e.target.value) || 0 } : s
+                              );
+                              setSections(updatedSections);
+                              autoSave(updatedSections, 'Section layout updated');
+                            }}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600">Y Position %</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={section.layoutY || 0}
+                            onChange={(e) => {
+                              const updatedSections = sections.map(s => 
+                                s.id === section.id ? { ...s, layoutY: parseFloat(e.target.value) || 0 } : s
+                              );
+                              setSections(updatedSections);
+                              autoSave(updatedSections, 'Section layout updated');
+                            }}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600">Width %</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={section.layoutWidth || 100}
+                            onChange={(e) => {
+                              const updatedSections = sections.map(s => 
+                                s.id === section.id ? { ...s, layoutWidth: parseFloat(e.target.value) || 100 } : s
+                              );
+                              setSections(updatedSections);
+                              autoSave(updatedSections, 'Section layout updated');
+                            }}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600">Height %</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={section.layoutHeight || 100}
+                            onChange={(e) => {
+                              const updatedSections = sections.map(s => 
+                                s.id === section.id ? { ...s, layoutHeight: parseFloat(e.target.value) || 100 } : s
+                              );
+                              setSections(updatedSections);
+                              autoSave(updatedSections, 'Section layout updated');
+                            }}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updatedSections = sections.map(s => 
+                              s.id === section.id ? { ...s, layoutX: 0, layoutY: 0, layoutWidth: 100, layoutHeight: 100 } : s
+                            );
+                            setSections(updatedSections);
+                            autoSave(updatedSections, 'Section layout reset');
+                          }}
+                          className="flex-1 px-2 py-1 bg-gray-200 text-xs rounded hover:bg-gray-300"
+                        >
+                          Reset Layout
+                        </button>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-2">Quick Layouts:</div>
+                      <div className="grid grid-cols-3 gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updatedSections = sections.map(s => 
+                              s.id === section.id ? { ...s, layoutX: 0, layoutY: 0, layoutWidth: 50, layoutHeight: 100 } : s
+                            );
+                            setSections(updatedSections);
+                            autoSave(updatedSections);
+                          }}
+                          className="px-2 py-1 bg-blue-100 text-xs rounded hover:bg-blue-200"
+                          title="Left Half"
+                        >
+                          ⬅️ Left
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updatedSections = sections.map(s => 
+                              s.id === section.id ? { ...s, layoutX: 50, layoutY: 0, layoutWidth: 50, layoutHeight: 100 } : s
+                            );
+                            setSections(updatedSections);
+                            autoSave(updatedSections);
+                          }}
+                          className="px-2 py-1 bg-blue-100 text-xs rounded hover:bg-blue-200"
+                          title="Right Half"
+                        >
+                          Right ➡️
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updatedSections = sections.map(s => 
+                              s.id === section.id ? { ...s, layoutX: 0, layoutY: 0, layoutWidth: 100, layoutHeight: 50 } : s
+                            );
+                            setSections(updatedSections);
+                            autoSave(updatedSections);
+                          }}
+                          className="px-2 py-1 bg-blue-100 text-xs rounded hover:bg-blue-200"
+                          title="Top Half"
+                        >
+                          ⬆️ Top
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updatedSections = sections.map(s => 
+                              s.id === section.id ? { ...s, layoutX: 0, layoutY: 50, layoutWidth: 100, layoutHeight: 50 } : s
+                            );
+                            setSections(updatedSections);
+                            autoSave(updatedSections);
+                          }}
+                          className="px-2 py-1 bg-blue-100 text-xs rounded hover:bg-blue-200"
+                          title="Bottom Half"
+                        >
+                          Bottom ⬇️
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updatedSections = sections.map(s => 
+                              s.id === section.id ? { ...s, layoutX: 0, layoutY: 0, layoutWidth: 33, layoutHeight: 100 } : s
+                            );
+                            setSections(updatedSections);
+                            autoSave(updatedSections);
+                          }}
+                          className="px-2 py-1 bg-green-100 text-xs rounded hover:bg-green-200"
+                          title="1/3 Width"
+                        >
+                          1/3
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updatedSections = sections.map(s => 
+                              s.id === section.id ? { ...s, layoutX: 0, layoutY: 0, layoutWidth: 25, layoutHeight: 100 } : s
+                            );
+                            setSections(updatedSections);
+                            autoSave(updatedSections);
+                          }}
+                          className="px-2 py-1 bg-green-100 text-xs rounded hover:bg-green-200"
+                          title="1/4 Width"
+                        >
+                          1/4
+                        </button>
+                      </div>
                     </div>
 
                     <div className="space-y-2 mb-3 border-t pt-3">
