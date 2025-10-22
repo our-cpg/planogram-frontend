@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Store Planogram Profit Tracker - Enhanced v2</title>
+  <title>Store Planogram Profit Tracker - v3 Complete</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -39,7 +39,6 @@ const Icons = {
   Move: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="15 19 12 22 9 19"></polyline><polyline points="19 9 22 12 19 15"></polyline><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>
 };
 
-// Fixture type definitions
 const FIXTURE_TYPES = {
   GRID_WALL: {
     id: 'grid_wall',
@@ -83,17 +82,10 @@ const FIXTURE_TYPES = {
   }
 };
 
-// Helper functions for resize handles
 const getCursor = (position) => {
   const cursors = {
-    'nw': 'nwse-resize',
-    'ne': 'nesw-resize',
-    'se': 'nwse-resize',
-    'sw': 'nesw-resize',
-    'n': 'ns-resize',
-    's': 'ns-resize',
-    'e': 'ew-resize',
-    'w': 'ew-resize'
+    'nw': 'nwse-resize', 'ne': 'nesw-resize', 'se': 'nwse-resize', 'sw': 'nesw-resize',
+    'n': 'ns-resize', 's': 'ns-resize', 'e': 'ew-resize', 'w': 'ew-resize'
   };
   return cursors[position];
 };
@@ -113,7 +105,6 @@ const getHandlePosition = (position) => {
 };
 
 const PlanogramProfitTracker = () => {
-  // State declarations
   const [fixtures, setFixtures] = useState([]);
   const [selectedFixture, setSelectedFixture] = useState(null);
   const [sections, setSections] = useState([]);
@@ -138,13 +129,15 @@ const PlanogramProfitTracker = () => {
   const [showLibrary, setShowLibrary] = useState(true);
   const [heatMapMode, setHeatMapMode] = useState(false);
   const [backgroundImage, setBackgroundImage] = useState(null);
-  
-  // ✅ NEW: Background image dragging states
   const [bgImagePosition, setBgImagePosition] = useState({ x: 0, y: 0 });
   const [isDraggingBg, setIsDraggingBg] = useState(false);
   const [bgDragStart, setBgDragStart] = useState({ x: 0, y: 0 });
+  const [showVisualMode, setShowVisualMode] = useState(true);
+  const [editingSection, setEditingSection] = useState(null);
+  const [editingSectionName, setEditingSectionName] = useState('');
   
   const fileInputRef = useRef(null);
+  const importInputRef = useRef(null);
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const canvasRef = useRef(null);
@@ -159,7 +152,6 @@ const PlanogramProfitTracker = () => {
     '567890123456': { name: 'Specialty Honey', price: 15.99, cost: 7.50, monthlySales: 67 },
   };
 
-  // Load data from localStorage on mount
   useEffect(() => {
     try {
       const savedSections = localStorage.getItem('planogram_sections');
@@ -181,7 +173,6 @@ const PlanogramProfitTracker = () => {
     }
   }, []);
 
-  // ✅ AUTO-SAVE helper function
   const autoSave = (updatedSections, message = 'Auto-saved') => {
     try {
       localStorage.setItem('planogram_sections', JSON.stringify(updatedSections));
@@ -192,10 +183,83 @@ const PlanogramProfitTracker = () => {
     }
   };
 
-  // ✅ FEATURE 4: Background image drag handlers
+  const exportLayout = () => {
+    const layoutData = {
+      version: 3,
+      storeName,
+      fixtures,
+      sections,
+      backgroundImage,
+      bgImagePosition,
+      shopifyConfig: {
+        storeName: shopifyConfig.storeName,
+        connected: shopifyConfig.connected
+      },
+      exportDate: new Date().toISOString()
+    };
+
+    const dataStr = JSON.stringify(layoutData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `planogram-${storeName.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    URL.revokeObjectURL(url);
+    
+    setFeedback('✅ Layout exported!');
+    setTimeout(() => setFeedback(''), 3000);
+  };
+
+  const importLayout = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const layoutData = JSON.parse(e.target.result);
+        
+        if (layoutData.version !== 3) {
+          setFeedback('⚠️ Old version file.');
+        }
+        
+        if (layoutData.storeName) setStoreName(layoutData.storeName);
+        if (layoutData.fixtures) {
+          setFixtures(layoutData.fixtures);
+          localStorage.setItem('planogram_fixtures', JSON.stringify(layoutData.fixtures));
+        }
+        if (layoutData.sections) {
+          setSections(layoutData.sections);
+          localStorage.setItem('planogram_sections', JSON.stringify(layoutData.sections));
+        }
+        if (layoutData.backgroundImage) {
+          setBackgroundImage(layoutData.backgroundImage);
+          localStorage.setItem('planogram_background', layoutData.backgroundImage);
+        }
+        if (layoutData.bgImagePosition) {
+          setBgImagePosition(layoutData.bgImagePosition);
+          localStorage.setItem('planogram_bg_position', JSON.stringify(layoutData.bgImagePosition));
+        }
+        
+        setFeedback('✅ Layout imported!');
+        setTimeout(() => setFeedback(''), 3000);
+        
+      } catch (error) {
+        console.error('Import error:', error);
+        setFeedback('❌ Failed to import. Invalid file.');
+        setTimeout(() => setFeedback(''), 5000);
+      }
+    };
+    
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
   const handleBgMouseDown = (e) => {
     if (e.target.tagName !== 'IMG') return;
-    
     setIsDraggingBg(true);
     setBgDragStart({
       x: e.clientX - bgImagePosition.x,
@@ -207,12 +271,10 @@ const PlanogramProfitTracker = () => {
 
   const handleBgMouseMove = (e) => {
     if (!isDraggingBg) return;
-    
-    const newPosition = {
+    setBgImagePosition({
       x: e.clientX - bgDragStart.x,
       y: e.clientY - bgDragStart.y
-    };
-    setBgImagePosition(newPosition);
+    });
   };
 
   const handleBgMouseUp = () => {
@@ -220,7 +282,6 @@ const PlanogramProfitTracker = () => {
       setIsDraggingBg(false);
       try {
         localStorage.setItem('planogram_bg_position', JSON.stringify(bgImagePosition));
-        console.log('✅ Background position saved');
       } catch (error) {
         console.error('Failed to save background position:', error);
       }
@@ -231,27 +292,23 @@ const PlanogramProfitTracker = () => {
     const resetPos = { x: 0, y: 0 };
     setBgImagePosition(resetPos);
     localStorage.setItem('planogram_bg_position', JSON.stringify(resetPos));
-    setFeedback('✅ Background position reset');
+    setFeedback('✅ Background reset');
     setTimeout(() => setFeedback(''), 2000);
   };
 
-  // Test Shopify connection
   const testShopifyConnection = async () => {
     if (!shopifyConfig.storeName || !shopifyConfig.accessToken) {
-      setFeedback('⚠️ Please enter store name and access token');
+      setFeedback('⚠️ Enter store name and token');
       setTimeout(() => setFeedback(''), 3000);
       return;
     }
 
-    setFeedback('🔄 Testing connection...');
-    console.log('Testing Shopify connection...', { storeName: shopifyConfig.storeName });
+    setFeedback('🔄 Testing...');
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/shopify`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           storeName: shopifyConfig.storeName,
           accessToken: shopifyConfig.accessToken,
@@ -259,26 +316,24 @@ const PlanogramProfitTracker = () => {
         })
       });
 
-      console.log('Test response status:', response.status);
       const data = await response.json();
-      console.log('Test response data:', data);
 
       if (response.ok && data.success) {
         const updatedConfig = { ...shopifyConfig, connected: true };
         setShopifyConfig(updatedConfig);
         localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
-        setFeedback(`✅ Connected to ${data.shop || 'Shopify'}!`);
+        setFeedback(`✅ Connected!`);
         setTimeout(() => {
           setFeedback('');
           setShowSettings(false);
         }, 2000);
       } else {
-        setFeedback(`❌ Connection failed: ${data.error || 'Unknown error'}`);
+        setFeedback(`❌ ${data.error || 'Failed'}`);
         setTimeout(() => setFeedback(''), 5000);
       }
     } catch (error) {
       console.error('Connection error:', error);
-      setFeedback('❌ Connection error - check console');
+      setFeedback('❌ Connection error');
       setTimeout(() => setFeedback(''), 5000);
     }
   };
@@ -291,7 +346,7 @@ const PlanogramProfitTracker = () => {
     };
     setShopifyConfig(updatedConfig);
     localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
-    setFeedback('✅ Disconnected from Shopify');
+    setFeedback('✅ Disconnected');
     setTimeout(() => setFeedback(''), 2000);
   };
 
@@ -302,14 +357,12 @@ const PlanogramProfitTracker = () => {
       return;
     }
 
-    setFeedback('🔄 Refreshing product cache...');
+    setFeedback('🔄 Refreshing...');
     
     try {
       const response = await fetch(`${BACKEND_URL}/api/shopify`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           storeName: shopifyConfig.storeName,
           accessToken: shopifyConfig.accessToken,
@@ -318,23 +371,20 @@ const PlanogramProfitTracker = () => {
       });
 
       const data = await response.json();
-      console.log('Cache refresh response:', data);
 
       if (response.ok && data.success) {
         setFeedback(`✅ ${data.message}`);
         setTimeout(() => setFeedback(''), 5000);
       } else {
-        setFeedback(`❌ ${data.error || 'Refresh failed'}`);
+        setFeedback(`❌ ${data.error || 'Failed'}`);
         setTimeout(() => setFeedback(''), 5000);
       }
     } catch (error) {
-      console.error('Cache refresh error:', error);
       setFeedback('❌ Cache refresh failed');
       setTimeout(() => setFeedback(''), 5000);
     }
   };
 
-  // ✅ FEATURE 2: Add product with AUTO-SAVE
   const addProductToSection = async () => {
     if (!newProduct.upc || !newProduct.sectionId) {
       setFeedback('⚠️ Enter UPC and select section');
@@ -351,18 +401,12 @@ const PlanogramProfitTracker = () => {
       return;
     }
 
-    console.log('Starting product lookup for UPC:', newProduct.upc);
-    
     let product = null;
     
     if (shopifyConfig.connected) {
-      console.log('Checking database for product...');
       try {
         const response = await fetch(`${BACKEND_URL}/api/product/${newProduct.upc}`);
-
-        console.log('Database lookup response status:', response.status);
         const data = await response.json();
-        console.log('Database response data:', data);
 
         if (response.ok && data.title) {
           product = {
@@ -372,20 +416,15 @@ const PlanogramProfitTracker = () => {
             cost: data.cost,
             monthlySales: data.monthlySales || 0,
             quantity: 1,
-            source: 'database'
+            source: 'database',
+            visualX: Math.random() * 80 + 10,
+            visualY: Math.random() * 80 + 10
           };
-          console.log('Product found in database:', product);
           setFeedback(`✅ Added: ${product.name}`);
-        } else {
-          console.log('Product not found in database');
         }
       } catch (error) {
         console.error('Error fetching from database:', error);
-        setFeedback('⚠️ Database lookup failed');
-        setTimeout(() => setFeedback(''), 3000);
       }
-    } else {
-      console.log('Shopify not connected, skipping database lookup');
     }
     
     if (!product && productDatabase[newProduct.upc]) {
@@ -393,10 +432,11 @@ const PlanogramProfitTracker = () => {
         upc: newProduct.upc, 
         ...productDatabase[newProduct.upc],
         quantity: 1,
-        source: 'sample'
+        source: 'sample',
+        visualX: Math.random() * 80 + 10,
+        visualY: Math.random() * 80 + 10
       };
-      console.log('Product found in local database:', product);
-      setFeedback(`✅ Added: ${product.name} (Sample Data)`);
+      setFeedback(`✅ Added: ${product.name} (Sample)`);
     }
     
     if (!product) {
@@ -407,18 +447,17 @@ const PlanogramProfitTracker = () => {
         cost: 0,
         monthlySales: 0,
         quantity: 1,
-        source: 'placeholder'
+        source: 'placeholder',
+        visualX: Math.random() * 80 + 10,
+        visualY: Math.random() * 80 + 10
       };
-      console.log('Created placeholder product:', product);
-      setFeedback('⚠️ Product not found - added as placeholder');
+      setFeedback('⚠️ Not found - placeholder added');
     }
 
-    // Add product to section
     const updatedSections = [...sections];
     updatedSections[sectionIndex].products.push(product);
     setSections(updatedSections);
 
-    // ✅ AUTO-SAVE immediately after adding product
     autoSave(updatedSections, 'Auto-saved after adding product');
 
     setScanning(false);
@@ -426,7 +465,6 @@ const PlanogramProfitTracker = () => {
     setTimeout(() => setFeedback(''), 3000);
   };
 
-  // ✅ FEATURE 2: Update quantity with AUTO-SAVE
   const updateProductQuantity = (sectionId, productIndex, delta) => {
     const updatedSections = sections.map(section => {
       if (section.id === sectionId) {
@@ -441,16 +479,29 @@ const PlanogramProfitTracker = () => {
     });
     
     setSections(updatedSections);
-    
-    // ✅ AUTO-SAVE after quantity update
     autoSave(updatedSections, 'Auto-saved after quantity update');
   };
 
-  // ✅ FEATURE 3: Delete product from section with AUTO-SAVE
+  const updateProductPosition = (sectionId, productIndex, newX, newY) => {
+    const updatedSections = sections.map(section => {
+      if (section.id === sectionId) {
+        const updatedProducts = [...section.products];
+        updatedProducts[productIndex] = {
+          ...updatedProducts[productIndex],
+          visualX: newX,
+          visualY: newY
+        };
+        return { ...section, products: updatedProducts };
+      }
+      return section;
+    });
+    
+    setSections(updatedSections);
+    autoSave(updatedSections, 'Auto-saved product position');
+  };
+
   const deleteProduct = (sectionId, productIndex) => {
-    if (!confirm('Delete this product from the section?')) {
-      return;
-    }
+    if (!confirm('Delete this product?')) return;
 
     const updatedSections = sections.map(section => {
       if (section.id === sectionId) {
@@ -461,8 +512,6 @@ const PlanogramProfitTracker = () => {
     });
     
     setSections(updatedSections);
-    
-    // ✅ AUTO-SAVE after deleting product
     autoSave(updatedSections, 'Auto-saved after deleting product');
     
     setFeedback('✅ Product deleted');
@@ -490,7 +539,7 @@ const PlanogramProfitTracker = () => {
   };
 
   const deleteFixture = (fixtureId) => {
-    if (!confirm('Delete this fixture and all its sections?')) return;
+    if (!confirm('Delete fixture and all sections?')) return;
     
     const updatedFixtures = fixtures.filter(f => f.id !== fixtureId);
     setFixtures(updatedFixtures);
@@ -522,7 +571,7 @@ const PlanogramProfitTracker = () => {
       fixtureId: fixtureId,
       name: `Section ${sections.filter(s => s.fixtureId === fixtureId).length + 1}`,
       products: [],
-      area: 10 // sq ft
+      area: 10
     };
 
     const updatedSections = [...sections, newSection];
@@ -531,7 +580,7 @@ const PlanogramProfitTracker = () => {
   };
 
   const deleteSection = (sectionId) => {
-    if (!confirm('Delete this section and all its products?')) return;
+    if (!confirm('Delete section and all products?')) return;
     
     const updatedSections = sections.filter(s => s.id !== sectionId);
     setSections(updatedSections);
@@ -540,6 +589,21 @@ const PlanogramProfitTracker = () => {
     if (selectedSection === sectionId) {
       setSelectedSection(null);
     }
+  };
+
+  const updateSectionName = (sectionId, newName) => {
+    const updatedSections = sections.map(section => {
+      if (section.id === sectionId) {
+        return { ...section, name: newName };
+      }
+      return section;
+    });
+    
+    setSections(updatedSections);
+    autoSave(updatedSections, 'Auto-saved after renaming section');
+    setEditingSection(null);
+    setFeedback('✅ Section renamed');
+    setTimeout(() => setFeedback(''), 2000);
   };
 
   const handleBackgroundUpload = (e) => {
@@ -567,13 +631,7 @@ const PlanogramProfitTracker = () => {
   };
 
   const calculateMetrics = (section, filter) => {
-    const multipliers = {
-      daily: 365,
-      weekly: 52,
-      monthly: 12,
-      yearly: 1
-    };
-
+    const multipliers = { daily: 365, weekly: 52, monthly: 12, yearly: 1 };
     const multiplier = multipliers[filter];
     const area = section.area || 1;
 
@@ -583,29 +641,17 @@ const PlanogramProfitTracker = () => {
       const periodProfit = (p.price - p.cost) * periodVolume;
       const velocity = periodVolume / area;
 
-      return {
-        ...p,
-        periodVolume,
-        periodRevenue,
-        periodProfit,
-        velocity
-      };
+      return { ...p, periodVolume, periodRevenue, periodProfit, velocity };
     });
 
     productMetrics.sort((a, b) => {
       switch(sortBy) {
-        case 'profit':
-          return b.periodProfit - a.periodProfit;
-        case 'revenue':
-          return b.periodRevenue - a.periodRevenue;
-        case 'velocity':
-          return b.velocity - a.velocity;
-        case 'volume':
-          return b.periodVolume - a.periodVolume;
-        case 'name':
-          return a.name.localeCompare(b.name);
-        default:
-          return 0;
+        case 'profit': return b.periodProfit - a.periodProfit;
+        case 'revenue': return b.periodRevenue - a.periodRevenue;
+        case 'velocity': return b.velocity - a.velocity;
+        case 'volume': return b.periodVolume - a.periodVolume;
+        case 'name': return a.name.localeCompare(b.name);
+        default: return 0;
       }
     });
     
@@ -616,16 +662,7 @@ const PlanogramProfitTracker = () => {
     const totalVelocity = productMetrics.reduce((sum, p) => sum + p.velocity, 0);
     const profitPerSqFt = area > 0 ? totalProfit / area : 0;
 
-    return { 
-      area, 
-      totalRevenue, 
-      totalCost, 
-      totalProfit, 
-      profitPerSqFt,
-      totalVolume,
-      totalVelocity,
-      productMetrics 
-    };
+    return { area, totalRevenue, totalCost, totalProfit, profitPerSqFt, totalVolume, totalVelocity, productMetrics };
   };
 
   const getHeatMapColor = (profitPerSqFt) => {
@@ -638,12 +675,75 @@ const PlanogramProfitTracker = () => {
     return 'rgba(239, 68, 68, 0.6)';
   };
 
-  // ✅ FEATURE 1: Enhanced Fixture component with 8 resize handles
-  const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
+  const ProductBox = ({ product, productIndex, sectionId, fixtureX, fixtureY, fixtureWidth, fixtureHeight }) => {
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+    const handleMouseDown = (e) => {
+      e.stopPropagation();
+      setIsDragging(true);
+      setDragStart({ x: e.clientX, y: e.clientY });
+    };
+
+    useEffect(() => {
+      if (!isDragging) return;
+
+      const handleMouseMove = (e) => {
+        const deltaX = e.clientX - dragStart.x;
+        const deltaY = e.clientY - dragStart.y;
+        
+        const newX = Math.max(5, Math.min(95, ((product.visualX / 100) * fixtureWidth + deltaX) / fixtureWidth * 100));
+        const newY = Math.max(5, Math.min(95, ((product.visualY / 100) * fixtureHeight + deltaY) / fixtureHeight * 100));
+        
+        updateProductPosition(sectionId, productIndex, newX, newY);
+        setDragStart({ x: e.clientX, y: e.clientY });
+      };
+
+      const handleMouseUp = () => {
+        setIsDragging(false);
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }, [isDragging, dragStart]);
+
+    const profit = (product.price - product.cost) * (product.monthlySales || 0);
+    let colorClass = 'bg-gray-400';
+    if (profit > 100) colorClass = 'bg-green-500';
+    else if (profit > 50) colorClass = 'bg-yellow-500';
+    else if (profit > 0) colorClass = 'bg-orange-500';
+    else if (profit < 0) colorClass = 'bg-red-500';
+
+    const size = Math.min(Math.max(20, 15 + product.quantity * 3), 40);
+
+    return (
+      <div
+        className={`absolute ${colorClass} rounded shadow-lg flex items-center justify-center text-white text-xs font-bold cursor-move hover:opacity-80`}
+        style={{
+          left: `${product.visualX}%`,
+          top: `${product.visualY}%`,
+          width: `${size}px`,
+          height: `${size}px`,
+          transform: 'translate(-50%, -50%)',
+          zIndex: isDragging ? 1000 : 50,
+          pointerEvents: 'auto'
+        }}
+        onMouseDown={handleMouseDown}
+        title={`${product.name}\n$${product.price}\nQty: ${product.quantity}\nProfit: $${profit.toFixed(2)}`}
+      >
+        {product.quantity}
+      </div>
+    );
+  };
+const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     const [dragging, setDragging] = useState(false);
 
     const handleMouseDown = (e) => {
-      // ✅ FEATURE 1: Handle resizing from 8 different positions
       if (e.target.classList.contains('resize-handle')) {
         e.stopPropagation();
         const resizePosition = e.target.dataset.position;
@@ -663,29 +763,18 @@ const PlanogramProfitTracker = () => {
           let newX = startLeft;
           let newY = startTop;
 
-          // Handle resizing based on position
-          if (resizePosition.includes('e')) {
-            newWidth = Math.max(60, startWidth + deltaX);
-          }
+          if (resizePosition.includes('e')) newWidth = Math.max(60, startWidth + deltaX);
           if (resizePosition.includes('w')) {
             newWidth = Math.max(60, startWidth - deltaX);
             newX = startLeft + (startWidth - newWidth);
           }
-          if (resizePosition.includes('s')) {
-            newHeight = Math.max(60, startHeight + deltaY);
-          }
+          if (resizePosition.includes('s')) newHeight = Math.max(60, startHeight + deltaY);
           if (resizePosition.includes('n')) {
             newHeight = Math.max(60, startHeight - deltaY);
             newY = startTop + (startHeight - newHeight);
           }
 
-          onUpdate({ 
-            ...fixture, 
-            width: newWidth, 
-            height: newHeight,
-            x: newX,
-            y: newY
-          });
+          onUpdate({ ...fixture, width: newWidth, height: newHeight, x: newX, y: newY });
         };
 
         const handleMouseUp = () => {
@@ -698,7 +787,6 @@ const PlanogramProfitTracker = () => {
         return;
       }
 
-      // Handle dragging the fixture
       e.stopPropagation();
       setDragging(true);
       onSelect();
@@ -711,12 +799,7 @@ const PlanogramProfitTracker = () => {
       const handleMouseMove = (e) => {
         const deltaX = e.clientX - startX;
         const deltaY = e.clientY - startY;
-        
-        onUpdate({ 
-          ...fixture, 
-          x: startLeft + deltaX, 
-          y: startTop + deltaY 
-        });
+        onUpdate({ ...fixture, x: startLeft + deltaX, y: startTop + deltaY });
       };
 
       const handleMouseUp = () => {
@@ -751,19 +834,32 @@ const PlanogramProfitTracker = () => {
           alignItems: 'center',
           justifyContent: 'center',
           opacity: 0.9,
-          zIndex: isSelected ? 100 : 10
+          zIndex: isSelected ? 100 : 10,
+          overflow: 'hidden'
         }}
         onMouseDown={handleMouseDown}
       >
         <div className="text-white text-center p-2 pointer-events-none">
           <div className="font-bold text-sm">{fixture.name}</div>
           <div className="text-xs">{fixtureSections.length} sections</div>
-          {heatMapMode && (
-            <div className="text-xs mt-1">${totalProfit.toFixed(0)}</div>
-          )}
+          {heatMapMode && <div className="text-xs mt-1">${totalProfit.toFixed(0)}</div>}
         </div>
 
-        {/* Delete button */}
+        {showVisualMode && fixtureSections.map(section => 
+          section.products.map((product, idx) => (
+            <ProductBox
+              key={`${section.id}-${idx}`}
+              product={product}
+              productIndex={idx}
+              sectionId={section.id}
+              fixtureX={fixture.x}
+              fixtureY={fixture.y}
+              fixtureWidth={fixture.width}
+              fixtureHeight={fixture.height}
+            />
+          ))
+        )}
+
         {isSelected && (
           <button
             onClick={(e) => {
@@ -777,7 +873,6 @@ const PlanogramProfitTracker = () => {
           </button>
         )}
 
-        {/* ✅ FEATURE 1: 8 Resize Handles (corners + edges) */}
         {isSelected && ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(position => (
           <div
             key={position}
@@ -800,7 +895,6 @@ const PlanogramProfitTracker = () => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Fixture Library Sidebar */}
       {showLibrary && (
         <div className="w-64 bg-white shadow-lg p-4 overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
@@ -808,10 +902,7 @@ const PlanogramProfitTracker = () => {
               <Icons.Package />
               Fixture Library
             </h2>
-            <button
-              onClick={() => setShowLibrary(false)}
-              className="p-1 hover:bg-gray-100 rounded"
-            >
+            <button onClick={() => setShowLibrary(false)} className="p-1 hover:bg-gray-100 rounded">
               <Icons.X />
             </button>
           </div>
@@ -823,12 +914,9 @@ const PlanogramProfitTracker = () => {
                 <button
                   key={key}
                   onClick={() => addFixture(key)}
-                  className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                  className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200"
                 >
-                  <div 
-                    className="w-10 h-10 rounded flex items-center justify-center"
-                    style={{ backgroundColor: type.color }}
-                  >
+                  <div className="w-10 h-10 rounded flex items-center justify-center" style={{ backgroundColor: type.color }}>
                     {IconComponent && <IconComponent />}
                   </div>
                   <span className="font-medium">{type.name}</span>
@@ -865,85 +953,76 @@ const PlanogramProfitTracker = () => {
         </div>
       )}
 
-      {/* Main Canvas Area */}
       <div className="flex-1 flex flex-col">
-        {/* Top Toolbar */}
-        <div className="bg-white shadow-md p-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="bg-white shadow-md p-4 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {!showLibrary && (
-              <button
-                onClick={() => setShowLibrary(true)}
-                className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
+              <button onClick={() => setShowLibrary(true)} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">
                 Show Library
               </button>
             )}
             
             <button
               onClick={() => setHeatMapMode(!heatMapMode)}
-              className={`px-3 py-2 rounded flex items-center gap-2 ${
-                heatMapMode ? 'bg-orange-500 text-white' : 'bg-gray-200'
-              }`}
+              className={`px-3 py-2 rounded flex items-center gap-2 text-sm ${heatMapMode ? 'bg-orange-500 text-white' : 'bg-gray-200'}`}
             >
               <Icons.Flame />
               Heat Map
             </button>
 
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleBackgroundUpload}
-              accept="image/*"
-              className="hidden"
-            />
-            
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2"
+              onClick={() => setShowVisualMode(!showVisualMode)}
+              className={`px-3 py-2 rounded flex items-center gap-2 text-sm ${showVisualMode ? 'bg-purple-500 text-white' : 'bg-gray-200'}`}
             >
+              <Icons.Eye />
+              Visual
+            </button>
+
+            <input type="file" ref={fileInputRef} onChange={handleBackgroundUpload} accept="image/*" className="hidden" />
+            
+            <button onClick={() => fileInputRef.current?.click()} className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2 text-sm">
               <Icons.Camera />
-              Upload Background
+              BG
             </button>
 
             {backgroundImage && (
               <>
-                <button
-                  onClick={removeBackground}
-                  className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                >
-                  Remove BG
+                <button onClick={removeBackground} className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm">
+                  Remove
                 </button>
-                
-                {/* ✅ FEATURE 4: Reset background position button */}
-                <button
-                  onClick={resetBackgroundPosition}
-                  className="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center gap-2"
-                  title="Reset background position"
-                >
+                <button onClick={resetBackgroundPosition} className="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center gap-2 text-sm">
                   <Icons.Move />
-                  Reset BG
+                  Reset
                 </button>
               </>
             )}
 
-            <button
-              onClick={() => setShowSettings(true)}
-              className="px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
-            >
-              Shopify Settings
+            <button onClick={exportLayout} className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2 text-sm">
+              <Icons.Download />
+              Export
+            </button>
+
+            <input type="file" ref={importInputRef} onChange={importLayout} accept=".json" className="hidden" />
+            
+            <button onClick={() => importInputRef.current?.click()} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2 text-sm">
+              <Icons.Upload />
+              Import
+            </button>
+
+            <button onClick={() => setShowSettings(true)} className="px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm">
+              Shopify
             </button>
           </div>
 
           <div className="text-xl font-bold">{storeName}</div>
 
           {feedback && (
-            <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg">
+            <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm">
               {feedback}
             </div>
           )}
         </div>
 
-        {/* Canvas */}
         <div 
           ref={canvasRef}
           className="flex-1 relative overflow-hidden bg-gray-50"
@@ -956,7 +1035,6 @@ const PlanogramProfitTracker = () => {
           onMouseUp={handleBgMouseUp}
           onMouseLeave={handleBgMouseUp}
         >
-          {/* ✅ FEATURE 4: Draggable Background Image */}
           {backgroundImage && (
             <img
               src={backgroundImage}
@@ -979,7 +1057,6 @@ const PlanogramProfitTracker = () => {
             />
           )}
 
-          {/* Fixtures */}
           {fixtures.map(fixture => (
             <Fixture
               key={fixture.id}
@@ -993,7 +1070,6 @@ const PlanogramProfitTracker = () => {
         </div>
       </div>
 
-      {/* Right Sidebar - Section Management */}
       {selectedFixture && (
         <div className="w-80 bg-white shadow-lg p-4 overflow-y-auto">
           <h2 className="text-xl font-bold mb-4">
@@ -1017,19 +1093,53 @@ const PlanogramProfitTracker = () => {
                 return (
                   <div
                     key={section.id}
-                    className={`p-4 border-2 rounded-lg ${
-                      selectedSection === section.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                    }`}
+                    className={`p-4 border-2 rounded-lg ${selectedSection === section.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
                     onClick={() => setSelectedSection(section.id)}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-bold">{section.name}</h3>
+                      {editingSection === section.id ? (
+                        <input
+                          type="text"
+                          value={editingSectionName}
+                          onChange={(e) => setEditingSectionName(e.target.value)}
+                          onBlur={() => {
+                            if (editingSectionName.trim()) {
+                              updateSectionName(section.id, editingSectionName.trim());
+                            } else {
+                              setEditingSection(null);
+                            }
+                          }}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && editingSectionName.trim()) {
+                              updateSectionName(section.id, editingSectionName.trim());
+                            }
+                            if (e.key === 'Escape') {
+                              setEditingSection(null);
+                            }
+                          }}
+                          className="flex-1 px-2 py-1 border-2 border-blue-500 rounded font-bold"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <h3 
+                          className="font-bold cursor-pointer hover:text-blue-600 flex-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingSection(section.id);
+                            setEditingSectionName(section.name);
+                          }}
+                          title="Click to rename"
+                        >
+                          {section.name}
+                        </h3>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteSection(section.id);
                         }}
-                        className="text-red-500 hover:text-red-700"
+                        className="text-red-500 hover:text-red-700 ml-2"
                       >
                         <Icons.Trash2 />
                       </button>
@@ -1044,7 +1154,6 @@ const PlanogramProfitTracker = () => {
                       <div>Products: {section.products.length}</div>
                     </div>
 
-                    {/* Add Product Form */}
                     <div className="space-y-2 mb-3 border-t pt-3">
                       <input
                         type="text"
@@ -1074,7 +1183,6 @@ const PlanogramProfitTracker = () => {
                       </button>
                     </div>
 
-                    {/* Product List */}
                     <div className="space-y-2">
                       {section.products.map((product, idx) => (
                         <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
@@ -1085,7 +1193,6 @@ const PlanogramProfitTracker = () => {
                             </div>
                           </div>
                           
-                          {/* Quantity controls */}
                           <div className="flex gap-1">
                             <button
                               onClick={() => updateProductQuantity(section.id, idx, -1)}
@@ -1100,11 +1207,10 @@ const PlanogramProfitTracker = () => {
                               +
                             </button>
                             
-                            {/* ✅ FEATURE 3: Delete product button */}
                             <button
                               onClick={() => deleteProduct(section.id, idx)}
                               className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
-                              title="Delete product"
+                              title="Delete"
                             >
                               🗑️
                             </button>
@@ -1119,19 +1225,14 @@ const PlanogramProfitTracker = () => {
         </div>
       )}
 
-      {/* Shopify Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-              🛍️ Shopify Connection
-            </h2>
+            <h2 className="text-2xl font-bold mb-4">🛍️ Shopify Connection</h2>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Store Name
-                </label>
+                <label className="block text-sm font-medium mb-1">Store Name</label>
                 <input
                   type="text"
                   value={shopifyConfig.storeName}
@@ -1140,15 +1241,10 @@ const PlanogramProfitTracker = () => {
                   className="w-full px-3 py-2 border rounded"
                   disabled={shopifyConfig.connected}
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Note: Just enter your Admin API Access Token below.
-                </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Admin API Access Token
-                </label>
+                <label className="block text-sm font-medium mb-1">Admin API Access Token</label>
                 <input
                   type="password"
                   value={shopifyConfig.accessToken}
@@ -1174,7 +1270,7 @@ const PlanogramProfitTracker = () => {
                       className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center gap-2"
                     >
                       <Icons.RefreshCw />
-                      Refresh Cache
+                      Refresh
                     </button>
                     <button
                       onClick={disconnectShopify}
@@ -1188,7 +1284,7 @@ const PlanogramProfitTracker = () => {
 
               {shopifyConfig.connected && (
                 <div className="p-3 bg-green-100 text-green-800 rounded">
-                  ✅ Connected to Shopify
+                  ✅ Connected
                 </div>
               )}
             </div>
