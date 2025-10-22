@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Store Planogram Profit Tracker - v3 Complete</title>
+  <title>Store Planner Pro v3 - Visual Product Mapping</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -16,1803 +16,1226 @@
     const { useState, useEffect, useRef } = React;
     const { createRoot } = ReactDOM;
 
-// Custom Icons
-const Icons = {
-  Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
-  Trash2: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>,
-  Save: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>,
-  Upload: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>,
-  Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>,
-  Package: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>,
-  BarChart3: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>,
-  DollarSign: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>,
-  Maximize2: () => <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>,
-  Grid3x3: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
-  Box: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>,
-  Layers: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>,
-  AlignVertical: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="16" width="14" height="6" rx="2"></rect><rect x="7" y="2" width="10" height="6" rx="2"></rect><path d="M2 12h20"></path></svg>,
-  Camera: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>,
-  Eye: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
-  Flame: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>,
-  RefreshCw: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>,
-  X: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
-  Move: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="15 19 12 22 9 19"></polyline><polyline points="19 9 22 12 19 15"></polyline><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>
-};
+    // Backend URL
+    const BACKEND_URL = 'https://planogram-backend-v83z.onrender.com';
 
-const FIXTURE_TYPES = {
-  GRID_WALL: {
-    id: 'grid_wall',
-    name: 'Grid Wall',
-    icon: 'Grid3x3',
-    color: '#64748b',
-    defaultWidth: 120,
-    defaultHeight: 200
-  },
-  JEWELRY_CASE: {
-    id: 'jewelry_case',
-    name: 'Jewelry Case',
-    icon: 'Box',
-    color: '#8b5cf6',
-    defaultWidth: 100,
-    defaultHeight: 80
-  },
-  GONDOLA: {
-    id: 'gondola',
-    name: 'Gondola',
-    icon: 'Layers',
-    color: '#ef4444',
-    defaultWidth: 180,
-    defaultHeight: 120
-  },
-  SLAT_WALL: {
-    id: 'slat_wall',
-    name: 'Slat Wall',
-    icon: 'AlignVertical',
-    color: '#f59e0b',
-    defaultWidth: 150,
-    defaultHeight: 180
-  },
-  END_CAP: {
-    id: 'end_cap',
-    name: 'End Cap',
-    icon: 'Package',
-    color: '#10b981',
-    defaultWidth: 80,
-    defaultHeight: 120
-  },
-  JEWELRY_DISPLAY: {
-    id: 'jewelry_display',
-    name: 'Jewelry Display',
-    icon: 'Box',
-    color: '#ec4899',
-    defaultWidth: 90,
-    defaultHeight: 90
-  }
-};
+    // Custom Icons
+    const Icons = {
+      Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+      Trash2: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>,
+      Save: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>,
+      Upload: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>,
+      Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>,
+      BarChart3: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>,
+      Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>,
+      Flame: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>,
+      ZoomIn: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>,
+      ZoomOut: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>,
+      Image: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>,
+      Edit: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
+      Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
+      X: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+      Move: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="15 19 12 22 9 19"></polyline><polyline points="19 9 22 12 19 15"></polyline><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>
+    };
 
-const getCursor = (position) => {
-  const cursors = {
-    'nw': 'nwse-resize', 'ne': 'nesw-resize', 'se': 'nwse-resize', 'sw': 'nesw-resize',
-    'n': 'ns-resize', 's': 'ns-resize', 'e': 'ew-resize', 'w': 'ew-resize'
-  };
-  return cursors[position];
-};
+    // Fixture Library with dimensions
+    const FIXTURE_LIBRARY = {
+      'Grid Wall': { width: 120, height: 200, sections: 6, sectionType: 'zones', color: '#3B82F6' },
+      'Jewelry Case': { width: 150, height: 100, sections: 4, sectionType: 'compartments', color: '#8B5CF6' },
+      'Gondola': { width: 180, height: 150, sections: 5, sectionType: 'shelves', color: '#10B981' },
+      'Slat Wall': { width: 100, height: 180, sections: 4, sectionType: 'zones', color: '#F59E0B' },
+      'End Cap': { width: 80, height: 120, sections: 3, sectionType: 'shelves', color: '#EF4444' }
+    };
 
-const getHandlePosition = (position) => {
-  const positions = {
-    'nw': { top: -6, left: -6, width: '12px', height: '12px' },
-    'n': { top: -6, left: '50%', transform: 'translateX(-50%)', width: '60px', height: '12px' },
-    'ne': { top: -6, right: -6, width: '12px', height: '12px' },
-    'e': { right: -6, top: '50%', transform: 'translateY(-50%)', width: '12px', height: '60px' },
-    'se': { bottom: -6, right: -6, width: '12px', height: '12px' },
-    's': { bottom: -6, left: '50%', transform: 'translateX(-50%)', width: '60px', height: '12px' },
-    'sw': { bottom: -6, left: -6, width: '12px', height: '12px' },
-    'w': { left: -6, top: '50%', transform: 'translateY(-50%)', width: '12px', height: '60px' }
-  };
-  return positions[position];
-};
-
-const PlanogramProfitTracker = () => {
-  const [fixtures, setFixtures] = useState([]);
-  const [selectedFixture, setSelectedFixture] = useState(null);
-  const [sections, setSections] = useState([]);
-  const [selectedSection, setSelectedSection] = useState(null);
-  const [scale, setScale] = useState(20);
-  const [storeName, setStoreName] = useState('My Store Layout');
-  const [newProduct, setNewProduct] = useState({ upc: '', sectionId: '' });
-  const [scanning, setScanning] = useState(false);
-  const [savedLayouts, setSavedLayouts] = useState([]);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showLoadModal, setShowLoadModal] = useState(false);
-  const [feedback, setFeedback] = useState('');
-  const [timeFilter, setTimeFilter] = useState('monthly');
-  const [sortBy, setSortBy] = useState('profit');
-  const [showSettings, setShowSettings] = useState(false);
-  const [shopifyConfig, setShopifyConfig] = useState({
-    storeName: '1m3tfh-xt.myshopify.com',
-    accessToken: '',
-    connected: false
-  });
-  
-  const [showLibrary, setShowLibrary] = useState(true);
-  const [heatMapMode, setHeatMapMode] = useState(false);
-  const [backgroundImage, setBackgroundImage] = useState(null);
-  const [bgImagePosition, setBgImagePosition] = useState({ x: 0, y: 0 });
-  const [isDraggingBg, setIsDraggingBg] = useState(false);
-  const [bgDragStart, setBgDragStart] = useState({ x: 0, y: 0 });
-  const [showVisualMode, setShowVisualMode] = useState(true);
-  const [editingSection, setEditingSection] = useState(null);
-  const [editingSectionName, setEditingSectionName] = useState('');
-  const [editingSectionArea, setEditingSectionArea] = useState(null);
-  const [editingAreaValue, setEditingAreaValue] = useState('');
-  const [lastRefresh, setLastRefresh] = useState(null);
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
-  
-  const fileInputRef = useRef(null);
-  const importInputRef = useRef(null);
-  const [zoom, setZoom] = useState(1);
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const canvasRef = useRef(null);
-  
-  const BACKEND_URL = 'https://planogram-backend-gx85.onrender.com';
-  
-  const productDatabase = {
-    '123456789012': { name: 'Premium Coffee Beans', price: 24.99, cost: 12.50, monthlySales: 145 },
-    '234567890123': { name: 'Organic Tea Set', price: 18.99, cost: 9.00, monthlySales: 89 },
-    '345678901234': { name: 'Artisan Chocolate', price: 12.99, cost: 6.50, monthlySales: 234 },
-    '456789012345': { name: 'Gourmet Cookies', price: 8.99, cost: 4.00, monthlySales: 312 },
-    '567890123456': { name: 'Specialty Honey', price: 15.99, cost: 7.50, monthlySales: 67 },
-  };
-
-  useEffect(() => {
-    try {
-      const savedSections = localStorage.getItem('planogram_sections');
-      const savedFixtures = localStorage.getItem('planogram_fixtures');
-      const savedBg = localStorage.getItem('planogram_background');
-      const savedBgPos = localStorage.getItem('planogram_bg_position');
-      const savedShopify = localStorage.getItem('planogram_shopify');
-      const savedLastRefresh = localStorage.getItem('planogram_last_refresh');
+    function StorePlannerPro() {
+      const [fixtures, setFixtures] = useState([]);
+      const [selectedFixture, setSelectedFixture] = useState(null);
+      const [storeName, setStoreName] = useState('My Store Layout');
+      const [feedback, setFeedback] = useState('');
+      const [draggedFixture, setDraggedFixture] = useState(null);
+      const [draggedProduct, setDraggedProduct] = useState(null);
+      const [showSaveModal, setShowSaveModal] = useState(false);
+      const [showLoadModal, setShowLoadModal] = useState(false);
+      const [savedLayouts, setSavedLayouts] = useState([]);
+      const [upcInput, setUpcInput] = useState('');
+      const [quantityInput, setQuantityInput] = useState(1);
+      const [searchResults, setSearchResults] = useState([]);
+      const [showSettings, setShowSettings] = useState(false);
+      const [heatMapMode, setHeatMapMode] = useState(false);
+      const [timePeriod, setTimePeriod] = useState('month');
+      const [zoom, setZoom] = useState(1);
+      const [pan, setPan] = useState({ x: 0, y: 0 });
+      const [isPanning, setIsPanning] = useState(false);
+      const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+      const [backgroundImage, setBackgroundImage] = useState(null);
+      const [editingSectionId, setEditingSectionId] = useState(null);
+      const [editingSectionName, setEditingSectionName] = useState('');
       
-      if (savedSections) setSections(JSON.parse(savedSections));
-      if (savedFixtures) setFixtures(JSON.parse(savedFixtures));
-      if (savedBg) setBackgroundImage(savedBg);
-      if (savedBgPos) setBgImagePosition(JSON.parse(savedBgPos));
-      if (savedShopify) {
-        const config = JSON.parse(savedShopify);
-        setShopifyConfig(config);
-      }
-      if (savedLastRefresh) {
-        setLastRefresh(new Date(savedLastRefresh));
-      }
-    } catch (error) {
-      console.error('Error loading saved data:', error);
-    }
-  }, []);
+      const canvasRef = useRef(null);
+      const fileInputRef = useRef(null);
+      const importInputRef = useRef(null);
 
-  // Auto-refresh every 5 minutes
-  useEffect(() => {
-    if (!autoRefreshEnabled || !shopifyConfig.connected) return;
-
-    const interval = setInterval(() => {
-      console.log('🔄 Auto-refreshing product data...');
-      refreshProductCache(true);
-    }, 5 * 60 * 1000); // 5 minutes
-
-    return () => clearInterval(interval);
-  }, [autoRefreshEnabled, shopifyConfig.connected]);
-
-  const autoSave = (updatedSections, message = 'Auto-saved') => {
-    try {
-      localStorage.setItem('planogram_sections', JSON.stringify(updatedSections));
-      localStorage.setItem('planogram_last_save', new Date().toISOString());
-      console.log(`✅ ${message}`);
-    } catch (error) {
-      console.error('❌ Auto-save failed:', error);
-    }
-  };
-
-  const exportLayout = () => {
-    const layoutData = {
-      version: 3,
-      storeName,
-      fixtures,
-      sections,
-      backgroundImage,
-      bgImagePosition,
-      shopifyConfig: {
-        storeName: shopifyConfig.storeName,
-        connected: shopifyConfig.connected
-      },
-      exportDate: new Date().toISOString()
-    };
-
-    const dataStr = JSON.stringify(layoutData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `planogram-${storeName.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    
-    URL.revokeObjectURL(url);
-    
-    setFeedback('✅ Layout exported!');
-    setTimeout(() => setFeedback(''), 3000);
-  };
-
-  const importLayout = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const layoutData = JSON.parse(e.target.result);
-        
-        if (layoutData.version !== 3) {
-          setFeedback('⚠️ Old version file.');
-        }
-        
-        if (layoutData.storeName) setStoreName(layoutData.storeName);
-        if (layoutData.fixtures) {
-          setFixtures(layoutData.fixtures);
-          localStorage.setItem('planogram_fixtures', JSON.stringify(layoutData.fixtures));
-        }
-        if (layoutData.sections) {
-          setSections(layoutData.sections);
-          localStorage.setItem('planogram_sections', JSON.stringify(layoutData.sections));
-        }
-        if (layoutData.backgroundImage) {
-          setBackgroundImage(layoutData.backgroundImage);
-          localStorage.setItem('planogram_background', layoutData.backgroundImage);
-        }
-        if (layoutData.bgImagePosition) {
-          setBgImagePosition(layoutData.bgImagePosition);
-          localStorage.setItem('planogram_bg_position', JSON.stringify(layoutData.bgImagePosition));
-        }
-        
-        setFeedback('✅ Layout imported!');
-        setTimeout(() => setFeedback(''), 3000);
-        
-      } catch (error) {
-        console.error('Import error:', error);
-        setFeedback('❌ Failed to import. Invalid file.');
-        setTimeout(() => setFeedback(''), 5000);
-      }
-    };
-    
-    reader.readAsText(file);
-    event.target.value = '';
-  };
-
-  const handleBgMouseDown = (e) => {
-    if (e.target.tagName !== 'IMG') return;
-    setIsDraggingBg(true);
-    setBgDragStart({
-      x: e.clientX - bgImagePosition.x,
-      y: e.clientY - bgImagePosition.y
-    });
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleBgMouseMove = (e) => {
-    if (!isDraggingBg) return;
-    setBgImagePosition({
-      x: e.clientX - bgDragStart.x,
-      y: e.clientY - bgDragStart.y
-    });
-  };
-
-  const handleBgMouseUp = () => {
-    if (isDraggingBg) {
-      setIsDraggingBg(false);
-      try {
-        localStorage.setItem('planogram_bg_position', JSON.stringify(bgImagePosition));
-      } catch (error) {
-        console.error('Failed to save background position:', error);
-      }
-    }
-  };
-
-  const resetBackgroundPosition = () => {
-    const resetPos = { x: 0, y: 0 };
-    setBgImagePosition(resetPos);
-    localStorage.setItem('planogram_bg_position', JSON.stringify(resetPos));
-    setFeedback('✅ Background reset');
-    setTimeout(() => setFeedback(''), 2000);
-  };
-
-  const testShopifyConnection = async () => {
-    if (!shopifyConfig.storeName || !shopifyConfig.accessToken) {
-      setFeedback('⚠️ Enter store name and token');
-      setTimeout(() => setFeedback(''), 3000);
-      return;
-    }
-
-    setFeedback('🔄 Testing...');
-
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/shopify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          storeName: shopifyConfig.storeName,
-          accessToken: shopifyConfig.accessToken,
-          action: 'connect'
-        })
+      // Shopify Configuration
+      const [shopifyConfig, setShopifyConfig] = useState({
+        storeName: '',
+        accessToken: '',
+        connected: false
       });
 
-      const data = await response.json();
+      // Load saved layouts and Shopify config on mount
+      useEffect(() => {
+        const saved = localStorage.getItem('storePlannerLayouts');
+        if (saved) {
+          setSavedLayouts(JSON.parse(saved));
+        }
+        
+        const shopifyData = localStorage.getItem('shopifyConfig');
+        if (shopifyData) {
+          const config = JSON.parse(shopifyData);
+          setShopifyConfig(config);
+        }
+      }, []);
 
-      if (response.ok && data.success) {
-        const updatedConfig = { ...shopifyConfig, connected: true };
-        setShopifyConfig(updatedConfig);
-        localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
-        setFeedback(`✅ Connected!`);
+      // Save Shopify config to localStorage
+      const saveShopifyConfig = (config) => {
+        localStorage.setItem('shopifyConfig', JSON.stringify(config));
+        setShopifyConfig(config);
+      };
+
+      // Connect to Shopify
+      const connectToShopify = async () => {
+        if (!shopifyConfig.storeName || !shopifyConfig.accessToken) {
+          setFeedback('⚠️ Please enter store name and access token');
+          setTimeout(() => setFeedback(''), 3000);
+          return;
+        }
+
+        setFeedback('🔄 Connecting to Shopify...');
+        
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/shopify`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              storeName: shopifyConfig.storeName,
+              accessToken: shopifyConfig.accessToken,
+              action: 'connect'
+            })
+          });
+
+          const data = await response.json();
+          
+          if (data.success) {
+            saveShopifyConfig({
+              ...shopifyConfig,
+              connected: true
+            });
+            setFeedback('✅ Connected to Shopify!');
+            setTimeout(() => {
+              setFeedback('');
+              setShowSettings(false);
+            }, 2000);
+          } else {
+            setFeedback(`❌ ${data.message}`);
+            setTimeout(() => setFeedback(''), 4000);
+          }
+        } catch (error) {
+          setFeedback('❌ Connection failed');
+          setTimeout(() => setFeedback(''), 3000);
+        }
+      };
+
+      // Disconnect from Shopify
+      const disconnectFromShopify = () => {
+        saveShopifyConfig({
+          storeName: '',
+          accessToken: '',
+          connected: false
+        });
+        setFeedback('✅ Disconnected from Shopify');
         setTimeout(() => {
           setFeedback('');
           setShowSettings(false);
         }, 2000);
-      } else {
-        setFeedback(`❌ ${data.error || 'Failed'}`);
-        setTimeout(() => setFeedback(''), 5000);
-      }
-    } catch (error) {
-      console.error('Connection error:', error);
-      setFeedback('❌ Connection error');
-      setTimeout(() => setFeedback(''), 5000);
-    }
-  };
+      };
 
-  const disconnectShopify = () => {
-    const updatedConfig = {
-      storeName: shopifyConfig.storeName,
-      accessToken: '',
-      connected: false
-    };
-    setShopifyConfig(updatedConfig);
-    localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
-    setFeedback('✅ Disconnected');
-    setTimeout(() => setFeedback(''), 2000);
-  };
+      // Refresh product cache
+      const refreshProductCache = async () => {
+        if (!shopifyConfig.connected || !shopifyConfig.accessToken) {
+          setFeedback('⚠️ Connect to Shopify first');
+          setTimeout(() => setFeedback(''), 3000);
+          return;
+        }
 
-  const refreshProductCache = async (isAutoRefresh = false) => {
-    if (!shopifyConfig.connected || !shopifyConfig.accessToken) {
-      if (!isAutoRefresh) {
-        setFeedback('⚠️ Connect to Shopify first');
-        setTimeout(() => setFeedback(''), 3000);
-      }
-      return;
-    }
-
-    if (!isAutoRefresh) {
-      setFeedback('🔄 Refreshing...');
-    }
-    
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/shopify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          storeName: shopifyConfig.storeName,
-          accessToken: shopifyConfig.accessToken,
-          action: 'refreshCache'
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        const now = new Date();
-        setLastRefresh(now);
-        localStorage.setItem('planogram_last_refresh', now.toISOString());
+        setFeedback('🔄 Refreshing product cache...');
         
-        if (!isAutoRefresh) {
-          setFeedback(`✅ ${data.message}`);
-          setTimeout(() => setFeedback(''), 5000);
-        } else {
-          console.log('✅ Auto-refresh completed at', now.toLocaleTimeString());
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/shopify`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              storeName: shopifyConfig.storeName,
+              accessToken: shopifyConfig.accessToken,
+              action: 'refreshCache'
+            })
+          });
+
+          const data = await response.json();
+          
+          if (data.success) {
+            setFeedback(`✅ Cache refreshed! ${data.count} products`);
+            setTimeout(() => setFeedback(''), 3000);
+          } else {
+            setFeedback(`❌ ${data.message}`);
+            setTimeout(() => setFeedback(''), 4000);
+          }
+        } catch (error) {
+          setFeedback('❌ Refresh failed');
+          setTimeout(() => setFeedback(''), 3000);
         }
-      } else {
-        if (!isAutoRefresh) {
-          setFeedback(`❌ ${data.error || 'Failed'}`);
-          setTimeout(() => setFeedback(''), 5000);
-        }
-      }
-    } catch (error) {
-      if (!isAutoRefresh) {
-        setFeedback('❌ Cache refresh failed');
-        setTimeout(() => setFeedback(''), 5000);
-      }
-      console.error('Auto-refresh error:', error);
-    }
-  };
-
-  const addProductToSection = async () => {
-    if (!newProduct.upc || !newProduct.sectionId) {
-      setFeedback('⚠️ Enter UPC and select section');
-      setTimeout(() => setFeedback(''), 3000);
-      return;
-    }
-
-    setScanning(true);
-    const sectionIndex = sections.findIndex(s => s.id === newProduct.sectionId);
-    
-    if (sectionIndex === -1) {
-      setFeedback('⚠️ Section not found');
-      setScanning(false);
-      return;
-    }
-
-    let product = null;
-    
-    if (shopifyConfig.connected) {
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/product/${newProduct.upc}`);
-        const data = await response.json();
-
-        if (response.ok && data.title) {
-          product = {
-            upc: newProduct.upc,
-            name: data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title,
-            price: data.price,
-            cost: data.cost,
-            monthlySales: data.monthlySales || 0,
-            quantity: 1,
-            source: 'database',
-            visualX: Math.random() * 80 + 10,
-            visualY: Math.random() * 80 + 10
-          };
-          setFeedback(`✅ Added: ${product.name}`);
-        }
-      } catch (error) {
-        console.error('Error fetching from database:', error);
-      }
-    }
-    
-    if (!product && productDatabase[newProduct.upc]) {
-      product = { 
-        upc: newProduct.upc, 
-        ...productDatabase[newProduct.upc],
-        quantity: 1,
-        source: 'sample',
-        visualX: Math.random() * 80 + 10,
-        visualY: Math.random() * 80 + 10
       };
-      setFeedback(`✅ Added: ${product.name} (Sample)`);
-    }
-    
-    if (!product) {
-      product = {
-        upc: newProduct.upc,
-        name: `Product ${newProduct.upc.slice(-4)}`,
-        price: 0,
-        cost: 0,
-        monthlySales: 0,
-        quantity: 1,
-        source: 'placeholder',
-        visualX: Math.random() * 80 + 10,
-        visualY: Math.random() * 80 + 10
+
+      // Search products by UPC
+      const searchByUPC = async () => {
+        if (!upcInput.trim()) return;
+        
+        setFeedback('🔍 Searching...');
+        
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/products/search?upc=${upcInput}`);
+          const data = await response.json();
+          
+          if (data.success && data.products.length > 0) {
+            setSearchResults(data.products);
+            setFeedback('');
+          } else {
+            setFeedback('❌ No products found');
+            setSearchResults([]);
+            setTimeout(() => setFeedback(''), 3000);
+          }
+        } catch (error) {
+          setFeedback('❌ Search failed');
+          setTimeout(() => setFeedback(''), 3000);
+        }
       };
-      setFeedback('⚠️ Not found - placeholder added');
-    }
 
-    const updatedSections = [...sections];
-    updatedSections[sectionIndex].products.push(product);
-    setSections(updatedSections);
+      // Add fixture to canvas
+      const addFixture = (type) => {
+        const config = FIXTURE_LIBRARY[type];
+        const sections = Array.from({ length: config.sections }, (_, i) => ({
+          id: `${type}-section-${Date.now()}-${i}`,
+          name: `${config.sectionType.slice(0, -1)} ${i + 1}`,
+          products: []
+        }));
 
-    autoSave(updatedSections, 'Auto-saved after adding product');
-
-    setScanning(false);
-    setNewProduct({ upc: '', sectionId: '' });
-    setTimeout(() => setFeedback(''), 3000);
-  };
-
-  const updateProductQuantity = (sectionId, productIndex, delta) => {
-    const updatedSections = sections.map(section => {
-      if (section.id === sectionId) {
-        const updatedProducts = [...section.products];
-        updatedProducts[productIndex] = {
-          ...updatedProducts[productIndex],
-          quantity: Math.max(0, updatedProducts[productIndex].quantity + delta)
+        const newFixture = {
+          id: `fixture-${Date.now()}`,
+          type,
+          x: 100,
+          y: 100,
+          width: config.width,
+          height: config.height,
+          sections,
+          color: config.color
         };
-        return { ...section, products: updatedProducts };
-      }
-      return section;
-    });
-    
-    setSections(updatedSections);
-    autoSave(updatedSections, 'Auto-saved after quantity update');
-  };
 
-  const updateProductPosition = (sectionId, productIndex, newX, newY) => {
-    const updatedSections = sections.map(section => {
-      if (section.id === sectionId) {
-        const updatedProducts = [...section.products];
-        updatedProducts[productIndex] = {
-          ...updatedProducts[productIndex],
-          visualX: newX,
-          visualY: newY
-        };
-        return { ...section, products: updatedProducts };
-      }
-      return section;
-    });
-    
-    setSections(updatedSections);
-    autoSave(updatedSections, 'Auto-saved product position');
-  };
-
-  const deleteProduct = (sectionId, productIndex) => {
-    if (!confirm('Delete this product?')) return;
-
-    const updatedSections = sections.map(section => {
-      if (section.id === sectionId) {
-        const updatedProducts = section.products.filter((_, idx) => idx !== productIndex);
-        return { ...section, products: updatedProducts };
-      }
-      return section;
-    });
-    
-    setSections(updatedSections);
-    autoSave(updatedSections, 'Auto-saved after deleting product');
-    
-    setFeedback('✅ Product deleted');
-    setTimeout(() => setFeedback(''), 2000);
-  };
-
-  const addFixture = (type) => {
-    const fixtureType = FIXTURE_TYPES[type];
-    const newFixture = {
-      id: `fixture-${Date.now()}`,
-      type: fixtureType.id,
-      name: fixtureType.name,
-      x: 100,
-      y: 100,
-      width: fixtureType.defaultWidth,
-      height: fixtureType.defaultHeight,
-      color: fixtureType.color,
-      sections: []
-    };
-    
-    const updatedFixtures = [...fixtures, newFixture];
-    setFixtures(updatedFixtures);
-    localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
-    setSelectedFixture(newFixture.id);
-  };
-
-  const deleteFixture = (fixtureId) => {
-    if (!confirm('Delete fixture and all sections?')) return;
-    
-    const updatedFixtures = fixtures.filter(f => f.id !== fixtureId);
-    setFixtures(updatedFixtures);
-    localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
-    
-    const updatedSections = sections.filter(s => s.fixtureId !== fixtureId);
-    setSections(updatedSections);
-    autoSave(updatedSections, 'Auto-saved after deleting fixture');
-    
-    if (selectedFixture === fixtureId) {
-      setSelectedFixture(null);
-    }
-  };
-
-  const updateFixture = (updatedFixture) => {
-    const updatedFixtures = fixtures.map(f => 
-      f.id === updatedFixture.id ? updatedFixture : f
-    );
-    setFixtures(updatedFixtures);
-    localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
-  };
-
-  const addSection = (fixtureId) => {
-    const fixture = fixtures.find(f => f.id === fixtureId);
-    if (!fixture) return;
-
-    const existingSections = sections.filter(s => s.fixtureId === fixtureId);
-
-    // Smart default positioning - try to fit new section without overlap
-    const numExisting = existingSections.length;
-    let defaultX = 0;
-    let defaultY = 0;
-    let defaultWidth = 100;
-    let defaultHeight = 100;
-
-    if (numExisting > 0) {
-      // Place new sections in rows
-      const sectionsPerRow = 2;
-      const row = Math.floor(numExisting / sectionsPerRow);
-      const col = numExisting % sectionsPerRow;
-      
-      defaultWidth = 50;
-      defaultHeight = 50;
-      defaultX = col * 50;
-      defaultY = row * 50;
-    }
-
-    const newSection = {
-      id: `section-${Date.now()}`,
-      fixtureId: fixtureId,
-      name: `Section ${existingSections.length + 1}`,
-      products: [],
-      area: 10,
-      // Position and size within fixture (percentage-based 0-100)
-      layoutX: defaultX,
-      layoutY: defaultY,
-      layoutWidth: defaultWidth,
-      layoutHeight: defaultHeight
-    };
-
-    const updatedSections = [...sections, newSection];
-    setSections(updatedSections);
-    autoSave(updatedSections, 'Auto-saved after adding section');
-  };
-
-  const deleteSection = (sectionId) => {
-    if (!confirm('Delete section and all products?')) return;
-    
-    const updatedSections = sections.filter(s => s.id !== sectionId);
-    setSections(updatedSections);
-    autoSave(updatedSections, 'Auto-saved after deleting section');
-    
-    if (selectedSection === sectionId) {
-      setSelectedSection(null);
-    }
-  };
-
-  const updateSectionName = (sectionId, newName) => {
-    const updatedSections = sections.map(section => {
-      if (section.id === sectionId) {
-        return { ...section, name: newName };
-      }
-      return section;
-    });
-    
-    setSections(updatedSections);
-    autoSave(updatedSections, 'Auto-saved after renaming section');
-    setEditingSection(null);
-    setFeedback('✅ Section renamed');
-    setTimeout(() => setFeedback(''), 2000);
-  };
-
-  const updateSectionArea = (sectionId, newArea) => {
-    const area = parseFloat(newArea);
-    if (isNaN(area) || area <= 0) {
-      setFeedback('⚠️ Area must be a positive number');
-      setTimeout(() => setFeedback(''), 2000);
-      return;
-    }
-
-    const updatedSections = sections.map(section => {
-      if (section.id === sectionId) {
-        return { ...section, area };
-      }
-      return section;
-    });
-    
-    setSections(updatedSections);
-    autoSave(updatedSections, 'Auto-saved after updating area');
-    setEditingSectionArea(null);
-    setFeedback('✅ Area updated');
-    setTimeout(() => setFeedback(''), 2000);
-  };
-
-  const updateSection = (updatedSection) => {
-    const updatedSections = sections.map(s => 
-      s.id === updatedSection.id ? updatedSection : s
-    );
-    setSections(updatedSections);
-    autoSave(updatedSections, 'Auto-saved section layout');
-  };
-
-  const handleBackgroundUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const imageData = event.target.result;
-        setBackgroundImage(imageData);
-        localStorage.setItem('planogram_background', imageData);
-        setFeedback('✅ Background uploaded');
+        setFixtures([...fixtures, newFixture]);
+        setFeedback(`✅ Added ${type}`);
         setTimeout(() => setFeedback(''), 2000);
       };
-      reader.readAsDataURL(file);
-    }
-  };
 
-  const removeBackground = () => {
-    setBackgroundImage(null);
-    setBgImagePosition({ x: 0, y: 0 });
-    localStorage.removeItem('planogram_background');
-    localStorage.removeItem('planogram_bg_position');
-    setFeedback('✅ Background removed');
-    setTimeout(() => setFeedback(''), 2000);
-  };
-
-  const calculateMetrics = (section, filter) => {
-    const multipliers = { daily: 365, weekly: 52, monthly: 12, yearly: 1 };
-    const multiplier = multipliers[filter];
-    const area = section.area || 1;
-
-    const productMetrics = section.products.map(p => {
-      const periodVolume = (p.monthlySales || 0) * (multiplier / 12);
-      const periodRevenue = p.price * periodVolume;
-      const periodProfit = (p.price - p.cost) * periodVolume;
-      const velocity = periodVolume / area;
-
-      return { ...p, periodVolume, periodRevenue, periodProfit, velocity };
-    });
-
-    productMetrics.sort((a, b) => {
-      switch(sortBy) {
-        case 'profit': return b.periodProfit - a.periodProfit;
-        case 'revenue': return b.periodRevenue - a.periodRevenue;
-        case 'velocity': return b.velocity - a.velocity;
-        case 'volume': return b.periodVolume - a.periodVolume;
-        case 'name': return a.name.localeCompare(b.name);
-        default: return 0;
-      }
-    });
-    
-    const totalRevenue = productMetrics.reduce((sum, p) => sum + p.periodRevenue, 0);
-    const totalCost = productMetrics.reduce((sum, p) => sum + (p.cost * p.periodVolume), 0);
-    const totalProfit = productMetrics.reduce((sum, p) => sum + p.periodProfit, 0);
-    const totalVolume = productMetrics.reduce((sum, p) => sum + p.periodVolume, 0);
-    const totalVelocity = productMetrics.reduce((sum, p) => sum + p.velocity, 0);
-    const profitPerSqFt = area > 0 ? totalProfit / area : 0;
-
-    return { area, totalRevenue, totalCost, totalProfit, profitPerSqFt, totalVolume, totalVelocity, productMetrics };
-  };
-
-  const getHeatMapColor = (profitPerSqFt) => {
-    const maxProfit = Math.max(...sections.map(s => calculateMetrics(s, timeFilter).profitPerSqFt));
-    const intensity = maxProfit > 0 ? profitPerSqFt / maxProfit : 0;
-    
-    if (intensity > 0.7) return 'rgba(34, 197, 94, 0.6)';
-    if (intensity > 0.4) return 'rgba(234, 179, 8, 0.6)';
-    if (intensity > 0.1) return 'rgba(249, 115, 22, 0.6)';
-    return 'rgba(239, 68, 68, 0.6)';
-  };
-
-  const ProductBox = ({ product, productIndex, sectionId, fixtureX, fixtureY, fixtureWidth, fixtureHeight }) => {
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
-    const handleMouseDown = (e) => {
-      e.stopPropagation();
-      setIsDragging(true);
-      setDragStart({ x: e.clientX, y: e.clientY });
-    };
-
-    useEffect(() => {
-      if (!isDragging) return;
-
-      const handleMouseMove = (e) => {
-        const deltaX = e.clientX - dragStart.x;
-        const deltaY = e.clientY - dragStart.y;
-        
-        const newX = Math.max(5, Math.min(95, ((product.visualX / 100) * fixtureWidth + deltaX) / fixtureWidth * 100));
-        const newY = Math.max(5, Math.min(95, ((product.visualY / 100) * fixtureHeight + deltaY) / fixtureHeight * 100));
-        
-        updateProductPosition(sectionId, productIndex, newX, newY);
-        setDragStart({ x: e.clientX, y: e.clientY });
+      // Start section name editing
+      const startEditingSection = (fixtureId, sectionId, currentName) => {
+        setEditingSectionId(sectionId);
+        setEditingSectionName(currentName);
       };
 
-      const handleMouseUp = () => {
-        setIsDragging(false);
+      // Save section name
+      const saveSectionName = (fixtureId, sectionId) => {
+        setFixtures(fixtures.map(f => {
+          if (f.id === fixtureId) {
+            return {
+              ...f,
+              sections: f.sections.map(s => 
+                s.id === sectionId ? { ...s, name: editingSectionName } : s
+              )
+            };
+          }
+          return f;
+        }));
+        setEditingSectionId(null);
+        setEditingSectionName('');
       };
 
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+      // Cancel section name editing
+      const cancelEditingSection = () => {
+        setEditingSectionId(null);
+        setEditingSectionName('');
       };
-    }, [isDragging, dragStart]);
 
-    const profit = (product.price - product.cost) * (product.monthlySales || 0);
-    let colorClass = 'bg-gray-400';
-    if (profit > 100) colorClass = 'bg-green-500';
-    else if (profit > 50) colorClass = 'bg-yellow-500';
-    else if (profit > 0) colorClass = 'bg-orange-500';
-    else if (profit < 0) colorClass = 'bg-red-500';
-
-    const size = Math.min(Math.max(20, 15 + product.quantity * 3), 40);
-
-    return (
-      <div
-        className={`absolute ${colorClass} rounded shadow-lg flex items-center justify-center text-white text-xs font-bold cursor-move hover:opacity-80`}
-        style={{
-          left: `${product.visualX}%`,
-          top: `${product.visualY}%`,
-          width: `${size}px`,
-          height: `${size}px`,
-          transform: 'translate(-50%, -50%)',
-          zIndex: isDragging ? 1000 : 50,
-          pointerEvents: 'auto'
-        }}
-        onMouseDown={handleMouseDown}
-        title={`${product.name}\n$${product.price}\nQty: ${product.quantity}\nProfit: $${profit.toFixed(2)}`}
-      >
-        {product.quantity}
-      </div>
-    );
-  };
-
-  const DraggableSection = ({ section, fixture, isSelected, onSelect }) => {
-    const [isDragging, setIsDragging] = useState(false);
-    const [isResizing, setIsResizing] = useState(false);
-    
-    const metrics = calculateMetrics(section, timeFilter);
-    const color = heatMapMode ? getHeatMapColor(metrics.profitPerSqFt) : 'rgba(100, 116, 139, 0.3)';
-    
-    // Use custom layout properties or default to full fixture
-    const layoutX = section.layoutX !== undefined ? section.layoutX : 0;
-    const layoutY = section.layoutY !== undefined ? section.layoutY : 0;
-    const layoutWidth = section.layoutWidth !== undefined ? section.layoutWidth : 100;
-    const layoutHeight = section.layoutHeight !== undefined ? section.layoutHeight : 100;
-    
-    const handleMouseDown = (e) => {
-      if (e.target.classList.contains('section-resize-handle')) {
-        e.stopPropagation();
-        setIsResizing(true);
-        const resizePosition = e.target.dataset.position;
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const startLayoutX = layoutX;
-        const startLayoutY = layoutY;
-        const startLayoutWidth = layoutWidth;
-        const startLayoutHeight = layoutHeight;
-
-        const handleMouseMove = (e) => {
-          const deltaX = ((e.clientX - startX) / fixture.width) * 100;
-          const deltaY = ((e.clientY - startY) / fixture.height) * 100;
-
-          let newLayoutX = startLayoutX;
-          let newLayoutY = startLayoutY;
-          let newLayoutWidth = startLayoutWidth;
-          let newLayoutHeight = startLayoutHeight;
-
-          if (resizePosition.includes('e')) {
-            newLayoutWidth = Math.max(10, Math.min(100 - startLayoutX, startLayoutWidth + deltaX));
-          }
-          if (resizePosition.includes('w')) {
-            const widthChange = Math.max(10, startLayoutWidth - deltaX);
-            newLayoutWidth = widthChange;
-            newLayoutX = startLayoutX + (startLayoutWidth - widthChange);
-          }
-          if (resizePosition.includes('s')) {
-            newLayoutHeight = Math.max(10, Math.min(100 - startLayoutY, startLayoutHeight + deltaY));
-          }
-          if (resizePosition.includes('n')) {
-            const heightChange = Math.max(10, startLayoutHeight - deltaY);
-            newLayoutHeight = heightChange;
-            newLayoutY = startLayoutY + (startLayoutHeight - heightChange);
-          }
-
-          updateSection({
-            ...section,
-            layoutX: Math.max(0, Math.min(100 - newLayoutWidth, newLayoutX)),
-            layoutY: Math.max(0, Math.min(100 - newLayoutHeight, newLayoutY)),
-            layoutWidth: newLayoutWidth,
-            layoutHeight: newLayoutHeight
-          });
+      // Add product to section
+      const addProduct = (fixtureId, sectionId, product) => {
+        const newProduct = {
+          id: `product-${Date.now()}`,
+          ...product,
+          quantity: parseInt(quantityInput) || 1,
+          x: 10, // Default position
+          y: 10,
+          addedDate: new Date().toISOString()
         };
 
-        const handleMouseUp = () => {
-          setIsResizing(false);
-          document.removeEventListener('mousemove', handleMouseMove);
-          document.removeEventListener('mouseup', handleMouseUp);
-        };
+        setFixtures(fixtures.map(f => {
+          if (f.id === fixtureId) {
+            return {
+              ...f,
+              sections: f.sections.map(s => {
+                if (s.id === sectionId) {
+                  return {
+                    ...s,
+                    products: [...s.products, newProduct]
+                  };
+                }
+                return s;
+              })
+            };
+          }
+          return f;
+        }));
 
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-        return;
-      }
+        setSearchResults([]);
+        setUpcInput('');
+        setQuantityInput(1);
+        setFeedback(`✅ Added ${product.title}`);
+        setTimeout(() => setFeedback(''), 2000);
+      };
 
-      // Handle dragging
-      e.stopPropagation();
-      setIsDragging(true);
-      onSelect();
-      
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const startLayoutX = layoutX;
-      const startLayoutY = layoutY;
+      // Update product position
+      const updateProductPosition = (fixtureId, sectionId, productId, x, y) => {
+        setFixtures(fixtures.map(f => {
+          if (f.id === fixtureId) {
+            return {
+              ...f,
+              sections: f.sections.map(s => {
+                if (s.id === sectionId) {
+                  return {
+                    ...s,
+                    products: s.products.map(p => 
+                      p.id === productId ? { ...p, x, y } : p
+                    )
+                  };
+                }
+                return s;
+              })
+            };
+          }
+          return f;
+        }));
+      };
 
-      const handleMouseMove = (e) => {
-        const deltaX = ((e.clientX - startX) / fixture.width) * 100;
-        const deltaY = ((e.clientY - startY) / fixture.height) * 100;
+      // Remove product
+      const removeProduct = (fixtureId, sectionId, productId) => {
+        setFixtures(fixtures.map(f => {
+          if (f.id === fixtureId) {
+            return {
+              ...f,
+              sections: f.sections.map(s => {
+                if (s.id === sectionId) {
+                  return {
+                    ...s,
+                    products: s.products.filter(p => p.id !== productId)
+                  };
+                }
+                return s;
+              })
+            };
+          }
+          return f;
+        }));
+      };
+
+      // Calculate profit per sqft
+      const calculateProfitPerSqFt = (fixture) => {
+        const totalProducts = fixture.sections.reduce((sum, section) => 
+          sum + section.products.reduce((pSum, p) => pSum + (p.quantity || 1), 0), 0
+        );
         
-        updateSection({
-          ...section,
-          layoutX: Math.max(0, Math.min(100 - layoutWidth, startLayoutX + deltaX)),
-          layoutY: Math.max(0, Math.min(100 - layoutHeight, startLayoutY + deltaY))
+        const totalProfit = fixture.sections.reduce((sum, section) => 
+          sum + section.products.reduce((pSum, p) => {
+            const cost = parseFloat(p.cost) || 0;
+            const price = parseFloat(p.price) || 0;
+            return pSum + ((price - cost) * (p.quantity || 1));
+          }, 0), 0
+        );
+        
+        const sqft = (fixture.width * fixture.height) / 144; // convert to sq ft
+        return totalProfit / sqft;
+      };
+
+      // Get heat map color
+      const getHeatMapColor = (profitPerSqFt) => {
+        if (profitPerSqFt > 100) return 'rgba(34, 197, 94, 0.7)'; // green
+        if (profitPerSqFt > 50) return 'rgba(234, 179, 8, 0.7)'; // yellow
+        if (profitPerSqFt > 0) return 'rgba(249, 115, 22, 0.7)'; // orange
+        return 'rgba(239, 68, 68, 0.7)'; // red
+      };
+
+      // Get product color by profitability
+      const getProductColor = (product) => {
+        const cost = parseFloat(product.cost) || 0;
+        const price = parseFloat(product.price) || 0;
+        const profit = price - cost;
+        
+        if (profit > 5) return '#10B981'; // green
+        if (profit > 2) return '#F59E0B'; // yellow
+        if (profit > 0) return '#EF4444'; // orange
+        return '#991B1B'; // dark red
+      };
+
+      // Export layout
+      const exportLayout = () => {
+        const exportData = {
+          version: 3,
+          storeName,
+          fixtures,
+          backgroundImage,
+          exportDate: new Date().toISOString()
+        };
+        
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${storeName.replace(/\s+/g, '-')}-${Date.now()}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        setFeedback('✅ Layout exported!');
+        setTimeout(() => setFeedback(''), 2000);
+      };
+
+      // Import layout
+      const importLayout = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = JSON.parse(e.target.result);
+            if (data.version && data.fixtures) {
+              setStoreName(data.storeName || 'Imported Layout');
+              setFixtures(data.fixtures);
+              setBackgroundImage(data.backgroundImage || null);
+              setFeedback('✅ Layout imported!');
+              setTimeout(() => setFeedback(''), 2000);
+            } else {
+              setFeedback('❌ Invalid layout file');
+              setTimeout(() => setFeedback(''), 3000);
+            }
+          } catch (error) {
+            setFeedback('❌ Import failed');
+            setTimeout(() => setFeedback(''), 3000);
+          }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+      };
+
+      // Save layout
+      const saveLayout = () => {
+        const layout = {
+          name: storeName,
+          fixtures,
+          backgroundImage,
+          savedAt: new Date().toISOString()
+        };
+        
+        const updated = [...savedLayouts.filter(l => l.name !== storeName), layout];
+        setSavedLayouts(updated);
+        localStorage.setItem('storePlannerLayouts', JSON.stringify(updated));
+        
+        setFeedback('✅ Layout saved!');
+        setTimeout(() => {
+          setFeedback('');
+          setShowSaveModal(false);
+        }, 1500);
+      };
+
+      // Load layout
+      const loadLayout = (layout) => {
+        setStoreName(layout.name);
+        setFixtures(layout.fixtures);
+        setBackgroundImage(layout.backgroundImage || null);
+        setShowLoadModal(false);
+        setFeedback('✅ Layout loaded!');
+        setTimeout(() => setFeedback(''), 2000);
+      };
+
+      // Delete saved layout
+      const deleteLayout = (layoutName) => {
+        const updated = savedLayouts.filter(l => l.name !== layoutName);
+        setSavedLayouts(updated);
+        localStorage.setItem('storePlannerLayouts', JSON.stringify(updated));
+        setFeedback('✅ Layout deleted');
+        setTimeout(() => setFeedback(''), 2000);
+      };
+
+      // Handle fixture drag
+      const handleFixtureDragStart = (e, fixture) => {
+        const rect = canvasRef.current.getBoundingClientRect();
+        setDraggedFixture({
+          ...fixture,
+          offsetX: (e.clientX - rect.left) / zoom - fixture.x - pan.x / zoom,
+          offsetY: (e.clientY - rect.top) / zoom - fixture.y - pan.y / zoom
         });
       };
 
-      const handleMouseUp = () => {
-        setIsDragging(false);
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+      const handleFixtureDrag = (e) => {
+        if (!draggedFixture) return;
+        
+        const rect = canvasRef.current.getBoundingClientRect();
+        const newX = (e.clientX - rect.left) / zoom - draggedFixture.offsetX - pan.x / zoom;
+        const newY = (e.clientY - rect.top) / zoom - draggedFixture.offsetY - pan.y / zoom;
+        
+        setFixtures(fixtures.map(f => 
+          f.id === draggedFixture.id ? { ...f, x: newX, y: newY } : f
+        ));
       };
 
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    };
+      const handleFixtureDragEnd = () => {
+        setDraggedFixture(null);
+      };
 
-    // Calculate actual pixel positions
-    const left = (layoutX / 100) * fixture.width;
-    const top = (layoutY / 100) * fixture.height;
-    const width = (layoutWidth / 100) * fixture.width;
-    const height = (layoutHeight / 100) * fixture.height;
-
-    return (
-      <div
-        style={{
-          position: 'absolute',
-          left: left,
-          top: top,
-          width: width,
-          height: height,
-          backgroundColor: color,
-          border: isSelected ? '2px solid #3b82f6' : '1px solid rgba(255,255,255,0.5)',
-          cursor: isDragging ? 'grabbing' : 'grab',
-          pointerEvents: 'auto',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '11px',
-          color: 'white',
-          fontWeight: 'bold',
-          textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
-          zIndex: isSelected ? 60 : 40
-        }}
-        onMouseDown={handleMouseDown}
-      >
-        <div className="text-center pointer-events-none">
-          <div>{section.name}</div>
-          {heatMapMode && <div>${metrics.profitPerSqFt.toFixed(0)}/sqft</div>}
-        </div>
-
-        {/* Resize handles - only show when selected */}
-        {isSelected && ['nw', 'ne', 'se', 'sw', 'n', 's', 'e', 'w'].map(position => (
-          <div
-            key={position}
-            className="section-resize-handle"
-            data-position={position}
-            style={{
-              position: 'absolute',
-              background: '#3b82f6',
-              border: '1px solid white',
-              cursor: getCursor(position),
-              zIndex: 70,
-              pointerEvents: 'auto',
-              ...getHandlePosition(position)
-            }}
-          />
-        ))}
-      </div>
-    );
-  };
-
-const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
-    const [dragging, setDragging] = useState(false);
-
-    const handleMouseDown = (e) => {
-      if (e.target.classList.contains('resize-handle')) {
+      // Handle product drag
+      const handleProductDragStart = (e, fixtureId, sectionId, product) => {
         e.stopPropagation();
-        const resizePosition = e.target.dataset.position;
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const startWidth = fixture.width;
-        const startHeight = fixture.height;
-        const startLeft = fixture.x;
-        const startTop = fixture.y;
-
-        const handleMouseMove = (e) => {
-          const deltaX = e.clientX - startX;
-          const deltaY = e.clientY - startY;
-
-          let newWidth = startWidth;
-          let newHeight = startHeight;
-          let newX = startLeft;
-          let newY = startTop;
-
-          if (resizePosition.includes('e')) newWidth = Math.max(60, startWidth + deltaX);
-          if (resizePosition.includes('w')) {
-            newWidth = Math.max(60, startWidth - deltaX);
-            newX = startLeft + (startWidth - newWidth);
-          }
-          if (resizePosition.includes('s')) newHeight = Math.max(60, startHeight + deltaY);
-          if (resizePosition.includes('n')) {
-            newHeight = Math.max(60, startHeight - deltaY);
-            newY = startTop + (startHeight - newHeight);
-          }
-
-          onUpdate({ ...fixture, width: newWidth, height: newHeight, x: newX, y: newY });
-        };
-
-        const handleMouseUp = () => {
-          document.removeEventListener('mousemove', handleMouseMove);
-          document.removeEventListener('mouseup', handleMouseUp);
-        };
-
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-        return;
-      }
-
-      e.stopPropagation();
-      setDragging(true);
-      onSelect();
-      
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const startLeft = fixture.x;
-      const startTop = fixture.y;
-
-      const handleMouseMove = (e) => {
-        const deltaX = e.clientX - startX;
-        const deltaY = e.clientY - startY;
-        onUpdate({ ...fixture, x: startLeft + deltaX, y: startTop + deltaY });
+        setDraggedProduct({
+          fixtureId,
+          sectionId,
+          productId: product.id,
+          offsetX: e.nativeEvent.offsetX,
+          offsetY: e.nativeEvent.offsetY
+        });
       };
 
-      const handleMouseUp = () => {
-        setDragging(false);
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+      const handleProductDrag = (e, fixtureId, sectionId) => {
+        if (!draggedProduct || draggedProduct.fixtureId !== fixtureId || draggedProduct.sectionId !== sectionId) return;
+        
+        const newX = e.nativeEvent.offsetX - draggedProduct.offsetX;
+        const newY = e.nativeEvent.offsetY - draggedProduct.offsetY;
+        
+        updateProductPosition(fixtureId, sectionId, draggedProduct.productId, newX, newY);
       };
 
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    };
+      const handleProductDragEnd = () => {
+        setDraggedProduct(null);
+      };
 
-    const fixtureSections = sections.filter(s => s.fixtureId === fixture.id);
-    const totalProfit = fixtureSections.reduce((sum, s) => {
-      const metrics = calculateMetrics(s, timeFilter);
-      return sum + metrics.totalProfit;
-    }, 0);
+      // Handle canvas pan
+      const handleCanvasMouseDown = (e) => {
+        if (e.button === 0 && !e.target.closest('.fixture')) {
+          setIsPanning(true);
+          setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+        }
+      };
 
-    return (
-      <div
-        style={{
-          position: 'absolute',
-          left: fixture.x,
-          top: fixture.y,
-          width: fixture.width,
-          height: fixture.height,
-          backgroundColor: fixture.color,
-          border: isSelected ? '3px solid #3b82f6' : '2px solid #cbd5e1',
-          borderRadius: '8px',
-          cursor: dragging ? 'grabbing' : 'grab',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: heatMapMode ? 0.95 : 0.9,
-          zIndex: isSelected ? 100 : 10,
-          overflow: 'hidden'
-        }}
-        onMouseDown={handleMouseDown}
-      >
-        {/* Draggable/Resizable Sections - always visible */}
-        {fixtureSections.map(section => (
-          <DraggableSection
-            key={section.id}
-            section={section}
-            fixture={fixture}
-            isSelected={selectedSection === section.id}
-            onSelect={() => setSelectedSection(section.id)}
-          />
-        ))}
+      const handleCanvasMouseMove = (e) => {
+        if (isPanning) {
+          setPan({
+            x: e.clientX - panStart.x,
+            y: e.clientY - panStart.y
+          });
+        } else if (draggedFixture) {
+          handleFixtureDrag(e);
+        }
+      };
 
-        {/* Fixture label - only show when NOT in heat map mode */}
-        {!heatMapMode && (
-          <div className="text-white text-center p-2 pointer-events-none">
-            <div className="font-bold text-sm">{fixture.name}</div>
-            <div className="text-xs">{fixtureSections.length} sections</div>
-          </div>
-        )}
+      const handleCanvasMouseUp = () => {
+        setIsPanning(false);
+        handleFixtureDragEnd();
+      };
 
-        {showVisualMode && fixtureSections.map(section => 
-          section.products.map((product, idx) => (
-            <ProductBox
-              key={`${section.id}-${idx}`}
-              product={product}
-              productIndex={idx}
-              sectionId={section.id}
-              fixtureX={fixture.x}
-              fixtureY={fixture.y}
-              fixtureWidth={fixture.width}
-              fixtureHeight={fixture.height}
-            />
-          ))
-        )}
+      // Background image upload
+      const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            setBackgroundImage(event.target.result);
+            setFeedback('✅ Background added!');
+            setTimeout(() => setFeedback(''), 2000);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
 
-        {isSelected && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(fixture.id);
-            }}
-            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-            style={{ pointerEvents: 'auto' }}
-          >
-            <Icons.X />
-          </button>
-        )}
+      // Calculate total metrics
+      const totalMetrics = {
+        fixtures: fixtures.length,
+        products: fixtures.reduce((sum, f) => 
+          sum + f.sections.reduce((s, sec) => s + sec.products.length, 0), 0),
+        totalProfit: fixtures.reduce((sum, f) => 
+          sum + f.sections.reduce((s, sec) => 
+            s + sec.products.reduce((p, prod) => {
+              const cost = parseFloat(prod.cost) || 0;
+              const price = parseFloat(prod.price) || 0;
+              return p + ((price - cost) * (prod.quantity || 1));
+            }, 0), 0), 0).toFixed(2)
+      };
 
-        {isSelected && ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(position => (
-          <div
-            key={position}
-            className="resize-handle"
-            data-position={position}
-            style={{
-              position: 'absolute',
-              background: 'white',
-              border: '2px solid #3b82f6',
-              cursor: getCursor(position),
-              zIndex: 110,
-              pointerEvents: 'auto',
-              ...getHandlePosition(position)
-            }}
-          />
-        ))}
-      </div>
-    );
-  };
-
-  return (
-    <div className="flex h-screen bg-gray-100">
-      {showLibrary && (
-        <div className="w-64 bg-white shadow-lg p-4 overflow-y-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Icons.Package />
-              Fixture Library
-            </h2>
-            <button onClick={() => setShowLibrary(false)} className="p-1 hover:bg-gray-100 rounded">
-              <Icons.X />
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {Object.entries(FIXTURE_TYPES).map(([key, type]) => {
-              const IconComponent = Icons[type.icon];
-              return (
-                <button
-                  key={key}
-                  onClick={() => addFixture(key)}
-                  className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200"
-                >
-                  <div className="w-10 h-10 rounded flex items-center justify-center" style={{ backgroundColor: type.color }}>
-                    {IconComponent && <IconComponent />}
-                  </div>
-                  <span className="font-medium">{type.name}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-6 pt-6 border-t">
-            <h3 className="font-bold mb-2">Active Fixtures</h3>
-            <div className="space-y-1">
-              {fixtures.map(fixture => (
-                <div
-                  key={fixture.id}
-                  className={`p-2 rounded cursor-pointer flex items-center justify-between ${
-                    selectedFixture === fixture.id ? 'bg-blue-100' : 'hover:bg-gray-100'
-                  }`}
-                  onClick={() => setSelectedFixture(fixture.id)}
-                >
-                  <span className="text-sm">{fixture.name}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteFixture(fixture.id);
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Icons.Trash2 />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex-1 flex flex-col">
-        <div className="bg-white shadow-md p-4 flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            {!showLibrary && (
-              <button onClick={() => setShowLibrary(true)} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">
-                Show Library
-              </button>
-            )}
-            
-            <button
-              onClick={() => setHeatMapMode(!heatMapMode)}
-              className={`px-3 py-2 rounded flex items-center gap-2 text-sm ${heatMapMode ? 'bg-orange-500 text-white' : 'bg-gray-200'}`}
-            >
-              <Icons.Flame />
-              Heat Map
-            </button>
-
-            <button
-              onClick={() => setShowVisualMode(!showVisualMode)}
-              className={`px-3 py-2 rounded flex items-center gap-2 text-sm ${showVisualMode ? 'bg-purple-500 text-white' : 'bg-gray-200'}`}
-            >
-              <Icons.Eye />
-              Visual
-            </button>
-
-            <input type="file" ref={fileInputRef} onChange={handleBackgroundUpload} accept="image/*" className="hidden" />
-            
-            <button onClick={() => fileInputRef.current?.click()} className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2 text-sm">
-              <Icons.Camera />
-              BG
-            </button>
-
-            {backgroundImage && (
-              <>
-                <button onClick={removeBackground} className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm">
-                  Remove
-                </button>
-                <button onClick={resetBackgroundPosition} className="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center gap-2 text-sm">
-                  <Icons.Move />
-                  Reset
-                </button>
-              </>
-            )}
-
-            <button onClick={exportLayout} className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2 text-sm">
-              <Icons.Download />
-              Export
-            </button>
-
-            <input type="file" ref={importInputRef} onChange={importLayout} accept=".json" className="hidden" />
-            
-            <button onClick={() => importInputRef.current?.click()} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2 text-sm">
-              <Icons.Upload />
-              Import
-            </button>
-
-            <button onClick={() => setShowSettings(true)} className="px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm">
-              Shopify
-            </button>
-
-            {shopifyConfig.connected && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded text-xs">
-                <button
-                  onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
-                  className={`px-2 py-1 rounded ${autoRefreshEnabled ? 'bg-green-500 text-white' : 'bg-gray-300'}`}
-                  title="Toggle auto-refresh"
-                >
-                  {autoRefreshEnabled ? '🔄 Auto' : '⏸️ Paused'}
-                </button>
-                {lastRefresh && (
-                  <span className="text-gray-600">
-                    Updated: {lastRefresh.toLocaleTimeString()}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="text-xl font-bold">{storeName}</div>
-
-          {feedback && (
-            <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm">
-              {feedback}
-            </div>
-          )}
-        </div>
-
-        <div 
-          ref={canvasRef}
-          className="flex-1 relative overflow-hidden bg-gray-50"
-          style={{ 
-            cursor: isDraggingBg ? 'grabbing' : 'default',
-            backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
-            backgroundSize: '20px 20px'
-          }}
-          onMouseMove={handleBgMouseMove}
-          onMouseUp={handleBgMouseUp}
-          onMouseLeave={handleBgMouseUp}
-        >
-          {backgroundImage && (
-            <img
-              src={backgroundImage}
-              alt="Store layout"
-              style={{
-                position: 'absolute',
-                top: bgImagePosition.y,
-                left: bgImagePosition.x,
-                maxWidth: '100%',
-                maxHeight: '100%',
-                objectFit: 'contain',
-                opacity: 0.3,
-                pointerEvents: 'auto',
-                cursor: isDraggingBg ? 'grabbing' : 'grab',
-                zIndex: 0,
-                userSelect: 'none'
-              }}
-              onMouseDown={handleBgMouseDown}
-              draggable={false}
-            />
-          )}
-
-          {fixtures.map(fixture => (
-            <Fixture
-              key={fixture.id}
-              fixture={fixture}
-              onUpdate={updateFixture}
-              onDelete={deleteFixture}
-              onSelect={() => setSelectedFixture(fixture.id)}
-              isSelected={selectedFixture === fixture.id}
-            />
-          ))}
-        </div>
-      </div>
-
-      {selectedFixture && (
-        <div className="w-80 bg-white shadow-lg p-4 overflow-y-auto">
-          <h2 className="text-xl font-bold mb-4">
-            {fixtures.find(f => f.id === selectedFixture)?.name}
-          </h2>
-
-          <button
-            onClick={() => addSection(selectedFixture)}
-            className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 mb-4 flex items-center justify-center gap-2"
-          >
-            <Icons.Plus />
-            Add Section
-          </button>
-
-          <div className="space-y-4">
-            {sections
-              .filter(s => s.fixtureId === selectedFixture)
-              .map(section => {
-                const metrics = calculateMetrics(section, timeFilter);
+      return (
+        <div className="flex h-screen bg-gray-100">
+          {/* Settings Modal */}
+          {showSettings && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-96 max-h-[90vh] overflow-y-auto">
+                <h2 className="text-xl font-bold mb-4">Shopify Settings</h2>
                 
-                return (
-                  <div
-                    key={section.id}
-                    className={`p-4 border-2 rounded-lg ${selectedSection === section.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
-                    onClick={() => setSelectedSection(section.id)}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      {editingSection === section.id ? (
-                        <input
-                          type="text"
-                          value={editingSectionName}
-                          onChange={(e) => setEditingSectionName(e.target.value)}
-                          onBlur={() => {
-                            if (editingSectionName.trim()) {
-                              updateSectionName(section.id, editingSectionName.trim());
-                            } else {
-                              setEditingSection(null);
-                            }
-                          }}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter' && editingSectionName.trim()) {
-                              updateSectionName(section.id, editingSectionName.trim());
-                            }
-                            if (e.key === 'Escape') {
-                              setEditingSection(null);
-                            }
-                          }}
-                          className="flex-1 px-2 py-1 border-2 border-blue-500 rounded font-bold"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <h3 
-                          className="font-bold cursor-pointer hover:text-blue-600 flex-1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingSection(section.id);
-                            setEditingSectionName(section.name);
-                          }}
-                          title="Click to rename"
-                        >
-                          {section.name}
-                        </h3>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteSection(section.id);
-                        }}
-                        className="text-red-500 hover:text-red-700 ml-2"
-                      >
-                        <Icons.Trash2 />
-                      </button>
-                    </div>
-
-                    <div className="text-sm space-y-1 mb-3">
-                      <div className="flex items-center gap-2">
-                        {editingSectionArea === section.id ? (
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0.1"
-                            value={editingAreaValue}
-                            onChange={(e) => setEditingAreaValue(e.target.value)}
-                            onBlur={() => {
-                              if (editingAreaValue.trim()) {
-                                updateSectionArea(section.id, editingAreaValue);
-                              } else {
-                                setEditingSectionArea(null);
-                              }
-                            }}
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter' && editingAreaValue.trim()) {
-                                updateSectionArea(section.id, editingAreaValue);
-                              }
-                              if (e.key === 'Escape') {
-                                setEditingSectionArea(null);
-                              }
-                            }}
-                            className="flex-1 px-2 py-1 border-2 border-blue-500 rounded text-sm"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          <div
-                            className="cursor-pointer hover:text-blue-600"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingSectionArea(section.id);
-                              setEditingAreaValue(section.area.toString());
-                            }}
-                            title="Click to edit area"
-                          >
-                            Area: {section.area} sq ft
-                          </div>
-                        )}
-                      </div>
-                      <div className="font-bold text-green-600">
-                        Profit/sq ft: ${metrics.profitPerSqFt.toFixed(2)}
-                      </div>
-                      <div>Total Profit: ${metrics.totalProfit.toFixed(2)}</div>
-                      <div>Products: {section.products.length}</div>
-                    </div>
-
-                    {/* Section Layout Controls */}
-                    <div className="space-y-2 mb-3 border-t pt-3">
-                      <div className="text-xs font-bold text-gray-600">SECTION LAYOUT</div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-xs text-gray-600">X Position %</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={section.layoutX || 0}
-                            onChange={(e) => {
-                              const updatedSections = sections.map(s => 
-                                s.id === section.id ? { ...s, layoutX: parseFloat(e.target.value) || 0 } : s
-                              );
-                              setSections(updatedSections);
-                              autoSave(updatedSections, 'Section layout updated');
-                            }}
-                            className="w-full px-2 py-1 border rounded text-xs"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600">Y Position %</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={section.layoutY || 0}
-                            onChange={(e) => {
-                              const updatedSections = sections.map(s => 
-                                s.id === section.id ? { ...s, layoutY: parseFloat(e.target.value) || 0 } : s
-                              );
-                              setSections(updatedSections);
-                              autoSave(updatedSections, 'Section layout updated');
-                            }}
-                            className="w-full px-2 py-1 border rounded text-xs"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600">Width %</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={section.layoutWidth || 100}
-                            onChange={(e) => {
-                              const updatedSections = sections.map(s => 
-                                s.id === section.id ? { ...s, layoutWidth: parseFloat(e.target.value) || 100 } : s
-                              );
-                              setSections(updatedSections);
-                              autoSave(updatedSections, 'Section layout updated');
-                            }}
-                            className="w-full px-2 py-1 border rounded text-xs"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600">Height %</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={section.layoutHeight || 100}
-                            onChange={(e) => {
-                              const updatedSections = sections.map(s => 
-                                s.id === section.id ? { ...s, layoutHeight: parseFloat(e.target.value) || 100 } : s
-                              );
-                              setSections(updatedSections);
-                              autoSave(updatedSections, 'Section layout updated');
-                            }}
-                            className="w-full px-2 py-1 border rounded text-xs"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const updatedSections = sections.map(s => 
-                              s.id === section.id ? { ...s, layoutX: 0, layoutY: 0, layoutWidth: 100, layoutHeight: 100 } : s
-                            );
-                            setSections(updatedSections);
-                            autoSave(updatedSections, 'Section layout reset');
-                          }}
-                          className="flex-1 px-2 py-1 bg-gray-200 text-xs rounded hover:bg-gray-300"
-                        >
-                          Reset Layout
-                        </button>
-                      </div>
-                      <div className="text-xs text-gray-600 mt-2">Quick Layouts:</div>
-                      <div className="grid grid-cols-3 gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const updatedSections = sections.map(s => 
-                              s.id === section.id ? { ...s, layoutX: 0, layoutY: 0, layoutWidth: 50, layoutHeight: 100 } : s
-                            );
-                            setSections(updatedSections);
-                            autoSave(updatedSections);
-                          }}
-                          className="px-2 py-1 bg-blue-100 text-xs rounded hover:bg-blue-200"
-                          title="Left Half"
-                        >
-                          ⬅️ Left
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const updatedSections = sections.map(s => 
-                              s.id === section.id ? { ...s, layoutX: 50, layoutY: 0, layoutWidth: 50, layoutHeight: 100 } : s
-                            );
-                            setSections(updatedSections);
-                            autoSave(updatedSections);
-                          }}
-                          className="px-2 py-1 bg-blue-100 text-xs rounded hover:bg-blue-200"
-                          title="Right Half"
-                        >
-                          Right ➡️
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const updatedSections = sections.map(s => 
-                              s.id === section.id ? { ...s, layoutX: 0, layoutY: 0, layoutWidth: 100, layoutHeight: 50 } : s
-                            );
-                            setSections(updatedSections);
-                            autoSave(updatedSections);
-                          }}
-                          className="px-2 py-1 bg-blue-100 text-xs rounded hover:bg-blue-200"
-                          title="Top Half"
-                        >
-                          ⬆️ Top
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const updatedSections = sections.map(s => 
-                              s.id === section.id ? { ...s, layoutX: 0, layoutY: 50, layoutWidth: 100, layoutHeight: 50 } : s
-                            );
-                            setSections(updatedSections);
-                            autoSave(updatedSections);
-                          }}
-                          className="px-2 py-1 bg-blue-100 text-xs rounded hover:bg-blue-200"
-                          title="Bottom Half"
-                        >
-                          Bottom ⬇️
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const updatedSections = sections.map(s => 
-                              s.id === section.id ? { ...s, layoutX: 0, layoutY: 0, layoutWidth: 33, layoutHeight: 100 } : s
-                            );
-                            setSections(updatedSections);
-                            autoSave(updatedSections);
-                          }}
-                          className="px-2 py-1 bg-green-100 text-xs rounded hover:bg-green-200"
-                          title="1/3 Width"
-                        >
-                          1/3
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const updatedSections = sections.map(s => 
-                              s.id === section.id ? { ...s, layoutX: 0, layoutY: 0, layoutWidth: 25, layoutHeight: 100 } : s
-                            );
-                            setSections(updatedSections);
-                            autoSave(updatedSections);
-                          }}
-                          className="px-2 py-1 bg-green-100 text-xs rounded hover:bg-green-200"
-                          title="1/4 Width"
-                        >
-                          1/4
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 mb-3 border-t pt-3">
+                {!shopifyConfig.connected ? (
+                  <>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-2">Store Name</label>
                       <input
                         type="text"
-                        placeholder="Scan or enter UPC"
-                        value={selectedSection === section.id ? newProduct.upc : ''}
-                        onChange={(e) => {
-                          setSelectedSection(section.id);
-                          setNewProduct({ upc: e.target.value, sectionId: section.id });
-                        }}
-                        className="w-full px-3 py-2 border rounded text-sm"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && newProduct.upc) {
-                            setNewProduct({ ...newProduct, sectionId: section.id });
-                            addProductToSection();
-                          }
-                        }}
+                        value={shopifyConfig.storeName}
+                        onChange={(e) => setShopifyConfig({...shopifyConfig, storeName: e.target.value})}
+                        placeholder="your-store.myshopify.com"
+                        className="w-full px-3 py-2 border rounded-lg"
                       />
-                      <button
-                        onClick={() => {
-                          setNewProduct({ ...newProduct, sectionId: section.id });
-                          addProductToSection();
-                        }}
-                        disabled={scanning || !newProduct.upc}
-                        className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 text-sm"
-                      >
-                        {scanning ? 'Adding...' : 'Add Product'}
-                      </button>
                     </div>
-
-                    <div className="space-y-2">
-                      {section.products.map((product, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
-                          <div className="flex-1">
-                            <div className="font-medium">{product.name}</div>
-                            <div className="text-xs text-gray-600">
-                              ${product.price} | Qty: {product.quantity}
-                            </div>
-                          </div>
-                          
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => updateProductQuantity(section.id, idx, -1)}
-                              className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
-                            >
-                              -
-                            </button>
-                            <button
-                              onClick={() => updateProductQuantity(section.id, idx, 1)}
-                              className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
-                            >
-                              +
-                            </button>
-                            
-                            <button
-                              onClick={() => deleteProduct(section.id, idx)}
-                              className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
-                              title="Delete"
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-2">Access Token</label>
+                      <input
+                        type="password"
+                        value={shopifyConfig.accessToken}
+                        onChange={(e) => setShopifyConfig({...shopifyConfig, accessToken: e.target.value})}
+                        placeholder="shpat_xxxxxxxxxxxxx"
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
                     </div>
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-      )}
-
-      {showSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-4">🛍️ Shopify Connection</h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Store Name</label>
-                <input
-                  type="text"
-                  value={shopifyConfig.storeName}
-                  onChange={(e) => setShopifyConfig({ ...shopifyConfig, storeName: e.target.value })}
-                  placeholder="your-store.myshopify.com"
-                  className="w-full px-3 py-2 border rounded"
-                  disabled={shopifyConfig.connected}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Admin API Access Token</label>
-                <input
-                  type="password"
-                  value={shopifyConfig.accessToken}
-                  onChange={(e) => setShopifyConfig({ ...shopifyConfig, accessToken: e.target.value })}
-                  placeholder="shpat_xxxxx..."
-                  className="w-full px-3 py-2 border rounded"
-                  disabled={shopifyConfig.connected}
-                />
-              </div>
-
-              <div className="flex gap-2">
-                {!shopifyConfig.connected ? (
-                  <button
-                    onClick={testShopifyConnection}
-                    className="flex-1 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                  >
-                    Test Connection
-                  </button>
+                    <button
+                      onClick={connectToShopify}
+                      className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 mb-2"
+                    >
+                      Connect to Shopify
+                    </button>
+                  </>
                 ) : (
                   <>
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm font-medium text-green-800">✅ Connected to:</p>
+                      <p className="text-sm text-green-700">{shopifyConfig.storeName}</p>
+                    </div>
                     <button
                       onClick={refreshProductCache}
-                      className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center gap-2"
+                      className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 mb-2"
                     >
-                      <Icons.RefreshCw />
-                      Refresh
+                      Refresh Product Cache
                     </button>
                     <button
-                      onClick={disconnectShopify}
-                      className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                      onClick={disconnectFromShopify}
+                      className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 mb-2"
                     >
                       Disconnect
                     </button>
                   </>
                 )}
+                
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="w-full bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+                >
+                  Close
+                </button>
               </div>
+            </div>
+          )}
 
-              {shopifyConfig.connected && (
-                <div className="p-3 bg-green-100 text-green-800 rounded">
-                  ✅ Connected
+          {/* Save Modal */}
+          {showSaveModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-96">
+                <h2 className="text-xl font-bold mb-4">Save Layout</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Save as: <strong>{storeName}</strong>
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={saveLayout}
+                    className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setShowSaveModal(false)}
+                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Load Modal */}
+          {showLoadModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-96 max-h-[80vh] overflow-y-auto">
+                <h2 className="text-xl font-bold mb-4">Load Layout</h2>
+                {savedLayouts.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No saved layouts</p>
+                ) : (
+                  <div className="space-y-2">
+                    {savedLayouts.map((layout, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex-1">
+                          <p className="font-medium">{layout.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(layout.savedAt).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => loadLayout(layout)}
+                            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                          >
+                            Load
+                          </button>
+                          <button
+                            onClick={() => deleteLayout(layout.name)}
+                            className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  onClick={() => setShowLoadModal(false)}
+                  className="w-full bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 mt-4"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Sidebar */}
+          <div className="w-80 bg-white shadow-lg p-6 overflow-y-auto">
+            <h1 className="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+              <Icons.BarChart3 />
+              Store Planner v3
+              {shopifyConfig.connected && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                  Shopify ✓
+                </span>
               )}
+            </h1>
+            
+            {feedback && (
+              <div className="bg-blue-100 border-2 border-blue-400 text-blue-800 px-3 py-2 rounded-lg text-sm font-semibold mb-3">
+                {feedback}
+              </div>
+            )}
+            
+            <input
+              type="text"
+              value={storeName}
+              onChange={(e) => setStoreName(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg mb-4 text-sm"
+              placeholder="Store layout name"
+            />
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <button
+                onClick={() => setShowSaveModal(true)}
+                className="bg-green-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-green-700 text-sm"
+              >
+                <Icons.Save />
+                Save
+              </button>
+              <button
+                onClick={() => setShowLoadModal(true)}
+                className="bg-purple-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 text-sm"
+              >
+                <Icons.Upload />
+                Load
+              </button>
+              <button
+                onClick={exportLayout}
+                className="bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-700 text-sm"
+              >
+                <Icons.Download />
+                Export
+              </button>
+              <button
+                onClick={() => importInputRef.current.click()}
+                className="bg-indigo-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 text-sm"
+              >
+                <Icons.Upload />
+                Import
+              </button>
             </div>
 
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json"
+              onChange={importLayout}
+              className="hidden"
+            />
+
             <button
-              onClick={() => setShowSettings(false)}
-              className="mt-4 w-full px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              onClick={() => setShowSettings(true)}
+              className={`w-full ${shopifyConfig.connected ? 'bg-green-600' : 'bg-blue-600'} text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 text-sm mb-4`}
             >
-              Close
+              🛍️ {shopifyConfig.connected ? 'Shopify Connected' : 'Connect Shopify'}
             </button>
+
+            {/* Metrics */}
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg mb-4">
+              <h3 className="font-semibold text-gray-700 mb-2">Store Metrics</h3>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span>Fixtures:</span>
+                  <span className="font-semibold">{totalMetrics.fixtures}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Products:</span>
+                  <span className="font-semibold">{totalMetrics.products}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Profit:</span>
+                  <span className="font-semibold text-green-600">${totalMetrics.totalProfit}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Fixture Library */}
+            <div className="mb-4">
+              <h3 className="font-semibold text-gray-700 mb-2">Fixture Library</h3>
+              <div className="space-y-2">
+                {Object.keys(FIXTURE_LIBRARY).map(type => (
+                  <button
+                    key={type}
+                    onClick={() => addFixture(type)}
+                    className="w-full bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 flex items-center justify-between text-sm"
+                    style={{ backgroundColor: FIXTURE_LIBRARY[type].color }}
+                  >
+                    <span>{type}</span>
+                    <Icons.Plus />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div className="space-y-2 mb-4">
+              <button
+                onClick={() => setHeatMapMode(!heatMapMode)}
+                className={`w-full ${heatMapMode ? 'bg-orange-600' : 'bg-gray-600'} text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 text-sm`}
+              >
+                <Icons.Flame />
+                {heatMapMode ? 'Heat Map ON' : 'Heat Map OFF'}
+              </button>
+              
+              <button
+                onClick={() => fileInputRef.current.click()}
+                className="w-full bg-purple-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 text-sm"
+              >
+                <Icons.Image />
+                Add Background
+              </button>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setZoom(Math.min(zoom + 0.1, 2))}
+                  className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-1 hover:bg-gray-700 text-sm"
+                >
+                  <Icons.ZoomIn />
+                </button>
+                <button
+                  onClick={() => setZoom(Math.max(zoom - 0.1, 0.5))}
+                  className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-1 hover:bg-gray-700 text-sm"
+                >
+                  <Icons.ZoomOut />
+                </button>
+                <button
+                  onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+                  className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 text-sm"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            {/* Product Search */}
+            {selectedFixture && (
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-gray-700 mb-2">Add Product</h3>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={upcInput}
+                    onChange={(e) => setUpcInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && searchByUPC()}
+                    placeholder="Enter UPC"
+                    className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                  />
+                  <button
+                    onClick={searchByUPC}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  >
+                    <Icons.Search />
+                  </button>
+                </div>
+                
+                <input
+                  type="number"
+                  value={quantityInput}
+                  onChange={(e) => setQuantityInput(e.target.value)}
+                  min="1"
+                  placeholder="Quantity"
+                  className="w-full px-3 py-2 border rounded-lg text-sm mb-2"
+                />
+
+                {searchResults.length > 0 && (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {searchResults.map(product => (
+                      <div key={product.id} className="bg-gray-50 p-2 rounded">
+                        <p className="font-medium text-sm">{product.title}</p>
+                        <p className="text-xs text-gray-600">{product.upc}</p>
+                        <p className="text-xs">Price: ${product.price} | Cost: ${product.cost}</p>
+                        <select
+                          onChange={(e) => addProduct(selectedFixture.id, e.target.value, product)}
+                          className="w-full mt-2 px-2 py-1 border rounded text-xs"
+                        >
+                          <option value="">Select section...</option>
+                          {selectedFixture.sections.map(section => (
+                            <option key={section.id} value={section.id}>
+                              {section.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Selected Fixture Info */}
+            {selectedFixture && (
+              <div className="border-t pt-4 mt-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-semibold text-gray-700">
+                    {selectedFixture.type}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setFixtures(fixtures.filter(f => f.id !== selectedFixture.id));
+                      setSelectedFixture(null);
+                    }}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <Icons.Trash2 />
+                  </button>
+                </div>
+                
+                <div className="space-y-2">
+                  {selectedFixture.sections.map(section => (
+                    <div key={section.id} className="bg-gray-50 p-2 rounded">
+                      <div className="flex items-center gap-2 mb-1">
+                        {editingSectionId === section.id ? (
+                          <>
+                            <input
+                              type="text"
+                              value={editingSectionName}
+                              onChange={(e) => setEditingSectionName(e.target.value)}
+                              className="flex-1 px-2 py-1 border rounded text-sm"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => saveSectionName(selectedFixture.id, section.id)}
+                              className="text-green-600 hover:text-green-800"
+                            >
+                              <Icons.Check />
+                            </button>
+                            <button
+                              onClick={cancelEditingSection}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <Icons.X />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="flex-1 font-medium text-sm">{section.name}</span>
+                            <button
+                              onClick={() => startEditingSection(selectedFixture.id, section.id, section.name)}
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              <Icons.Edit />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600">
+                        {section.products.length} products
+                      </p>
+                      {section.products.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {section.products.map(product => (
+                            <div key={product.id} className="flex justify-between items-center text-xs bg-white p-1 rounded">
+                              <span className="truncate flex-1">{product.title}</span>
+                              <button
+                                onClick={() => removeProduct(selectedFixture.id, section.id, product.id)}
+                                className="text-red-600 hover:text-red-800 ml-2"
+                              >
+                                <Icons.Trash2 />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Canvas */}
+          <div 
+            ref={canvasRef}
+            className="flex-1 relative overflow-hidden cursor-move"
+            onMouseDown={handleCanvasMouseDown}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseUp={handleCanvasMouseUp}
+            onMouseLeave={handleCanvasMouseUp}
+          >
+            {/* Background Image */}
+            {backgroundImage && (
+              <div 
+                className="absolute inset-0"
+                style={{
+                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                  transformOrigin: '0 0'
+                }}
+              >
+                <img 
+                  src={backgroundImage} 
+                  alt="Store background"
+                  className="w-full h-full object-contain opacity-30"
+                  draggable="false"
+                />
+              </div>
+            )}
+
+            {/* Fixtures */}
+            <div 
+              className="absolute inset-0"
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                transformOrigin: '0 0'
+              }}
+            >
+              {fixtures.map(fixture => {
+                const profitPerSqFt = calculateProfitPerSqFt(fixture);
+                const isSelected = selectedFixture?.id === fixture.id;
+                
+                return (
+                  <div
+                    key={fixture.id}
+                    className="fixture absolute cursor-move"
+                    style={{
+                      left: fixture.x,
+                      top: fixture.y,
+                      width: fixture.width,
+                      height: fixture.height,
+                      backgroundColor: heatMapMode ? getHeatMapColor(profitPerSqFt) : 'white',
+                      border: isSelected ? '3px solid #3B82F6' : '2px solid #9CA3AF',
+                      borderRadius: '8px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setSelectedFixture(fixture);
+                      handleFixtureDragStart(e, fixture);
+                    }}
+                  >
+                    {/* Fixture Header */}
+                    <div 
+                      className="px-2 py-1 text-white text-xs font-semibold flex justify-between items-center"
+                      style={{ backgroundColor: fixture.color }}
+                    >
+                      <span>{fixture.type}</span>
+                      {heatMapMode && (
+                        <span className="bg-white bg-opacity-20 px-2 py-0.5 rounded">
+                          ${profitPerSqFt.toFixed(0)}/sqft
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Sections with Products */}
+                    <div className="p-2 h-full overflow-hidden">
+                      <div className="grid gap-1" style={{
+                        gridTemplateColumns: fixture.type === 'Jewelry Case' ? 'repeat(2, 1fr)' : '1fr',
+                        height: 'calc(100% - 8px)'
+                      }}>
+                        {fixture.sections.map((section, idx) => (
+                          <div
+                            key={section.id}
+                            className="relative border border-gray-300 rounded p-1 bg-white bg-opacity-50"
+                            style={{ minHeight: '40px' }}
+                            onMouseMove={(e) => handleProductDrag(e, fixture.id, section.id)}
+                            onMouseUp={handleProductDragEnd}
+                          >
+                            <div className="text-xs font-medium text-gray-700 mb-1 truncate">
+                              {section.name}
+                            </div>
+                            
+                            {/* Visual Product Boxes */}
+                            {section.products.map(product => {
+                              const productColor = getProductColor(product);
+                              const size = Math.max(20, Math.min(40, product.quantity * 5));
+                              
+                              return (
+                                <div
+                                  key={product.id}
+                                  className="absolute cursor-move group"
+                                  style={{
+                                    left: product.x || 10,
+                                    top: product.y || 10,
+                                    width: size,
+                                    height: size,
+                                    backgroundColor: productColor,
+                                    borderRadius: '4px',
+                                    border: '2px solid rgba(0,0,0,0.2)',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                                  }}
+                                  onMouseDown={(e) => handleProductDragStart(e, fixture.id, section.id, product)}
+                                  title={`${product.title} (${product.quantity})`}
+                                >
+                                  {/* Product Info Tooltip */}
+                                  <div className="hidden group-hover:block absolute z-10 bg-black text-white text-xs rounded p-2 whitespace-nowrap"
+                                    style={{ 
+                                      bottom: '100%', 
+                                      left: '50%', 
+                                      transform: 'translateX(-50%)',
+                                      marginBottom: '4px',
+                                      maxWidth: '200px'
+                                    }}
+                                  >
+                                    <div className="font-semibold truncate">{product.title}</div>
+                                    <div>Qty: {product.quantity}</div>
+                                    <div>Price: ${product.price}</div>
+                                    <div>Profit: ${(parseFloat(product.price) - parseFloat(product.cost)).toFixed(2)}</div>
+                                  </div>
+                                  
+                                  {/* Quantity Badge */}
+                                  <div className="absolute -top-1 -right-1 bg-black text-white rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold">
+                                    {product.quantity}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Instructions */}
+            {fixtures.length === 0 && !backgroundImage && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center text-gray-400">
+                  <p className="text-xl mb-2">👈 Add fixtures to get started</p>
+                  <p className="text-sm">Click fixture types in the sidebar</p>
+                </div>
+              </div>
+            )}
+
+            {/* Legend */}
+            {heatMapMode && (
+              <div className="absolute bottom-4 right-4 bg-white p-3 rounded-lg shadow-lg">
+                <h4 className="text-xs font-semibold mb-2">Profit Heat Map</h4>
+                <div className="space-y-1 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(34, 197, 94, 0.7)' }}></div>
+                    <span>&gt;$100/sqft</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(234, 179, 8, 0.7)' }}></div>
+                    <span>$50-100/sqft</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(249, 115, 22, 0.7)' }}></div>
+                    <span>$0-50/sqft</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(239, 68, 68, 0.7)' }}></div>
+                    <span>Negative</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Product Color Legend */}
+            <div className="absolute top-4 right-4 bg-white p-3 rounded-lg shadow-lg">
+              <h4 className="text-xs font-semibold mb-2">Product Profitability</h4>
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: '#10B981' }}></div>
+                  <span>&gt;$5 profit</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: '#F59E0B' }}></div>
+                  <span>$2-5 profit</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: '#EF4444' }}></div>
+                  <span>$0-2 profit</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: '#991B1B' }}></div>
+                  <span>Negative</span>
+                </div>
+              </div>
+              <div className="mt-2 pt-2 border-t text-xs text-gray-600">
+                <div className="flex items-center gap-1">
+                  <Icons.Move />
+                  <span>Drag products to reposition</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      )}
-    </div>
-  );
-};
+      );
+    }
 
-    createRoot(document.getElementById('root')).render(<PlanogramProfitTracker />);
+    // Render the app
+    const root = createRoot(document.getElementById('root'));
+    root.render(<StorePlannerPro />);
   </script>
 </body>
 </html>
