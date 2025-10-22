@@ -502,7 +502,7 @@
         if (saved) {
           const data = JSON.parse(saved);
           setFixtures(data.fixtures ? data.fixtures : []);
-          setSections(data.sections || {]);
+          setSections(data.sections ? data.sections : {});
           setBackgroundImage(data.backgroundImage ? data.backgroundImage : null);
         }
 
