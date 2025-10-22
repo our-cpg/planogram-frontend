@@ -79,6 +79,14 @@ const FIXTURE_TYPES = {
     color: '#10b981',
     defaultWidth: 80,
     defaultHeight: 120
+  },
+  JEWELRY_DISPLAY: {
+    id: 'jewelry_display',
+    name: 'Jewelry Display',
+    icon: 'Box',
+    color: '#ec4899',
+    defaultWidth: 90,
+    defaultHeight: 90
   }
 };
 
@@ -775,6 +783,50 @@ const PlanogramProfitTracker = () => {
       </div>
     );
   };
+
+  const SectionOverlay = ({ section, fixture }) => {
+    const metrics = calculateMetrics(section, timeFilter);
+    const color = getHeatMapColor(metrics.profitPerSqFt);
+    
+    // Calculate section position within fixture (evenly distributed)
+    const fixtureSections = sections.filter(s => s.fixtureId === fixture.id);
+    const sectionIndex = fixtureSections.findIndex(s => s.id === section.id);
+    const numSections = fixtureSections.length;
+    
+    // Divide fixture into equal sections
+    const sectionWidth = fixture.width / Math.ceil(Math.sqrt(numSections));
+    const sectionHeight = fixture.height / Math.ceil(numSections / Math.ceil(Math.sqrt(numSections)));
+    const col = sectionIndex % Math.ceil(Math.sqrt(numSections));
+    const row = Math.floor(sectionIndex / Math.ceil(Math.sqrt(numSections)));
+    
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          left: col * sectionWidth,
+          top: row * sectionHeight,
+          width: sectionWidth,
+          height: sectionHeight,
+          backgroundColor: color,
+          border: '1px solid rgba(255,255,255,0.3)',
+          pointerEvents: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '10px',
+          color: 'white',
+          fontWeight: 'bold',
+          textShadow: '1px 1px 2px rgba(0,0,0,0.8)'
+        }}
+      >
+        <div className="text-center">
+          <div>{section.name}</div>
+          <div>${metrics.profitPerSqFt.toFixed(0)}/sqft</div>
+        </div>
+      </div>
+    );
+  };
+
 const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     const [dragging, setDragging] = useState(false);
 
@@ -861,24 +913,35 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           top: fixture.y,
           width: fixture.width,
           height: fixture.height,
-          backgroundColor: heatMapMode ? getHeatMapColor(totalProfit / (fixtureSections.length || 1)) : fixture.color,
+          backgroundColor: fixture.color,
           border: isSelected ? '3px solid #3b82f6' : '2px solid #cbd5e1',
           borderRadius: '8px',
           cursor: dragging ? 'grabbing' : 'grab',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: 0.9,
+          opacity: heatMapMode ? 0.95 : 0.9,
           zIndex: isSelected ? 100 : 10,
           overflow: 'hidden'
         }}
         onMouseDown={handleMouseDown}
       >
-        <div className="text-white text-center p-2 pointer-events-none">
-          <div className="font-bold text-sm">{fixture.name}</div>
-          <div className="text-xs">{fixtureSections.length} sections</div>
-          {heatMapMode && <div className="text-xs mt-1">${totalProfit.toFixed(0)}</div>}
-        </div>
+        {/* Section-by-section heat map overlays */}
+        {heatMapMode && fixtureSections.map(section => (
+          <SectionOverlay
+            key={section.id}
+            section={section}
+            fixture={fixture}
+          />
+        ))}
+
+        {/* Fixture label - only show when NOT in heat map mode */}
+        {!heatMapMode && (
+          <div className="text-white text-center p-2 pointer-events-none">
+            <div className="font-bold text-sm">{fixture.name}</div>
+            <div className="text-xs">{fixtureSections.length} sections</div>
+          </div>
+        )}
 
         {showVisualMode && fixtureSections.map(section => 
           section.products.map((product, idx) => (
