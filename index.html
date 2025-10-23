@@ -461,37 +461,6 @@ const PlanogramProfitTracker = () => {
     setTimeout(() => setFeedback(''), 2000);
   };
 
-  // Canvas pan and zoom handlers
-  const [isPanningCanvas, setIsPanningCanvas] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-
-  const handleCanvasWheel = (e) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setZoom(prev => Math.max(0.1, Math.min(3, prev * delta)));
-  };
-
-  const handleCanvasMouseDown = (e) => {
-    // Only pan if clicking on canvas background (not on fixtures)
-    if (e.target === canvasRef.current || e.target.classList.contains('bg-gray-50')) {
-      setIsPanningCanvas(true);
-      setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
-    }
-  };
-
-  const handleCanvasMouseMove = (e) => {
-    if (isPanningCanvas) {
-      setPanOffset({
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y
-      });
-    }
-  };
-
-  const handleCanvasMouseUp = () => {
-    setIsPanningCanvas(false);
-  };
-
   const testShopifyConnection = async () => {
     if (!shopifyConfig.storeName || !shopifyConfig.accessToken) {
       setFeedback('⚠️ Enter store name and token');
@@ -838,32 +807,6 @@ const PlanogramProfitTracker = () => {
     );
     setFixtures(updatedFixtures);
     localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
-  };
-
-  const changeFixtureType = (fixtureId, newTypeKey) => {
-    const fixtureType = FIXTURE_TYPES[newTypeKey];
-    if (!fixtureType) {
-      console.error('Invalid fixture type:', newTypeKey);
-      return;
-    }
-    
-    const updatedFixtures = fixtures.map(f => {
-      if (f.id === fixtureId) {
-        return {
-          ...f,
-          type: fixtureType.id,
-          name: fixtureType.name,
-          color: fixtureType.color,
-          // Keep existing width/height instead of defaultWidth/defaultHeight
-          // This preserves any custom sizing the user did
-        };
-      }
-      return f;
-    });
-    setFixtures(updatedFixtures);
-    localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
-    setFeedback(`✅ Changed to ${fixtureType.name} - sections preserved!`);
-    setTimeout(() => setFeedback(''), 3000);
   };
 
   const addSection = (fixtureId) => {
@@ -1866,31 +1809,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           ref={canvasRef}
           className="flex-1 relative overflow-hidden bg-gray-50"
           style={{ 
-            cursor: isPanningCanvas ? 'grabbing' : (isDraggingBg ? 'grabbing' : 'grab'),
+            cursor: isDraggingBg ? 'grabbing' : 'default',
             backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
             backgroundSize: '20px 20px'
           }}
-          onWheel={handleCanvasWheel}
-          onMouseDown={handleCanvasMouseDown}
-          onMouseMove={(e) => {
-            handleBgMouseMove(e);
-            handleCanvasMouseMove(e);
-          }}
-          onMouseUp={(e) => {
-            handleBgMouseUp();
-            handleCanvasMouseUp();
-          }}
-          onMouseLeave={(e) => {
-            handleBgMouseUp();
-            handleCanvasMouseUp();
-          }}
+          onMouseMove={handleBgMouseMove}
+          onMouseUp={handleBgMouseUp}
+          onMouseLeave={handleBgMouseUp}
         >
-          <div style={{
-            transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`,
-            transformOrigin: '0 0',
-            width: '100%',
-            height: '100%'
-          }}>
           {backgroundImage && (
             <img
               src={backgroundImage}
@@ -1923,37 +1849,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               isSelected={selectedFixture === fixture.id}
             />
           ))}
-          </div>
         </div>
+      </div>
 
       {selectedFixture && (
         <div className="w-80 bg-white shadow-lg p-4 overflow-y-auto">
-          <div className="mb-4">
-            <h2 className="text-xl font-bold mb-2">
-              {fixtures.find(f => f.id === selectedFixture)?.name}
-            </h2>
-            
-            {/* Fixture Type Changer */}
-            <div className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded border border-gray-200">
-              <span className="text-gray-600 font-medium">Type:</span>
-              <select
-                value={
-                  // Find the key that matches the current fixture's type
-                  Object.keys(FIXTURE_TYPES).find(
-                    key => FIXTURE_TYPES[key].id === fixtures.find(f => f.id === selectedFixture)?.type
-                  ) || ''
-                }
-                onChange={(e) => changeFixtureType(selectedFixture, e.target.value)}
-                className="flex-1 px-2 py-1 bg-white border border-gray-300 rounded text-sm hover:border-blue-500 focus:outline-none focus:border-blue-500 cursor-pointer"
-              >
-                {Object.entries(FIXTURE_TYPES).map(([key, type]) => (
-                  <option key={key} value={key}>
-                    {type.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <h2 className="text-xl font-bold mb-4">
+            {fixtures.find(f => f.id === selectedFixture)?.name}
+          </h2>
 
           <button
             onClick={() => addSection(selectedFixture)}
