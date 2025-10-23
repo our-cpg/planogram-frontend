@@ -464,6 +464,40 @@ const PlanogramProfitTracker = () => {
     setTimeout(() => setFeedback(''), 2000);
   };
 
+  // Canvas pan and zoom
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+
+  const handleCanvasWheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setZoom(prev => Math.max(0.1, Math.min(3, prev * delta)));
+  };
+
+  const handleCanvasMouseDown = (e) => {
+    // Only pan if clicking on the canvas itself (not fixtures or other elements)
+    if (e.target === e.currentTarget || e.target.classList.contains('bg-gray-50')) {
+      setIsPanning(true);
+      setPanStart({ 
+        x: e.clientX - panOffset.x, 
+        y: e.clientY - panOffset.y 
+      });
+    }
+  };
+
+  const handleCanvasMouseMove = (e) => {
+    if (isPanning) {
+      setPanOffset({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y
+      });
+    }
+  };
+
+  const handleCanvasMouseUp = () => {
+    setIsPanning(false);
+  };
+
   const testShopifyConnection = async () => {
     if (!shopifyConfig.storeName || !shopifyConfig.accessToken) {
       setFeedback('⚠️ Enter store name and token');
@@ -1978,14 +2012,33 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           ref={canvasRef}
           className="flex-1 relative overflow-hidden bg-gray-50"
           style={{ 
-            cursor: isDraggingBg ? 'grabbing' : 'default',
+            cursor: isPanning ? 'grabbing' : (isDraggingBg ? 'grabbing' : 'grab'),
             backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
             backgroundSize: '20px 20px'
           }}
-          onMouseMove={handleBgMouseMove}
-          onMouseUp={handleBgMouseUp}
-          onMouseLeave={handleBgMouseUp}
+          onWheel={handleCanvasWheel}
+          onMouseDown={handleCanvasMouseDown}
+          onMouseMove={(e) => {
+            handleBgMouseMove(e);
+            handleCanvasMouseMove(e);
+          }}
+          onMouseUp={(e) => {
+            handleBgMouseUp();
+            handleCanvasMouseUp();
+          }}
+          onMouseLeave={(e) => {
+            handleBgMouseUp();
+            handleCanvasMouseUp();
+          }}
         >
+          {/* Transform wrapper for zoom/pan */}
+          <div style={{
+            transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`,
+            transformOrigin: '0 0',
+            width: '100%',
+            height: '100%',
+            position: 'relative'
+          }}>
           {backgroundImage && (
             <img
               src={backgroundImage}
@@ -2018,6 +2071,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               isSelected={selectedFixture === fixture.id}
             />
           ))}
+          </div>
         </div>
       </div>
 
