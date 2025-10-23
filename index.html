@@ -809,8 +809,13 @@ const PlanogramProfitTracker = () => {
     localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
   };
 
-  const changeFixtureType = (fixtureId, newType) => {
-    const fixtureType = FIXTURE_TYPES[newType];
+  const changeFixtureType = (fixtureId, newTypeKey) => {
+    const fixtureType = FIXTURE_TYPES[newTypeKey];
+    if (!fixtureType) {
+      console.error('Invalid fixture type:', newTypeKey);
+      return;
+    }
+    
     const updatedFixtures = fixtures.map(f => {
       if (f.id === fixtureId) {
         return {
@@ -1884,12 +1889,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             <div className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded border border-gray-200">
               <span className="text-gray-600 font-medium">Type:</span>
               <select
-                value={fixtures.find(f => f.id === selectedFixture)?.type || ''}
+                value={
+                  // Find the key that matches the current fixture's type
+                  Object.keys(FIXTURE_TYPES).find(
+                    key => FIXTURE_TYPES[key].id === fixtures.find(f => f.id === selectedFixture)?.type
+                  ) || ''
+                }
                 onChange={(e) => changeFixtureType(selectedFixture, e.target.value)}
                 className="flex-1 px-2 py-1 bg-white border border-gray-300 rounded text-sm hover:border-blue-500 focus:outline-none focus:border-blue-500 cursor-pointer"
               >
                 {Object.entries(FIXTURE_TYPES).map(([key, type]) => (
-                  <option key={key} value={type.id}>
+                  <option key={key} value={key}>
                     {type.name}
                   </option>
                 ))}
