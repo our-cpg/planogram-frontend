@@ -163,6 +163,8 @@ const PlanogramProfitTracker = () => {
   const [editingAreaValue, setEditingAreaValue] = useState('');
   const [lastRefresh, setLastRefresh] = useState(null);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [expandedRows, setExpandedRows] = useState(new Set());
+  const [heatMapType, setHeatMapType] = useState('profit'); // profit, velocity, deadStock, margin, stockHealth
   
   // Firebase states
   const [firebaseConfig, setFirebaseConfig] = useState({
@@ -1058,14 +1060,82 @@ const PlanogramProfitTracker = () => {
     return { area, totalRevenue, totalCost, totalProfit, profitPerSqFt, totalVolume, totalVelocity, productMetrics };
   };
 
-  const getHeatMapColor = (profitPerSqFt) => {
-    const maxProfit = Math.max(...sections.map(s => calculateMetrics(s, timePeriod).profitPerSqFt));
-    const intensity = maxProfit > 0 ? profitPerSqFt / maxProfit : 0;
+  const getHeatMapColor = (metrics) => {
+    // Calculate different metrics for different heat map types
+    const allMetrics = sections.map(s => calculateMetrics(s, timePeriod));
     
-    if (intensity > 0.7) return 'rgba(34, 197, 94, 0.6)';
-    if (intensity > 0.4) return 'rgba(234, 179, 8, 0.6)';
-    if (intensity > 0.1) return 'rgba(249, 115, 22, 0.6)';
-    return 'rgba(239, 68, 68, 0.6)';
+    switch(heatMapType) {
+      case 'profit': {
+        const maxProfit = Math.max(...allMetrics.map(m => m.profitPerSqFt), 0.01);
+        const intensity = maxProfit > 0 ? metrics.profitPerSqFt / maxProfit : 0;
+        if (intensity > 0.7) return 'rgba(34, 197, 94, 0.7)'; // Green - High profit
+        if (intensity > 0.4) return 'rgba(234, 179, 8, 0.7)'; // Yellow
+        if (intensity > 0.1) return 'rgba(249, 115, 22, 0.7)'; // Orange
+        return 'rgba(239, 68, 68, 0.7)'; // Red - Low profit
+      }
+      
+      case 'velocity': {
+        const maxVelocity = Math.max(...allMetrics.map(m => m.totalVelocity), 0.01);
+        const intensity = maxVelocity > 0 ? metrics.totalVelocity / maxVelocity : 0;
+        if (intensity > 0.7) return 'rgba(34, 197, 94, 0.7)'; // Green - Fast moving
+        if (intensity > 0.4) return 'rgba(234, 179, 8, 0.7)'; // Yellow
+        if (intensity > 0.1) return 'rgba(249, 115, 22, 0.7)'; // Orange
+        return 'rgba(239, 68, 68, 0.7)'; // Red - Slow moving
+      }
+      
+      case 'deadStock': {
+        // Count dead stock items (inventory > 0 but sales = 0)
+        const deadStockCount = metrics.productMetrics.filter(p => 
+          (p.inventoryQuantity || 0) > 0 && p.periodVolume === 0
+        ).length;
+        const deadStockValue = metrics.productMetrics
+          .filter(p => (p.inventoryQuantity || 0) > 0 && p.periodVolume === 0)
+          .reduce((sum, p) => sum + (p.inventoryQuantity || 0) * p.cost, 0);
+        
+        if (deadStockValue > 1000) return 'rgba(239, 68, 68, 0.8)'; // Red - Major problem
+        if (deadStockValue > 500) return 'rgba(249, 115, 22, 0.7)'; // Orange
+        if (deadStockValue > 100) return 'rgba(234, 179, 8, 0.6)'; // Yellow
+        return 'rgba(34, 197, 94, 0.5)'; // Green - No dead stock
+      }
+      
+      case 'margin': {
+        // Average profit margin %
+        const avgMargin = metrics.productMetrics.length > 0 ?
+          metrics.productMetrics.reduce((sum, p) => {
+            const margin = p.price > 0 ? ((p.price - p.cost) / p.price) : 0;
+            return sum + margin;
+          }, 0) / metrics.productMetrics.length : 0;
+        
+        if (avgMargin > 0.5) return 'rgba(34, 197, 94, 0.7)'; // Green - High margin
+        if (avgMargin > 0.3) return 'rgba(234, 179, 8, 0.7)'; // Yellow
+        if (avgMargin > 0.15) return 'rgba(249, 115, 22, 0.7)'; // Orange
+        return 'rgba(239, 68, 68, 0.7)'; // Red - Low margin
+      }
+      
+      case 'stockHealth': {
+        // Combine multiple factors: out of stock, low stock, dead stock
+        const products = metrics.productMetrics;
+        const outOfStock = products.filter(p => (p.inventoryQuantity || 0) === 0 && p.periodVolume > 0).length;
+        const lowStock = products.filter(p => {
+          const stock = p.inventoryQuantity || 0;
+          const daysRemaining = p.periodVolume > 0 ? stock / (p.periodVolume / 30) : Infinity;
+          return stock > 0 && daysRemaining < 7;
+        }).length;
+        const deadStock = products.filter(p => 
+          (p.inventoryQuantity || 0) > 0 && p.periodVolume === 0
+        ).length;
+        
+        const problemScore = outOfStock * 3 + lowStock * 2 + deadStock;
+        
+        if (problemScore === 0) return 'rgba(34, 197, 94, 0.7)'; // Green - Healthy
+        if (problemScore < 3) return 'rgba(234, 179, 8, 0.7)'; // Yellow - Minor issues
+        if (problemScore < 6) return 'rgba(249, 115, 22, 0.7)'; // Orange - Needs attention
+        return 'rgba(239, 68, 68, 0.7)'; // Red - Critical
+      }
+      
+      default:
+        return 'rgba(100, 116, 139, 0.3)'; // Gray - Default
+    }
   };
 
   const ProductBox = ({ product, productIndex, sectionId, fixtureX, fixtureY, fixtureWidth, fixtureHeight }) => {
@@ -1139,7 +1209,7 @@ const PlanogramProfitTracker = () => {
     const [isResizing, setIsResizing] = useState(false);
     
     const metrics = calculateMetrics(section, timePeriod);
-    const color = heatMapMode ? getHeatMapColor(metrics.profitPerSqFt) : 'rgba(100, 116, 139, 0.3)';
+    const color = heatMapMode ? getHeatMapColor(metrics) : 'rgba(100, 116, 139, 0.3)';
     
     // Use custom layout properties or default to full fixture
     const layoutX = section.layoutX !== undefined ? section.layoutX : 0;
@@ -1537,6 +1607,24 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               <Icons.Flame />
               Heat Map
             </button>
+
+            {/* Heat Map Type Selector */}
+            {heatMapMode && (
+              <div className="flex items-center gap-2 bg-gradient-to-r from-red-50 to-orange-50 px-3 py-2 rounded-lg border border-red-200">
+                <span className="text-sm font-semibold text-gray-700">Show:</span>
+                <select
+                  value={heatMapType}
+                  onChange={(e) => setHeatMapType(e.target.value)}
+                  className="px-2 py-1 bg-white border-2 border-red-300 rounded text-sm font-medium hover:border-red-500 focus:outline-none focus:border-red-600 cursor-pointer"
+                >
+                  <option value="profit">💰 Profit Density</option>
+                  <option value="velocity">📦 Sales Velocity</option>
+                  <option value="deadStock">🚨 Dead Stock</option>
+                  <option value="margin">💸 Profit Margin</option>
+                  <option value="stockHealth">❤️ Stock Health</option>
+                </select>
+              </div>
+            )}
 
             {/* Time Period Filter */}
             <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-purple-50 px-3 py-2 rounded-lg border border-blue-200">
@@ -2044,39 +2132,114 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       
                       <div className="space-y-2">
                         {(section.rows || []).map((row, rowIdx) => {
-                          const rowProfit = row.products.reduce((sum, p) => 
-                            sum + ((parseFloat(p.price) - parseFloat(p.cost)) * p.quantity), 0
-                          );
+                          // Calculate row metrics
+                          const rowProducts = row.products || [];
+                          let rowTotalSales = 0;
+                          let rowTotalStock = 0;
+                          let rowDeadStockCount = 0;
+                          let rowProfit = 0;
+                          
+                          rowProducts.forEach(p => {
+                            let sales = 0;
+                            switch(timePeriod) {
+                              case 'day': sales = p.dailySales || 0; break;
+                              case 'week': sales = p.weeklySales || 0; break;
+                              case 'month': sales = p.monthlySales || 0; break;
+                              case 'quarter': sales = p.quarterlySales || 0; break;
+                              case 'year': sales = p.yearlySales || 0; break;
+                              case 'all': sales = p.allTimeSales || 0; break;
+                              default: sales = p.monthlySales || 0;
+                            }
+                            
+                            rowTotalSales += sales;
+                            rowTotalStock += p.inventoryQuantity || 0;
+                            if ((p.inventoryQuantity || 0) > 0 && sales === 0) rowDeadStockCount++;
+                            rowProfit += (p.price - p.cost) * sales;
+                          });
+                          
                           const isSelectedRow = selectedRow === row.id;
+                          const isExpanded = expandedRows.has(row.id);
                           
                           return (
                             <div 
                               key={row.id}
-                              className={`p-2 rounded border-2 cursor-pointer transition ${
+                              className={`rounded-lg border-2 transition-all ${
                                 isSelectedRow ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-300'
                               }`}
-                              onClick={() => {
-                                setSelectedRow(row.id);
-                                setNewProduct({ ...newProduct, sectionId: section.id, rowId: row.id });
-                              }}
                             >
-                              <div className="flex justify-between items-center mb-1">
-                                <div className="font-medium text-sm">{row.name}</div>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    deleteRow(section.id, row.id);
-                                  }}
-                                  className="text-red-500 hover:text-red-700 text-xs"
-                                >
-                                  <Icons.Trash2 />
-                                </button>
-                              </div>
-                              <div className="text-xs text-gray-600">
-                                {row.products.length} products | ${rowProfit.toFixed(2)} profit
+                              {/* Row Header - Always Visible */}
+                              <div 
+                                className="p-3 cursor-pointer"
+                                onClick={() => {
+                                  setSelectedRow(row.id);
+                                  setNewProduct({ ...newProduct, sectionId: section.id, rowId: row.id });
+                                }}
+                              >
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-semibold text-base">{row.name}</span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const newExpanded = new Set(expandedRows);
+                                          if (newExpanded.has(row.id)) {
+                                            newExpanded.delete(row.id);
+                                          } else {
+                                            newExpanded.add(row.id);
+                                          }
+                                          setExpandedRows(newExpanded);
+                                        }}
+                                        className="text-gray-500 hover:text-gray-700 text-xs p-1 rounded hover:bg-gray-100"
+                                        title={isExpanded ? "Collapse" : "Expand"}
+                                      >
+                                        {isExpanded ? '▼' : '▶'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteRow(section.id, row.id);
+                                    }}
+                                    className="text-red-500 hover:text-red-700 text-xs p-1"
+                                    title="Delete row"
+                                  >
+                                    <Icons.Trash2 />
+                                  </button>
+                                </div>
+                                
+                                {/* Summary Stats Grid */}
+                                <div className="grid grid-cols-4 gap-2 text-xs">
+                                  <div className="bg-gray-50 p-2 rounded">
+                                    <div className="text-gray-600 text-xs">Products</div>
+                                    <div className="font-bold text-gray-800">{rowProducts.length}</div>
+                                  </div>
+                                  
+                                  <div className={`p-2 rounded ${rowTotalSales > 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                                    <div className="text-gray-600 text-xs">Sales</div>
+                                    <div className={`font-bold ${rowTotalSales > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                                      {rowTotalSales}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="bg-blue-50 p-2 rounded">
+                                    <div className="text-gray-600 text-xs">Profit</div>
+                                    <div className="font-bold text-blue-700">${rowProfit.toFixed(2)}</div>
+                                  </div>
+                                  
+                                  <div className={`p-2 rounded ${rowDeadStockCount > 0 ? 'bg-orange-50' : 'bg-gray-50'}`}>
+                                    <div className="text-gray-600 text-xs">Stock</div>
+                                    <div className={`font-bold ${rowDeadStockCount > 0 ? 'text-orange-700' : 'text-gray-700'}`}>
+                                      {rowTotalStock}
+                                      {rowDeadStockCount > 0 && <span className="text-xs ml-1">⚠️{rowDeadStockCount}</span>}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                               
-                              {isSelectedRow && row.products.length > 0 && (
+                              {/* Expanded Product Details */}
+                              {isExpanded && rowProducts.length > 0 && (
                                 <div className="mt-2 space-y-2">
                                   {row.products.map((product, pIdx) => {
                                     // Calculate sales based on current time period
@@ -2212,6 +2375,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                   })}
                                 </div>
                               )}
+                            </div>
                             </div>
                           );
                         })}
