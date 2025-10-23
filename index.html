@@ -167,6 +167,8 @@ const PlanogramProfitTracker = () => {
   const [heatMapType, setHeatMapType] = useState('profit'); // profit, velocity, deadStock, margin, stockHealth
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (was w-64 = 256px, but make it bigger)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(320);
+  const [isResizingRightSidebar, setIsResizingRightSidebar] = useState(false);
   
   // Firebase states
   const [firebaseConfig, setFirebaseConfig] = useState({
@@ -606,6 +608,43 @@ const PlanogramProfitTracker = () => {
     }
   };
 
+  // 🔥 BEAST MODE: Refresh order data
+  const refreshOrders = async () => {
+    if (!shopifyConfig.connected || !shopifyConfig.accessToken) {
+      setFeedback('⚠️ Connect to Shopify first');
+      setTimeout(() => setFeedback(''), 3000);
+      return;
+    }
+
+    setFeedback('🔥 BEAST MODE: Importing orders... (this may take a minute)');
+    
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/shopify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeName: shopifyConfig.storeName,
+          accessToken: shopifyConfig.accessToken,
+          action: 'refreshOrders'
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setFeedback(`✅ BEAST MODE: ${data.ordersProcessed} orders, ${data.itemsProcessed} items analyzed!`);
+        setTimeout(() => setFeedback(''), 8000);
+      } else {
+        setFeedback(`❌ ${data.error || 'Order import failed'}`);
+        setTimeout(() => setFeedback(''), 5000);
+      }
+    } catch (error) {
+      setFeedback('❌ Order import failed');
+      setTimeout(() => setFeedback(''), 5000);
+      console.error('Order import error:', error);
+    }
+  };
+
 
   const addProductToSection = async () => {
     if (!newProduct.upc || !newProduct.sectionId || !newProduct.rowId) {
@@ -648,16 +687,26 @@ const PlanogramProfitTracker = () => {
             vendor: data.vendor,
             tags: data.tags,
             createdAt: data.createdAt,
+            // 🔥 BEAST MODE Analytics
+            analytics: data.analytics || {
+              timesPurchased: 0,
+              averageOrderValue: 0,
+              returningCustomerPurchases: 0,
+              newCustomerPurchases: 0,
+              averageCartPosition: 0,
+              boughtTogether: []
+            },
             quantity: 1,
             source: 'database',
             visualX: Math.random() * 80 + 10,
             visualY: Math.random() * 80 + 10
           };
           
-          // Create detailed feedback with stock info
+          // Create detailed feedback with stock info + analytics
           const stockWarning = data.inventoryQuantity === 0 ? ' ⚠️ OUT OF STOCK' : 
                               data.inventoryQuantity < 10 ? ' ⚠️ LOW STOCK' : '';
-          setFeedback(`✅ Added: ${product.name} (${data.monthlySales || 0} monthly sales, ${data.inventoryQuantity} in stock)${stockWarning}`);
+          const aovInfo = data.analytics?.averageOrderValue > 0 ? ` | AOV: $${data.analytics.averageOrderValue.toFixed(2)}` : '';
+          setFeedback(`✅ Added: ${product.name} (${data.monthlySales || 0} sales, ${data.inventoryQuantity} stock)${stockWarning}${aovInfo}`);
         }
       } catch (error) {
         console.error('Error fetching from database:', error);
@@ -1133,6 +1182,49 @@ const PlanogramProfitTracker = () => {
         if (problemScore < 3) return 'rgba(234, 179, 8, 0.7)'; // Yellow - Minor issues
         if (problemScore < 6) return 'rgba(249, 115, 22, 0.7)'; // Orange - Needs attention
         return 'rgba(239, 68, 68, 0.7)'; // Red - Critical
+      }
+      
+      case 'aov': {
+        // 🔥 BEAST MODE: Average Order Value heat map
+        const avgAOV = metrics.productMetrics.length > 0 ?
+          metrics.productMetrics.reduce((sum, p) => {
+            return sum + (p.analytics?.averageOrderValue || 0);
+          }, 0) / metrics.productMetrics.filter(p => p.analytics?.averageOrderValue > 0).length : 0;
+        
+        if (avgAOV > 150) return 'rgba(34, 197, 94, 0.8)'; // Green - High value orders
+        if (avgAOV > 100) return 'rgba(234, 179, 8, 0.7)'; // Yellow
+        if (avgAOV > 50) return 'rgba(249, 115, 22, 0.7)'; // Orange
+        return 'rgba(239, 68, 68, 0.7)'; // Red - Low value orders
+      }
+      
+      case 'returningCustomers': {
+        // 🔥 BEAST MODE: Returning customer preferences
+        const returningCustomerRatio = metrics.productMetrics.length > 0 ?
+          metrics.productMetrics.reduce((sum, p) => {
+            const total = (p.analytics?.returningCustomerPurchases || 0) + (p.analytics?.newCustomerPurchases || 0);
+            return sum + (total > 0 ? (p.analytics?.returningCustomerPurchases || 0) / total : 0);
+          }, 0) / metrics.productMetrics.filter(p => {
+            const total = (p.analytics?.returningCustomerPurchases || 0) + (p.analytics?.newCustomerPurchases || 0);
+            return total > 0;
+          }).length : 0;
+        
+        if (returningCustomerRatio > 0.7) return 'rgba(34, 197, 94, 0.8)'; // Green - Loyal customer favorites
+        if (returningCustomerRatio > 0.5) return 'rgba(234, 179, 8, 0.7)'; // Yellow
+        if (returningCustomerRatio > 0.3) return 'rgba(249, 115, 22, 0.7)'; // Orange
+        return 'rgba(147, 51, 234, 0.7)'; // Purple - New customer products
+      }
+      
+      case 'shoppingPath': {
+        // 🔥 BEAST MODE: Cart position (what they grab first vs last)
+        const avgCartPosition = metrics.productMetrics.length > 0 ?
+          metrics.productMetrics.reduce((sum, p) => {
+            return sum + (p.analytics?.averageCartPosition || 99);
+          }, 0) / metrics.productMetrics.filter(p => p.analytics?.averageCartPosition > 0).length : 0;
+        
+        if (avgCartPosition <= 2) return 'rgba(34, 197, 94, 0.8)'; // Green - Grabbed FIRST (entry products)
+        if (avgCartPosition <= 4) return 'rgba(234, 179, 8, 0.7)'; // Yellow - Early shopping
+        if (avgCartPosition <= 6) return 'rgba(249, 115, 22, 0.7)'; // Orange - Mid shopping
+        return 'rgba(239, 68, 68, 0.7)'; // Red - Grabbed LAST (checkout impulse)
       }
       
       default:
@@ -1661,6 +1753,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   <option value="deadStock">🚨 Dead Stock</option>
                   <option value="margin">💸 Profit Margin</option>
                   <option value="stockHealth">❤️ Stock Health</option>
+                  <option value="aov">🔥 High AOV Products</option>
+                  <option value="returningCustomers">🔄 Returning Customer Favorites</option>
+                  <option value="shoppingPath">🛒 Shopping Path (Cart Position)</option>
                 </select>
               </div>
             )}
@@ -1787,6 +1882,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 >
                   🔄 Full
                 </button>
+                <button
+                  onClick={() => refreshOrders()}
+                  className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 font-semibold flex items-center gap-1 animate-pulse"
+                  title="🔥 BEAST MODE: Import full order data for analytics!"
+                >
+                  🔥 Orders
+                </button>
                 {lastRefresh && (
                   <span className="text-gray-600">
                     Updated: {lastRefresh.toLocaleTimeString()}
@@ -1853,7 +1955,44 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       </div>
 
       {selectedFixture && (
-        <div className="w-80 bg-white shadow-lg p-4 overflow-y-auto">
+        <div 
+          className="bg-white shadow-lg p-4 overflow-y-auto relative"
+          style={{ width: `${rightSidebarWidth}px`, minWidth: '250px', maxWidth: '800px' }}
+        >
+          {/* Resize Handle - LEFT edge */}
+          <div
+            className="absolute top-0 left-0 w-1 h-full cursor-col-resize hover:bg-blue-500 transition-colors z-50"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizingRightSidebar(true);
+              const startX = e.clientX;
+              const startWidth = rightSidebarWidth;
+              
+              const handleMouseMove = (moveEvent) => {
+                const delta = startX - moveEvent.clientX; // Reversed delta for left edge
+                const newWidth = Math.max(250, Math.min(800, startWidth + delta));
+                setRightSidebarWidth(newWidth);
+              };
+              
+              const handleMouseUp = () => {
+                setIsResizingRightSidebar(false);
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+              };
+              
+              document.addEventListener('mousemove', handleMouseMove);
+              document.addEventListener('mouseup', handleMouseUp);
+            }}
+            style={{ 
+              background: isResizingRightSidebar ? '#3b82f6' : 'transparent',
+              width: isResizingRightSidebar ? '4px' : '4px'
+            }}
+          >
+            <div className="absolute top-1/2 left-0 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
+              ⇄
+            </div>
+          </div>
+
           <h2 className="text-xl font-bold mb-4">
             {fixtures.find(f => f.id === selectedFixture)?.name}
           </h2>
