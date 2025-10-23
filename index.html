@@ -2157,6 +2157,84 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             rowProfit += (p.price - p.cost) * sales;
                           });
                           
+                          // Calculate heat map color for this row
+                          let rowHeatColor = 'bg-white';
+                          if (heatMapMode && rowProducts.length > 0) {
+                            const sectionArea = section.area || 1;
+                            const rowProfitPerSqFt = rowProfit / sectionArea;
+                            const rowVelocity = rowTotalSales / sectionArea;
+                            
+                            const deadStockValue = rowProducts
+                              .filter(p => (p.inventoryQuantity || 0) > 0 && rowProducts.some(rp => {
+                                let s = 0;
+                                switch(timePeriod) {
+                                  case 'day': s = rp.dailySales || 0; break;
+                                  case 'week': s = rp.weeklySales || 0; break;
+                                  case 'month': s = rp.monthlySales || 0; break;
+                                  case 'quarter': s = rp.quarterlySales || 0; break;
+                                  case 'year': s = rp.yearlySales || 0; break;
+                                  case 'all': s = rp.allTimeSales || 0; break;
+                                  default: s = rp.monthlySales || 0;
+                                }
+                                return rp.upc === p.upc && s === 0;
+                              }))
+                              .reduce((sum, p) => sum + (p.inventoryQuantity || 0) * p.cost, 0);
+                            
+                            const avgMargin = rowProducts.length > 0 ?
+                              rowProducts.reduce((sum, p) => {
+                                const margin = p.price > 0 ? ((p.price - p.cost) / p.price) : 0;
+                                return sum + margin;
+                              }, 0) / rowProducts.length : 0;
+                            
+                            const outOfStock = rowProducts.filter(p => (p.inventoryQuantity || 0) === 0 && rowTotalSales > 0).length;
+                            const lowStock = rowProducts.filter(p => {
+                              const stock = p.inventoryQuantity || 0;
+                              let s = 0;
+                              switch(timePeriod) {
+                                case 'day': s = p.dailySales || 0; break;
+                                case 'week': s = p.weeklySales || 0; break;
+                                case 'month': s = p.monthlySales || 0; break;
+                                default: s = p.monthlySales || 0;
+                              }
+                              const daysRemaining = s > 0 ? stock / (s / 30) : Infinity;
+                              return stock > 0 && daysRemaining < 7;
+                            }).length;
+                            
+                            switch(heatMapType) {
+                              case 'profit':
+                                if (rowProfitPerSqFt > 5) rowHeatColor = 'bg-green-100 border-green-300';
+                                else if (rowProfitPerSqFt > 2) rowHeatColor = 'bg-yellow-100 border-yellow-300';
+                                else if (rowProfitPerSqFt > 0.5) rowHeatColor = 'bg-orange-100 border-orange-300';
+                                else rowHeatColor = 'bg-red-100 border-red-300';
+                                break;
+                              case 'velocity':
+                                if (rowVelocity > 2) rowHeatColor = 'bg-green-100 border-green-300';
+                                else if (rowVelocity > 1) rowHeatColor = 'bg-yellow-100 border-yellow-300';
+                                else if (rowVelocity > 0.2) rowHeatColor = 'bg-orange-100 border-orange-300';
+                                else rowHeatColor = 'bg-red-100 border-red-300';
+                                break;
+                              case 'deadStock':
+                                if (deadStockValue > 500) rowHeatColor = 'bg-red-100 border-red-300';
+                                else if (deadStockValue > 200) rowHeatColor = 'bg-orange-100 border-orange-300';
+                                else if (deadStockValue > 50) rowHeatColor = 'bg-yellow-100 border-yellow-300';
+                                else rowHeatColor = 'bg-green-100 border-green-300';
+                                break;
+                              case 'margin':
+                                if (avgMargin > 0.5) rowHeatColor = 'bg-green-100 border-green-300';
+                                else if (avgMargin > 0.3) rowHeatColor = 'bg-yellow-100 border-yellow-300';
+                                else if (avgMargin > 0.15) rowHeatColor = 'bg-orange-100 border-orange-300';
+                                else rowHeatColor = 'bg-red-100 border-red-300';
+                                break;
+                              case 'stockHealth':
+                                const problemScore = outOfStock * 3 + lowStock * 2 + rowDeadStockCount;
+                                if (problemScore === 0) rowHeatColor = 'bg-green-100 border-green-300';
+                                else if (problemScore < 3) rowHeatColor = 'bg-yellow-100 border-yellow-300';
+                                else if (problemScore < 6) rowHeatColor = 'bg-orange-100 border-orange-300';
+                                else rowHeatColor = 'bg-red-100 border-red-300';
+                                break;
+                            }
+                          }
+                          
                           const isSelectedRow = selectedRow === row.id;
                           const isExpanded = expandedRows.has(row.id);
                           
@@ -2164,7 +2242,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             <div 
                               key={row.id}
                               className={`rounded-lg border-2 transition-all ${
-                                isSelectedRow ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-300'
+                                isSelectedRow 
+                                  ? 'border-blue-500 bg-blue-50' 
+                                  : heatMapMode 
+                                    ? `${rowHeatColor} hover:border-blue-300` 
+                                    : 'border-gray-200 bg-white hover:border-blue-300'
                               }`}
                             >
                               {/* Row Header - Always Visible */}
