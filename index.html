@@ -592,13 +592,18 @@ const PlanogramProfitTracker = () => {
             name: data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title,
             price: data.price,
             cost: data.cost,
+            dailySales: data.dailySales || 0,
+            weeklySales: data.weeklySales || 0,
             monthlySales: data.monthlySales || 0,
+            quarterlySales: data.quarterlySales || 0,
+            yearlySales: data.yearlySales || 0,
+            allTimeSales: data.allTimeSales || 0,
             quantity: 1,
             source: 'database',
             visualX: Math.random() * 80 + 10,
             visualY: Math.random() * 80 + 10
           };
-          setFeedback(`✅ Added: ${product.name}`);
+          setFeedback(`✅ Added: ${product.name} (${data.monthlySales || 0} monthly sales)`);
         }
       } catch (error) {
         console.error('Error fetching from database:', error);
@@ -937,18 +942,44 @@ const PlanogramProfitTracker = () => {
     setTimeout(() => setFeedback(''), 2000);
   };
 
-  const calculateMetrics = (section, filter) => {
-    const multipliers = { daily: 365, weekly: 52, monthly: 12, yearly: 1 };
-    const multiplier = multipliers[filter];
+  const calculateMetrics = (section, timePeriodFilter) => {
     const area = section.area || 1;
 
     const productMetrics = section.products.map(p => {
-      const periodVolume = (p.monthlySales || 0) * (multiplier / 12);
-      const periodRevenue = p.price * periodVolume;
-      const periodProfit = (p.price - p.cost) * periodVolume;
-      const velocity = periodVolume / area;
+      // Use the appropriate sales field based on time period
+      let salesVolume = 0;
+      switch(timePeriodFilter) {
+        case 'day':
+          salesVolume = p.dailySales || 0;
+          break;
+        case 'week':
+          salesVolume = p.weeklySales || 0;
+          break;
+        case 'month':
+          salesVolume = p.monthlySales || 0;
+          break;
+        case 'quarter':
+          salesVolume = p.quarterlySales || 0;
+          break;
+        case 'year':
+          salesVolume = p.yearlySales || 0;
+          break;
+        case 'all':
+          salesVolume = p.allTimeSales || 0;
+          break;
+        case 'custom':
+          // For custom, use monthly as default (would need custom logic to calculate actual range)
+          salesVolume = p.monthlySales || 0;
+          break;
+        default:
+          salesVolume = p.monthlySales || 0;
+      }
 
-      return { ...p, periodVolume, periodRevenue, periodProfit, velocity };
+      const periodRevenue = p.price * salesVolume;
+      const periodProfit = (p.price - p.cost) * salesVolume;
+      const velocity = salesVolume / area;
+
+      return { ...p, periodVolume: salesVolume, periodRevenue, periodProfit, velocity };
     });
 
     productMetrics.sort((a, b) => {
@@ -973,7 +1004,7 @@ const PlanogramProfitTracker = () => {
   };
 
   const getHeatMapColor = (profitPerSqFt) => {
-    const maxProfit = Math.max(...sections.map(s => calculateMetrics(s, timeFilter).profitPerSqFt));
+    const maxProfit = Math.max(...sections.map(s => calculateMetrics(s, timePeriod).profitPerSqFt));
     const intensity = maxProfit > 0 ? profitPerSqFt / maxProfit : 0;
     
     if (intensity > 0.7) return 'rgba(34, 197, 94, 0.6)';
@@ -1052,7 +1083,7 @@ const PlanogramProfitTracker = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
     
-    const metrics = calculateMetrics(section, timeFilter);
+    const metrics = calculateMetrics(section, timePeriod);
     const color = heatMapMode ? getHeatMapColor(metrics.profitPerSqFt) : 'rgba(100, 116, 139, 0.3)';
     
     // Use custom layout properties or default to full fixture
@@ -1283,7 +1314,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
     const fixtureSections = sections.filter(s => s.fixtureId === fixture.id);
     const totalProfit = fixtureSections.reduce((sum, s) => {
-      const metrics = calculateMetrics(s, timeFilter);
+      const metrics = calculateMetrics(s, timePeriod);
       return sum + metrics.totalProfit;
     }, 0);
 
@@ -1560,6 +1591,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 >
                   {autoRefreshEnabled ? '🔄 Auto' : '⏸️ Paused'}
                 </button>
+                <button
+                  onClick={() => refreshProductCache(false)}
+                  className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 font-semibold"
+                  title="Manually refresh Shopify data now"
+                >
+                  <Icons.RefreshCw /> Refresh Now
+                </button>
                 {lastRefresh && (
                   <span className="text-gray-600">
                     Updated: {lastRefresh.toLocaleTimeString()}
@@ -1643,7 +1681,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             {sections
               .filter(s => s.fixtureId === selectedFixture)
               .map(section => {
-                const metrics = calculateMetrics(section, timeFilter);
+                const metrics = calculateMetrics(section, timePeriod);
                 
                 return (
                   <div
