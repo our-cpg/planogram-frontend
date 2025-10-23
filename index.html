@@ -985,7 +985,12 @@ const PlanogramProfitTracker = () => {
   const calculateMetrics = (section, timePeriodFilter) => {
     const area = section.area || 1;
 
-    const productMetrics = section.products.map(p => {
+    // Gather all products from all rows
+    const allProducts = section.rows ? 
+      section.rows.flatMap(row => row.products || []) : 
+      (section.products || []);
+
+    const productMetrics = allProducts.map(p => {
       // Use the appropriate sales field based on time period
       let salesVolume = 0;
       switch(timePeriodFilter) {
@@ -1831,7 +1836,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         Profit/sq ft: ${metrics.profitPerSqFt.toFixed(2)}
                       </div>
                       <div>Total Profit: ${metrics.totalProfit.toFixed(2)}</div>
-                      <div>Products: {section.products.length}</div>
+                      <div>Products: {section.rows ? section.rows.reduce((sum, row) => sum + (row.products?.length || 0), 0) : section.products?.length || 0}</div>
                     </div>
 
                     {/* Section Layout Controls */}
