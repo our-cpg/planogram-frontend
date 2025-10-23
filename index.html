@@ -165,6 +165,8 @@ const PlanogramProfitTracker = () => {
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [heatMapType, setHeatMapType] = useState('profit'); // profit, velocity, deadStock, margin, stockHealth
+  const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (was w-64 = 256px, but make it bigger)
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   
   // Firebase states
   const [firebaseConfig, setFirebaseConfig] = useState({
@@ -805,6 +807,27 @@ const PlanogramProfitTracker = () => {
     );
     setFixtures(updatedFixtures);
     localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
+  };
+
+  const changeFixtureType = (fixtureId, newType) => {
+    const fixtureType = FIXTURE_TYPES[newType];
+    const updatedFixtures = fixtures.map(f => {
+      if (f.id === fixtureId) {
+        return {
+          ...f,
+          type: fixtureType.id,
+          name: fixtureType.name,
+          color: fixtureType.color,
+          // Keep existing width/height instead of defaultWidth/defaultHeight
+          // This preserves any custom sizing the user did
+        };
+      }
+      return f;
+    });
+    setFixtures(updatedFixtures);
+    localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
+    setFeedback(`✅ Changed to ${fixtureType.name} - sections preserved!`);
+    setTimeout(() => setFeedback(''), 3000);
   };
 
   const addSection = (fixtureId) => {
@@ -1534,7 +1557,44 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
   return (
     <div className="flex h-screen bg-gray-100">
       {showLibrary && (
-        <div className="w-64 bg-white shadow-lg p-4 overflow-y-auto">
+        <div 
+          className="bg-white shadow-lg p-4 overflow-y-auto relative"
+          style={{ width: `${sidebarWidth}px`, minWidth: '250px', maxWidth: '800px' }}
+        >
+          {/* Resize Handle */}
+          <div
+            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 transition-colors z-50"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizingSidebar(true);
+              const startX = e.clientX;
+              const startWidth = sidebarWidth;
+              
+              const handleMouseMove = (moveEvent) => {
+                const delta = moveEvent.clientX - startX;
+                const newWidth = Math.max(250, Math.min(800, startWidth + delta));
+                setSidebarWidth(newWidth);
+              };
+              
+              const handleMouseUp = () => {
+                setIsResizingSidebar(false);
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+              };
+              
+              document.addEventListener('mousemove', handleMouseMove);
+              document.addEventListener('mouseup', handleMouseUp);
+            }}
+            style={{ 
+              background: isResizingSidebar ? '#3b82f6' : 'transparent',
+              width: isResizingSidebar ? '4px' : '4px'
+            }}
+          >
+            <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
+              ⇄
+            </div>
+          </div>
+
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Icons.Package />
@@ -1815,9 +1875,27 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
       {selectedFixture && (
         <div className="w-80 bg-white shadow-lg p-4 overflow-y-auto">
-          <h2 className="text-xl font-bold mb-4">
-            {fixtures.find(f => f.id === selectedFixture)?.name}
-          </h2>
+          <div className="mb-4">
+            <h2 className="text-xl font-bold mb-2">
+              {fixtures.find(f => f.id === selectedFixture)?.name}
+            </h2>
+            
+            {/* Fixture Type Changer */}
+            <div className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded border border-gray-200">
+              <span className="text-gray-600 font-medium">Type:</span>
+              <select
+                value={fixtures.find(f => f.id === selectedFixture)?.type || ''}
+                onChange={(e) => changeFixtureType(selectedFixture, e.target.value)}
+                className="flex-1 px-2 py-1 bg-white border border-gray-300 rounded text-sm hover:border-blue-500 focus:outline-none focus:border-blue-500 cursor-pointer"
+              >
+                {Object.entries(FIXTURE_TYPES).map(([key, type]) => (
+                  <option key={key} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <button
             onClick={() => addSection(selectedFixture)}
