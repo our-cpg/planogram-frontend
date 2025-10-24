@@ -3411,7 +3411,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         (section.products || []);
                       return products;
                     });
-                    const brands = [...new Set(allProducts.map(p => p.vendor || p.brand || 'Unknown Brand'))].sort();
+                    const brands = [...new Set(allProducts.map(p => {
+                      const vendor = p.vendor?.trim();
+                      return vendor && vendor !== '' ? vendor : 'Unknown Brand';
+                    }))].sort();
                     return brands.map(brand => (
                       <option key={brand} value={brand}>{brand}</option>
                     ));
@@ -3489,7 +3492,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             
             if (forecastFilterBrand !== 'all') {
               allProducts = allProducts.filter(p => {
-                const brand = p.vendor || p.brand || 'Unknown Brand';
+                const vendor = p.vendor?.trim();
+                const brand = vendor && vendor !== '' ? vendor : 'Unknown Brand';
                 return brand === forecastFilterBrand;
               });
             }
@@ -3577,7 +3581,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               });
             } else if (forecastGroupBy === 'brand') {
               productsWithForecasts.forEach(p => {
-                const brand = p.vendor || p.brand || 'Unknown Brand';
+                const vendor = p.vendor?.trim();
+                const brand = vendor && vendor !== '' ? vendor : 'Unknown Brand';
                 if (!groupedData[brand]) {
                   groupedData[brand] = [];
                 }
