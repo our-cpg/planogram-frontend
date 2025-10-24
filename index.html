@@ -173,6 +173,9 @@ const PlanogramProfitTracker = () => {
   const [rightSidebarWidth, setRightSidebarWidth] = useState(320);
   const [isResizingRightSidebar, setIsResizingRightSidebar] = useState(false);
   
+  // Refresh states
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   // Forecasting filters
   const [forecastGroupBy, setForecastGroupBy] = useState('all'); // all, fixture, brand
   const [forecastSortBy, setForecastSortBy] = useState('stockoutRisk'); // stockoutRisk, velocity, daysUntilOut, reorderQty
@@ -573,7 +576,8 @@ const PlanogramProfitTracker = () => {
     }
 
     if (!isAutoRefresh) {
-      setFeedback('🔄 Refreshing...');
+      setIsRefreshing(true);
+      setFeedback('🔄 Starting refresh... This may take several minutes for large catalogs.');
     }
     
     try {
@@ -608,10 +612,14 @@ const PlanogramProfitTracker = () => {
       }
     } catch (error) {
       if (!isAutoRefresh) {
-        setFeedback('❌ Cache refresh failed');
+        setFeedback('❌ Cache refresh failed - check console for details');
         setTimeout(() => setFeedback(''), 5000);
       }
-      console.error('Auto-refresh error:', error);
+      console.error('Refresh error:', error);
+    } finally {
+      if (!isAutoRefresh) {
+        setIsRefreshing(false);
+      }
     }
   };
 
@@ -2999,6 +3007,18 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h2 className="text-2xl font-bold mb-4">🛍️ Shopify Connection</h2>
 
+            {shopifyConfig.connected && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+                <div className="font-semibold mb-1">💡 About Product Cache Refresh:</div>
+                <ul className="text-xs space-y-1 text-gray-700">
+                  <li>• Takes 3-5 minutes for large catalogs (1000+ products)</li>
+                  <li>• Updates vendor/brand data, prices, inventory, and sales</li>
+                  <li>• Check your Render backend logs to watch progress</li>
+                  <li>• You'll see a success message when complete</li>
+                </ul>
+              </div>
+            )}
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Store Name</label>
@@ -3036,14 +3056,20 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   <>
                     <button
                       onClick={refreshProductCache}
-                      className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center gap-2"
+                      disabled={isRefreshing}
+                      className={`flex-1 px-4 py-2 rounded flex items-center justify-center gap-2 ${
+                        isRefreshing 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-blue-500 hover:bg-blue-600'
+                      } text-white`}
                     >
                       <Icons.RefreshCw />
-                      Refresh
+                      {isRefreshing ? 'Refreshing... (Check Render Logs)' : 'Refresh Product Cache'}
                     </button>
                     <button
                       onClick={disconnectShopify}
-                      className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                      disabled={isRefreshing}
+                      className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                       Disconnect
                     </button>
@@ -3362,6 +3388,32 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           <div className="mb-6">
             <h1 className="text-3xl font-bold mb-2">📈 Demand Forecasting & Inventory Intelligence</h1>
             <p className="text-gray-600">AI-powered predictions to prevent stockouts and optimize inventory</p>
+            
+            {/* DEBUG: Show vendor field status */}
+            {(() => {
+              const allProds = sections.flatMap(section => {
+                const products = section.rows ? 
+                  section.rows.flatMap(row => row.products || []) : 
+                  (section.products || []);
+                return products;
+              });
+              const withVendor = allProds.filter(p => p.vendor && p.vendor.trim() !== '').length;
+              const totalProds = allProds.length;
+              
+              if (totalProds > 0 && withVendor === 0) {
+                return (
+                  <div className="mt-2 p-3 bg-yellow-100 border border-yellow-400 rounded text-sm">
+                    ⚠️ <strong>Debug Info:</strong> None of your {totalProds} products have vendor data. 
+                    The backend may not be returning the vendor field from Shopify.
+                    {allProds[0] && (
+                      <div className="text-xs mt-1">
+                        Sample product fields: {Object.keys(allProds[0]).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+            })()}
           </div>
 
           {/* Filters */}
@@ -3531,7 +3583,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               }
 
               const dailyVelocity = daysInPeriod > 0 ? salesVolume / daysInPeriod : 0;
-              const currentStock = product.quantity || 0;
+              const currentStock = product.inventoryQuantity || product.quantity || 0;
               const daysUntilOut = dailyVelocity > 0 ? currentStock / dailyVelocity : 999;
               
               // Stock out risk (high risk if < 7 days)
