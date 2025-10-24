@@ -161,6 +161,8 @@ const PlanogramProfitTracker = () => {
   const [editingSectionName, setEditingSectionName] = useState('');
   const [editingSectionArea, setEditingSectionArea] = useState(null);
   const [editingAreaValue, setEditingAreaValue] = useState('');
+  const [editingFixture, setEditingFixture] = useState(null);
+  const [editingFixtureName, setEditingFixtureName] = useState('');
   const [lastRefresh, setLastRefresh] = useState(null);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -1002,6 +1004,20 @@ const PlanogramProfitTracker = () => {
     autoSave(updatedSections, 'Auto-saved section layout');
   };
 
+  const updateFixtureName = (fixtureId, newName) => {
+    const updatedFixtures = fixtures.map(fixture => {
+      if (fixture.id === fixtureId) {
+        return { ...fixture, name: newName };
+      }
+      return fixture;
+    });
+    
+    setFixtures(updatedFixtures);
+    setEditingFixture(null);
+    setFeedback('✅ Fixture renamed');
+    setTimeout(() => setFeedback(''), 2000);
+  };
+
   // NEW: Row management functions
   const addRowToSection = (sectionId) => {
     const updatedSections = sections.map(section => {
@@ -1808,7 +1824,43 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   }`}
                   onClick={() => setSelectedFixture(fixture.id)}
                 >
-                  <span className="text-sm">{fixture.name}</span>
+                  {editingFixture === fixture.id ? (
+                    <input
+                      type="text"
+                      value={editingFixtureName}
+                      onChange={(e) => setEditingFixtureName(e.target.value)}
+                      onBlur={() => {
+                        if (editingFixtureName.trim()) {
+                          updateFixtureName(fixture.id, editingFixtureName.trim());
+                        } else {
+                          setEditingFixture(null);
+                        }
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && editingFixtureName.trim()) {
+                          updateFixtureName(fixture.id, editingFixtureName.trim());
+                        }
+                        if (e.key === 'Escape') {
+                          setEditingFixture(null);
+                        }
+                      }}
+                      className="flex-1 px-2 py-1 border-2 border-blue-500 rounded text-sm"
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span 
+                      className="text-sm flex-1 hover:text-blue-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingFixture(fixture.id);
+                        setEditingFixtureName(fixture.name);
+                      }}
+                      title="Click to rename"
+                    >
+                      {fixture.name}
+                    </span>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -2182,9 +2234,41 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             </div>
           </div>
 
-          <h2 className="text-xl font-bold mb-4">
-            {fixtures.find(f => f.id === selectedFixture)?.name}
-          </h2>
+          {editingFixture === selectedFixture ? (
+            <input
+              type="text"
+              value={editingFixtureName}
+              onChange={(e) => setEditingFixtureName(e.target.value)}
+              onBlur={() => {
+                if (editingFixtureName.trim()) {
+                  updateFixtureName(selectedFixture, editingFixtureName.trim());
+                } else {
+                  setEditingFixture(null);
+                }
+              }}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && editingFixtureName.trim()) {
+                  updateFixtureName(selectedFixture, editingFixtureName.trim());
+                }
+                if (e.key === 'Escape') {
+                  setEditingFixture(null);
+                }
+              }}
+              className="text-xl font-bold mb-4 px-2 py-1 border-2 border-blue-500 rounded w-full"
+              autoFocus
+            />
+          ) : (
+            <h2 
+              className="text-xl font-bold mb-4 cursor-pointer hover:text-blue-600"
+              onClick={() => {
+                setEditingFixture(selectedFixture);
+                setEditingFixtureName(fixtures.find(f => f.id === selectedFixture)?.name || '');
+              }}
+              title="Click to rename fixture"
+            >
+              {fixtures.find(f => f.id === selectedFixture)?.name}
+            </h2>
+          )}
 
           <button
             onClick={() => addSection(selectedFixture)}
