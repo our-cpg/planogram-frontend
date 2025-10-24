@@ -126,15 +126,6 @@ const getHandlePosition = (position) => {
 };
 
 const PlanogramProfitTracker = () => {
-  // Authentication state
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authError, setAuthError] = useState('');
-  
   const [fixtures, setFixtures] = useState([]);
   const [selectedFixture, setSelectedFixture] = useState(null);
   const [sections, setSections] = useState([]);
@@ -250,31 +241,6 @@ const PlanogramProfitTracker = () => {
     '456789012345': { name: 'Gourmet Cookies', price: 8.99, cost: 4.00, monthlySales: 312 },
     '567890123456': { name: 'Specialty Honey', price: 15.99, cost: 7.50, monthlySales: 67 },
   };
-
-  // Authentication listener
-  useEffect(() => {
-    const auth = firebase.auth();
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setUser(user);
-      setAuthLoading(false);
-      
-      if (user) {
-        // Load user-specific Shopify config from Firestore
-        const db = firebase.firestore();
-        db.collection('users').doc(user.uid).get()
-          .then((doc) => {
-            if (doc.exists && doc.data().shopifyConfig) {
-              setShopifyConfig(doc.data().shopifyConfig);
-            }
-          })
-          .catch((error) => {
-            console.error('Error loading user config:', error);
-          });
-      }
-    });
-    
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     try {
@@ -438,56 +404,6 @@ const PlanogramProfitTracker = () => {
       setSyncStatus(`❌ ${error.message}`);
       setTimeout(() => setSyncStatus(''), 5000);
       return false;
-    }
-  };
-
-  // Authentication Functions
-  const handleSignup = async (e) => {
-    e.preventDefault();
-    setAuthError('');
-    
-    try {
-      const auth = firebase.auth();
-      const userCredential = await auth.createUserWithEmailAndPassword(authEmail, authPassword);
-      setUser(userCredential.user);
-      setShowAuthModal(false);
-      setAuthEmail('');
-      setAuthPassword('');
-    } catch (error) {
-      setAuthError(error.message);
-    }
-  };
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setAuthError('');
-    
-    try {
-      const auth = firebase.auth();
-      const userCredential = await auth.signInWithEmailAndPassword(authEmail, authPassword);
-      setUser(userCredential.user);
-      setShowAuthModal(false);
-      setAuthEmail('');
-      setAuthPassword('');
-    } catch (error) {
-      setAuthError(error.message);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      const auth = firebase.auth();
-      await auth.signOut();
-      setUser(null);
-      // Clear sensitive data
-      setShopifyConfig({
-        storeName: '',
-        accessToken: '',
-        connected: false
-      });
-      localStorage.removeItem('planogram_shopify');
-    } catch (error) {
-      console.error('Logout error:', error);
     }
   };
 
@@ -815,18 +731,7 @@ const PlanogramProfitTracker = () => {
       if (response.ok && data.success) {
         const updatedConfig = { ...shopifyConfig, connected: true };
         setShopifyConfig(updatedConfig);
-        
-        // Save to Firestore if user is authenticated
-        if (user) {
-          const db = firebase.firestore();
-          await db.collection('users').doc(user.uid).set({
-            shopifyConfig: updatedConfig,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
-        } else {
-          // Fallback to localStorage for non-authenticated users
-          localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
-        }
+        localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
         
         setFeedback(`✅ Connected!`);
         setTimeout(() => {
@@ -851,17 +756,7 @@ const PlanogramProfitTracker = () => {
       connected: false
     };
     setShopifyConfig(updatedConfig);
-    
-    // Clear from Firestore if user is authenticated
-    if (user) {
-      const db = firebase.firestore();
-      db.collection('users').doc(user.uid).set({
-        shopifyConfig: updatedConfig,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-    } else {
-      localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
-    }
+    localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
     
     setFeedback('✅ Disconnected');
     setTimeout(() => setFeedback(''), 2000);
