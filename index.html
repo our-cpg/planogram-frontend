@@ -173,6 +173,12 @@ const PlanogramProfitTracker = () => {
   const [rightSidebarWidth, setRightSidebarWidth] = useState(320);
   const [isResizingRightSidebar, setIsResizingRightSidebar] = useState(false);
   
+  // Forecasting filters
+  const [forecastGroupBy, setForecastGroupBy] = useState('all'); // all, fixture, brand
+  const [forecastSortBy, setForecastSortBy] = useState('stockoutRisk'); // stockoutRisk, velocity, daysUntilOut, reorderQty
+  const [forecastFilterFixture, setForecastFilterFixture] = useState('all'); // specific fixture filter
+  const [forecastFilterBrand, setForecastFilterBrand] = useState('all'); // specific brand filter
+  
   // Navigation
   const [currentPage, setCurrentPage] = useState('planner'); // planner, dashboard, forecasting, settings
   
@@ -3353,34 +3359,396 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       {/* 📈 FORECASTING PAGE */}
       {currentPage === 'forecasting' && (
         <div className="flex-1 overflow-auto p-8">
-          <h1 className="text-3xl font-bold mb-6">📈 Demand Forecasting</h1>
-          <p className="text-gray-600 mb-8">AI-powered predictions to prevent stockouts and optimize inventory!</p>
-          
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-xl font-bold mb-4">🤖 Coming Soon Features:</h3>
-            <ul className="space-y-3">
-              <li className="flex items-center gap-2">
-                <span className="text-green-500">✅</span>
-                <span>Predict when products will run out of stock</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-green-500">✅</span>
-                <span>Seasonal demand patterns</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-green-500">✅</span>
-                <span>Recommended reorder quantities</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-green-500">✅</span>
-                <span>Low stock alerts</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-green-500">✅</span>
-                <span>Sales velocity trends</span>
-              </li>
-            </ul>
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold mb-2">📈 Demand Forecasting & Inventory Intelligence</h1>
+            <p className="text-gray-600">AI-powered predictions to prevent stockouts and optimize inventory</p>
           </div>
+
+          {/* Filters */}
+          <div className="bg-white rounded-lg shadow-lg p-4 mb-6">
+            <div className="flex gap-4 flex-wrap items-center">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Group By</label>
+                <select
+                  value={forecastGroupBy}
+                  onChange={(e) => setForecastGroupBy(e.target.value)}
+                  className="px-3 py-2 border rounded text-sm"
+                >
+                  <option value="all">All Products</option>
+                  <option value="fixture">By Fixture</option>
+                  <option value="brand">By Brand</option>
+                </select>
+              </div>
+
+              {/* Specific Fixture Filter */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Filter Fixture</label>
+                <select
+                  value={forecastFilterFixture}
+                  onChange={(e) => setForecastFilterFixture(e.target.value)}
+                  className="px-3 py-2 border rounded text-sm min-w-[150px]"
+                >
+                  <option value="all">All Fixtures</option>
+                  {fixtures.map(fixture => (
+                    <option key={fixture.id} value={fixture.id}>{fixture.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Specific Brand Filter */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Filter Brand</label>
+                <select
+                  value={forecastFilterBrand}
+                  onChange={(e) => setForecastFilterBrand(e.target.value)}
+                  className="px-3 py-2 border rounded text-sm min-w-[150px]"
+                >
+                  <option value="all">All Brands</option>
+                  {(() => {
+                    const allProducts = sections.flatMap(section => {
+                      const products = section.rows ? 
+                        section.rows.flatMap(row => row.products || []) : 
+                        (section.products || []);
+                      return products;
+                    });
+                    const brands = [...new Set(allProducts.map(p => p.vendor || p.brand || 'Unknown Brand'))].sort();
+                    return brands.map(brand => (
+                      <option key={brand} value={brand}>{brand}</option>
+                    ));
+                  })()}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Time Period</label>
+                <select
+                  value={timePeriod}
+                  onChange={(e) => setTimePeriod(e.target.value)}
+                  className="px-3 py-2 border rounded text-sm"
+                >
+                  <option value="week">Last Week</option>
+                  <option value="month">Last Month</option>
+                  <option value="quarter">Last Quarter</option>
+                  <option value="year">Last Year</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Sort By</label>
+                <select
+                  value={forecastSortBy}
+                  onChange={(e) => setForecastSortBy(e.target.value)}
+                  className="px-3 py-2 border rounded text-sm"
+                >
+                  <option value="stockoutRisk">Stockout Risk</option>
+                  <option value="velocity">Sales Velocity</option>
+                  <option value="daysUntilOut">Days Until Out</option>
+                  <option value="reorderQty">Reorder Quantity</option>
+                </select>
+              </div>
+
+              {/* Clear Filters Button */}
+              {(forecastFilterFixture !== 'all' || forecastFilterBrand !== 'all') && (
+                <div className="pt-5">
+                  <button
+                    onClick={() => {
+                      setForecastFilterFixture('all');
+                      setForecastFilterBrand('all');
+                    }}
+                    className="px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600 flex items-center gap-1"
+                  >
+                    <Icons.X />
+                    Clear Filters
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Forecasting Content */}
+          {(() => {
+            // Gather all products from all sections
+            let allProducts = sections.flatMap(section => {
+              const products = section.rows ? 
+                section.rows.flatMap(row => row.products || []) : 
+                (section.products || []);
+              
+              return products.map(p => ({
+                ...p,
+                sectionId: section.id,
+                sectionName: section.name,
+                fixtureId: section.fixtureId,
+                fixtureName: fixtures.find(f => f.id === section.fixtureId)?.name || 'Unknown'
+              }));
+            });
+
+            // Apply filters BEFORE calculating forecasts
+            if (forecastFilterFixture !== 'all') {
+              allProducts = allProducts.filter(p => p.fixtureId === forecastFilterFixture);
+            }
+            
+            if (forecastFilterBrand !== 'all') {
+              allProducts = allProducts.filter(p => {
+                const brand = p.vendor || p.brand || 'Unknown Brand';
+                return brand === forecastFilterBrand;
+              });
+            }
+
+            // Calculate forecasting metrics for each product
+            const productsWithForecasts = allProducts.map(product => {
+              // Get sales velocity based on time period
+              let salesVolume = 0;
+              let daysInPeriod = 30;
+              
+              switch(timePeriod) {
+                case 'day':
+                  salesVolume = product.dailySales || 0;
+                  daysInPeriod = 1;
+                  break;
+                case 'week':
+                  salesVolume = product.weeklySales || 0;
+                  daysInPeriod = 7;
+                  break;
+                case 'month':
+                  salesVolume = product.monthlySales || 0;
+                  daysInPeriod = 30;
+                  break;
+                case 'quarter':
+                  salesVolume = product.quarterlySales || 0;
+                  daysInPeriod = 90;
+                  break;
+                case 'year':
+                  salesVolume = product.yearlySales || 0;
+                  daysInPeriod = 365;
+                  break;
+                default:
+                  salesVolume = product.monthlySales || 0;
+                  daysInPeriod = 30;
+              }
+
+              const dailyVelocity = daysInPeriod > 0 ? salesVolume / daysInPeriod : 0;
+              const currentStock = product.quantity || 0;
+              const daysUntilOut = dailyVelocity > 0 ? currentStock / dailyVelocity : 999;
+              
+              // Stock out risk (high risk if < 7 days)
+              let stockoutRisk = 'Low';
+              let riskColor = 'green';
+              if (daysUntilOut < 3) {
+                stockoutRisk = 'CRITICAL';
+                riskColor = 'red';
+              } else if (daysUntilOut < 7) {
+                stockoutRisk = 'High';
+                riskColor = 'orange';
+              } else if (daysUntilOut < 14) {
+                stockoutRisk = 'Medium';
+                riskColor = 'yellow';
+              }
+
+              // Recommended reorder quantity (2 weeks of sales + safety stock of 25%)
+              const reorderQty = Math.ceil((dailyVelocity * 14) * 1.25);
+
+              // Seasonal pattern (simplified - compare to average)
+              const avgSales = (product.monthlySales || 0);
+              const seasonalTrend = salesVolume > avgSales * 1.2 ? '📈 Trending Up' : 
+                                   salesVolume < avgSales * 0.8 ? '📉 Trending Down' : 
+                                   '➡️ Stable';
+
+              return {
+                ...product,
+                dailyVelocity,
+                daysUntilOut,
+                stockoutRisk,
+                riskColor,
+                reorderQty,
+                seasonalTrend,
+                salesVolume
+              };
+            });
+
+            // Group products based on filter
+            let groupedData = {};
+            
+            if (forecastGroupBy === 'fixture') {
+              productsWithForecasts.forEach(p => {
+                if (!groupedData[p.fixtureName]) {
+                  groupedData[p.fixtureName] = [];
+                }
+                groupedData[p.fixtureName].push(p);
+              });
+            } else if (forecastGroupBy === 'brand') {
+              productsWithForecasts.forEach(p => {
+                const brand = p.vendor || p.brand || 'Unknown Brand';
+                if (!groupedData[brand]) {
+                  groupedData[brand] = [];
+                }
+                groupedData[brand].push(p);
+              });
+            } else {
+              groupedData['All Products'] = productsWithForecasts;
+            }
+
+            // Sort products within each group
+            Object.keys(groupedData).forEach(groupName => {
+              groupedData[groupName].sort((a, b) => {
+                switch(forecastSortBy) {
+                  case 'stockoutRisk':
+                    return a.daysUntilOut - b.daysUntilOut;
+                  case 'velocity':
+                    return b.dailyVelocity - a.dailyVelocity;
+                  case 'daysUntilOut':
+                    return a.daysUntilOut - b.daysUntilOut;
+                  case 'reorderQty':
+                    return b.reorderQty - a.reorderQty;
+                  default:
+                    return 0;
+                }
+              });
+            });
+
+            // Calculate summary stats
+            const totalProducts = productsWithForecasts.length;
+            const criticalStock = productsWithForecasts.filter(p => p.stockoutRisk === 'CRITICAL').length;
+            const highRisk = productsWithForecasts.filter(p => p.stockoutRisk === 'High').length;
+            const avgVelocity = productsWithForecasts.length > 0 
+              ? productsWithForecasts.reduce((sum, p) => sum + p.dailyVelocity, 0) / productsWithForecasts.length 
+              : 0;
+
+            return (
+              <>
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-lg p-4 border-2 border-red-300">
+                    <div className="text-red-600 font-bold text-sm mb-1">🚨 CRITICAL ALERTS</div>
+                    <div className="text-3xl font-bold text-red-700">{criticalStock}</div>
+                    <div className="text-xs text-red-600 mt-1">Out in &lt;3 days</div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg shadow-lg p-4 border-2 border-orange-300">
+                    <div className="text-orange-600 font-bold text-sm mb-1">⚠️ HIGH RISK</div>
+                    <div className="text-3xl font-bold text-orange-700">{highRisk}</div>
+                    <div className="text-xs text-orange-600 mt-1">Out in &lt;7 days</div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-lg p-4 border-2 border-blue-300">
+                    <div className="text-blue-600 font-bold text-sm mb-1">📦 TOTAL PRODUCTS</div>
+                    <div className="text-3xl font-bold text-blue-700">{totalProducts}</div>
+                    <div className="text-xs text-blue-600 mt-1">Being tracked</div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-lg p-4 border-2 border-green-300">
+                    <div className="text-green-600 font-bold text-sm mb-1">⚡ AVG VELOCITY</div>
+                    <div className="text-3xl font-bold text-green-700">{avgVelocity.toFixed(1)}</div>
+                    <div className="text-xs text-green-600 mt-1">units/day</div>
+                  </div>
+                </div>
+
+                {/* Grouped Product Tables */}
+                <div className="space-y-6">
+                  {Object.keys(groupedData).sort().map(groupName => {
+                    const products = groupedData[groupName];
+                    if (products.length === 0) return null;
+
+                    return (
+                      <div key={groupName} className="bg-white rounded-lg shadow-lg overflow-hidden">
+                        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
+                          <h2 className="text-xl font-bold">{groupName}</h2>
+                          <div className="text-sm opacity-90 mt-1">{products.length} products</div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-100 border-b-2 border-gray-300">
+                              <tr>
+                                <th className="text-left p-3 text-xs font-bold text-gray-700">PRODUCT</th>
+                                <th className="text-center p-3 text-xs font-bold text-gray-700">STOCK</th>
+                                <th className="text-center p-3 text-xs font-bold text-gray-700">VELOCITY</th>
+                                <th className="text-center p-3 text-xs font-bold text-gray-700">DAYS LEFT</th>
+                                <th className="text-center p-3 text-xs font-bold text-gray-700">RISK</th>
+                                <th className="text-center p-3 text-xs font-bold text-gray-700">REORDER QTY</th>
+                                <th className="text-center p-3 text-xs font-bold text-gray-700">TREND</th>
+                                <th className="text-left p-3 text-xs font-bold text-gray-700">LOCATION</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {products.map((product, idx) => (
+                                <tr 
+                                  key={idx} 
+                                  className={`border-b hover:bg-gray-50 ${
+                                    product.riskColor === 'red' ? 'bg-red-50' :
+                                    product.riskColor === 'orange' ? 'bg-orange-50' :
+                                    product.riskColor === 'yellow' ? 'bg-yellow-50' : ''
+                                  }`}
+                                >
+                                  <td className="p-3">
+                                    <div className="font-semibold text-sm">{product.name}</div>
+                                    <div className="text-xs text-gray-500">{product.sku || product.upc || 'No SKU'}</div>
+                                    <div className="text-xs text-gray-400">{product.vendor || ''}</div>
+                                  </td>
+                                  <td className="text-center p-3">
+                                    <div className={`font-bold ${product.quantity < 10 ? 'text-red-600' : 'text-gray-700'}`}>
+                                      {product.quantity || 0}
+                                    </div>
+                                  </td>
+                                  <td className="text-center p-3">
+                                    <div className="font-semibold text-blue-600">
+                                      {product.dailyVelocity.toFixed(1)}
+                                    </div>
+                                    <div className="text-xs text-gray-500">per day</div>
+                                  </td>
+                                  <td className="text-center p-3">
+                                    <div className={`font-bold ${
+                                      product.daysUntilOut < 3 ? 'text-red-600' :
+                                      product.daysUntilOut < 7 ? 'text-orange-600' :
+                                      product.daysUntilOut < 14 ? 'text-yellow-600' :
+                                      'text-green-600'
+                                    }`}>
+                                      {product.daysUntilOut >= 999 ? '∞' : Math.floor(product.daysUntilOut)}
+                                    </div>
+                                    <div className="text-xs text-gray-500">days</div>
+                                  </td>
+                                  <td className="text-center p-3">
+                                    <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${
+                                      product.riskColor === 'red' ? 'bg-red-200 text-red-800' :
+                                      product.riskColor === 'orange' ? 'bg-orange-200 text-orange-800' :
+                                      product.riskColor === 'yellow' ? 'bg-yellow-200 text-yellow-800' :
+                                      'bg-green-200 text-green-800'
+                                    }`}>
+                                      {product.stockoutRisk}
+                                    </span>
+                                  </td>
+                                  <td className="text-center p-3">
+                                    <div className="font-bold text-purple-600">
+                                      {product.reorderQty}
+                                    </div>
+                                    <div className="text-xs text-gray-500">units</div>
+                                  </td>
+                                  <td className="text-center p-3">
+                                    <div className="text-sm">{product.seasonalTrend}</div>
+                                  </td>
+                                  <td className="p-3">
+                                    <div className="text-xs text-gray-600">{product.fixtureName}</div>
+                                    <div className="text-xs text-gray-400">{product.sectionName}</div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {totalProducts === 0 && (
+                  <div className="bg-white rounded-lg shadow-lg p-12 text-center">
+                    <div className="text-6xl mb-4">📦</div>
+                    <h3 className="text-2xl font-bold text-gray-700 mb-2">No Products to Forecast</h3>
+                    <p className="text-gray-500">Add products to your planogram to see demand forecasting!</p>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 
