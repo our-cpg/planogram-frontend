@@ -1119,7 +1119,9 @@ const PlanogramProfitTracker = () => {
       }
 
       const periodRevenue = p.price * salesVolume;
-      const periodProfit = (p.price - p.cost) * salesVolume;
+      const periodProfit = (p.cost !== null && p.cost !== undefined) 
+        ? (p.price - p.cost) * salesVolume 
+        : 0; // If no cost, profit is 0 (unknown)
       const velocity = salesVolume / area;
 
       return { ...p, periodVolume: salesVolume, periodRevenue, periodProfit, velocity };
@@ -1137,7 +1139,7 @@ const PlanogramProfitTracker = () => {
     });
     
     const totalRevenue = productMetrics.reduce((sum, p) => sum + p.periodRevenue, 0);
-    const totalCost = productMetrics.reduce((sum, p) => sum + (p.cost * p.periodVolume), 0);
+    const totalCost = productMetrics.reduce((sum, p) => sum + ((p.cost !== null ? p.cost : 0) * p.periodVolume), 0);
     const totalProfit = productMetrics.reduce((sum, p) => sum + p.periodProfit, 0);
     const totalVolume = productMetrics.reduce((sum, p) => sum + p.periodVolume, 0);
     const totalVelocity = productMetrics.reduce((sum, p) => sum + p.velocity, 0);
@@ -1304,14 +1306,21 @@ const PlanogramProfitTracker = () => {
       };
     }, [isDragging, dragStart]);
 
-    const profit = (product.price - product.cost) * (product.monthlySales || 0);
+    const profit = product.cost !== null && product.cost !== undefined
+      ? (product.price - product.cost) * (product.monthlySales || 0)
+      : null;
+    
     let colorClass = 'bg-gray-400';
-    if (profit > 100) colorClass = 'bg-green-500';
-    else if (profit > 50) colorClass = 'bg-yellow-500';
-    else if (profit > 0) colorClass = 'bg-orange-500';
-    else if (profit < 0) colorClass = 'bg-red-500';
+    if (profit !== null) {
+      if (profit > 100) colorClass = 'bg-green-500';
+      else if (profit > 50) colorClass = 'bg-yellow-500';
+      else if (profit > 0) colorClass = 'bg-orange-500';
+      else if (profit < 0) colorClass = 'bg-red-500';
+    }
 
     const size = Math.min(Math.max(20, 15 + product.quantity * 3), 40);
+    
+    const profitDisplay = profit !== null ? `$${profit.toFixed(2)}` : 'N/A';
 
     return (
       <div
@@ -1326,7 +1335,7 @@ const PlanogramProfitTracker = () => {
           pointerEvents: 'auto'
         }}
         onMouseDown={handleMouseDown}
-        title={`${product.name}\n$${product.price}\nQty: ${product.quantity}\nProfit: $${profit.toFixed(2)}`}
+        title={`${product.name}\n$${product.price}\nQty: ${product.quantity}\nProfit: ${profitDisplay}`}
       >
         {product.quantity}
       </div>
