@@ -171,6 +171,9 @@ const PlanogramProfitTracker = () => {
   const [rightSidebarWidth, setRightSidebarWidth] = useState(320);
   const [isResizingRightSidebar, setIsResizingRightSidebar] = useState(false);
   
+  // Navigation
+  const [currentPage, setCurrentPage] = useState('planner'); // planner, dashboard, forecasting, settings
+  
   // Firebase states
   const [firebaseConfig, setFirebaseConfig] = useState({
     apiKey: 'AIzaSyBZ6qLt8KVgV877K6IBy0pwZ5a9y1FqGLY',
@@ -1670,7 +1673,63 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex flex-col h-screen bg-gray-100">
+      {/* 🔥 NAVIGATION MENU */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
+        <div className="flex items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🗺️</span>
+            <span className="text-white text-xl font-bold">Store Planner Pro</span>
+          </div>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage('planner')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                currentPage === 'planner'
+                  ? 'bg-white text-blue-600 shadow-lg'
+                  : 'bg-blue-500 text-white hover:bg-blue-400'
+              }`}
+            >
+              🗺️ Store Planner
+            </button>
+            <button
+              onClick={() => setCurrentPage('dashboard')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                currentPage === 'dashboard'
+                  ? 'bg-white text-blue-600 shadow-lg'
+                  : 'bg-blue-500 text-white hover:bg-blue-400'
+              }`}
+            >
+              📊 Dashboard
+            </button>
+            <button
+              onClick={() => setCurrentPage('forecasting')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                currentPage === 'forecasting'
+                  ? 'bg-white text-blue-600 shadow-lg'
+                  : 'bg-blue-500 text-white hover:bg-blue-400'
+              }`}
+            >
+              📈 Forecasting
+            </button>
+            <button
+              onClick={() => setCurrentPage('settings')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                currentPage === 'settings'
+                  ? 'bg-white text-blue-600 shadow-lg'
+                  : 'bg-blue-500 text-white hover:bg-blue-400'
+              }`}
+            >
+              ⚙️ Settings
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* PAGE CONTENT */}
+      {currentPage === 'planner' && (
+    <div className="flex flex-1 overflow-hidden bg-gray-100"
       {showLibrary && (
         <div 
           className="bg-white shadow-lg p-4 overflow-y-auto relative"
@@ -2915,6 +2974,128 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+    </div>
+    )}
+
+      {/* 📊 DASHBOARD PAGE */}
+      {currentPage === 'dashboard' && (
+        <div className="flex-1 overflow-auto p-8">
+          <h1 className="text-3xl font-bold mb-6">📊 Analytics Dashboard</h1>
+          <p className="text-gray-600 mb-8">Coming soon - comprehensive store analytics and insights!</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Placeholder cards */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-bold mb-2">💰 Total Revenue</h3>
+              <p className="text-3xl font-bold text-green-600">$0</p>
+              <p className="text-sm text-gray-500 mt-2">Last 30 days</p>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-bold mb-2">📦 Total Units Sold</h3>
+              <p className="text-3xl font-bold text-blue-600">0</p>
+              <p className="text-sm text-gray-500 mt-2">Last 30 days</p>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-bold mb-2">🔥 Best Seller</h3>
+              <p className="text-xl font-bold text-purple-600">N/A</p>
+              <p className="text-sm text-gray-500 mt-2">This month</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📈 FORECASTING PAGE */}
+      {currentPage === 'forecasting' && (
+        <div className="flex-1 overflow-auto p-8">
+          <h1 className="text-3xl font-bold mb-6">📈 Demand Forecasting</h1>
+          <p className="text-gray-600 mb-8">AI-powered predictions to prevent stockouts and optimize inventory!</p>
+          
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h3 className="text-xl font-bold mb-4">🤖 Coming Soon Features:</h3>
+            <ul className="space-y-3">
+              <li className="flex items-center gap-2">
+                <span className="text-green-500">✅</span>
+                <span>Predict when products will run out of stock</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-green-500">✅</span>
+                <span>Seasonal demand patterns</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-green-500">✅</span>
+                <span>Recommended reorder quantities</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-green-500">✅</span>
+                <span>Low stock alerts</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-green-500">✅</span>
+                <span>Sales velocity trends</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* ⚙️ SETTINGS PAGE */}
+      {currentPage === 'settings' && (
+        <div className="flex-1 overflow-auto p-8">
+          <h1 className="text-3xl font-bold mb-6">⚙️ Settings</h1>
+          
+          <div className="max-w-2xl space-y-6">
+            {/* Shopify Connection */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold mb-4">🛍️ Shopify Connection</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Store Name</label>
+                  <input
+                    type="text"
+                    value={shopifyConfig.storeName}
+                    onChange={(e) => setShopifyConfig({...shopifyConfig, storeName: e.target.value})}
+                    placeholder="your-store.myshopify.com"
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Admin API Access Token</label>
+                  <input
+                    type="password"
+                    value={shopifyConfig.accessToken}
+                    onChange={(e) => setShopifyConfig({...shopifyConfig, accessToken: e.target.value})}
+                    placeholder="shpat_..."
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <button
+                  onClick={testShopifyConnection}
+                  className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-semibold"
+                >
+                  Test Connection
+                </button>
+                
+                {shopifyConfig.connected && (
+                  <div className="p-3 bg-green-100 text-green-800 rounded">
+                    ✅ Connected
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Additional Settings Placeholder */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold mb-4">🎨 Display Settings</h2>
+              <p className="text-gray-600">More settings coming soon...</p>
+            </div>
           </div>
         </div>
       )}
