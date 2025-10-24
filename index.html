@@ -181,6 +181,7 @@ const PlanogramProfitTracker = () => {
   const [forecastSortBy, setForecastSortBy] = useState('stockoutRisk'); // stockoutRisk, velocity, daysUntilOut, reorderQty
   const [forecastFilterFixture, setForecastFilterFixture] = useState('all'); // specific fixture filter
   const [forecastFilterBrand, setForecastFilterBrand] = useState('all'); // specific brand filter
+  const [forecastFilterDistributor, setForecastFilterDistributor] = useState('all'); // specific distributor filter
   
   // Navigation
   const [currentPage, setCurrentPage] = useState('planner'); // planner, dashboard, forecasting, settings
@@ -674,6 +675,7 @@ const PlanogramProfitTracker = () => {
               inventoryQuantity: data.inventoryQuantity || 0,
               sku: data.sku,
               vendor: data.vendor,
+              distributor: data.distributor,
               tags: data.tags,
               createdAt: data.createdAt,
               analytics: data.analytics || {}
@@ -862,6 +864,7 @@ const PlanogramProfitTracker = () => {
             inventoryQuantity: data.inventoryQuantity || 0,
             sku: data.sku,
             vendor: data.vendor,
+            distributor: data.distributor,
             tags: data.tags,
             createdAt: data.createdAt,
             // 🔥 BEAST MODE Analytics
@@ -3533,53 +3536,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           <div className="mb-6">
             <h1 className="text-3xl font-bold mb-2">📈 Demand Forecasting & Inventory Intelligence</h1>
             <p className="text-gray-600">AI-powered predictions to prevent stockouts and optimize inventory</p>
-            
-            {/* DEBUG: Show vendor field status */}
-            {(() => {
-              const allProds = sections.flatMap(section => {
-                const products = section.rows ? 
-                  section.rows.flatMap(row => row.products || []) : 
-                  (section.products || []);
-                return products;
-              });
-              const withVendor = allProds.filter(p => p.vendor && p.vendor.trim() !== '').length;
-              const totalProds = allProds.length;
-              
-              if (totalProds > 0) {
-                // Show sample product for debugging
-                const sampleProduct = allProds[0];
-                
-                return (
-                  <div className="mt-2 p-4 bg-yellow-50 border-2 border-yellow-400 rounded">
-                    <div className="font-bold text-lg mb-2">🔍 DEBUG: Product Data Analysis</div>
-                    
-                    <div className="text-sm space-y-2">
-                      <div><strong>Total Products:</strong> {totalProds}</div>
-                      <div><strong>Products with Vendor:</strong> {withVendor}</div>
-                      
-                      <div className="mt-3 p-2 bg-white rounded border">
-                        <div className="font-semibold mb-1">Sample Product Fields:</div>
-                        <div className="text-xs font-mono bg-gray-100 p-2 rounded overflow-x-auto max-h-40 overflow-y-auto">
-                          {JSON.stringify(sampleProduct, null, 2)}
-                        </div>
-                      </div>
-                      
-                      {withVendor === 0 && (
-                        <div className="mt-2 p-2 bg-red-100 rounded text-red-800">
-                          ⚠️ <strong>ISSUE:</strong> No products have vendor data! You need to:
-                          <ol className="ml-4 mt-1">
-                            <li>1. Deploy the fixed backend (with tags fix)</li>
-                            <li>2. Go to Settings and click "Refresh Product Cache"</li>
-                            <li>3. Wait for refresh to complete (check Render logs)</li>
-                            <li>4. Come back to Forecasting page</li>
-                          </ol>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-            })()}
           </div>
 
           {/* Filters */}
@@ -3639,6 +3595,33 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   })()}
                 </select>
               </div>
+
+              {/* Specific Distributor Filter */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Filter Distributor</label>
+                <select
+                  value={forecastFilterDistributor}
+                  onChange={(e) => setForecastFilterDistributor(e.target.value)}
+                  className="px-3 py-2 border rounded text-sm min-w-[150px]"
+                >
+                  <option value="all">All Distributors</option>
+                  {(() => {
+                    const allProducts = sections.flatMap(section => {
+                      const products = section.rows ? 
+                        section.rows.flatMap(row => row.products || []) : 
+                        (section.products || []);
+                      return products;
+                    });
+                    const distributors = [...new Set(allProducts.map(p => {
+                      const dist = p.distributor?.trim();
+                      return dist && dist !== '' ? dist : 'Unknown Distributor';
+                    }))].sort();
+                    return distributors.map(dist => (
+                      <option key={dist} value={dist}>{dist}</option>
+                    ));
+                  })()}
+                </select>
+              </div>
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Time Period</label>
@@ -3669,12 +3652,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </div>
 
               {/* Clear Filters Button */}
-              {(forecastFilterFixture !== 'all' || forecastFilterBrand !== 'all') && (
+              {(forecastFilterFixture !== 'all' || forecastFilterBrand !== 'all' || forecastFilterDistributor !== 'all') && (
                 <div className="pt-5">
                   <button
                     onClick={() => {
                       setForecastFilterFixture('all');
                       setForecastFilterBrand('all');
+                      setForecastFilterDistributor('all');
                     }}
                     className="px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600 flex items-center gap-1"
                   >
@@ -3713,6 +3697,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 const vendor = p.vendor?.trim();
                 const brand = vendor && vendor !== '' ? vendor : 'Unknown Brand';
                 return brand === forecastFilterBrand;
+              });
+            }
+
+            if (forecastFilterDistributor !== 'all') {
+              allProducts = allProducts.filter(p => {
+                const dist = p.distributor?.trim();
+                const distributor = dist && dist !== '' ? dist : 'Unknown Distributor';
+                return distributor === forecastFilterDistributor;
               });
             }
 
