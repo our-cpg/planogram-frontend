@@ -195,7 +195,10 @@ const PlanogramProfitTracker = () => {
   const [rowSortBy, setRowSortBy] = useState('profit'); // profit, sales, products, stock
   
   // Navigation
-  const [currentPage, setCurrentPage] = useState('planner'); // planner, dashboard, forecasting, rowAnalytics, settings
+  const [currentPage, setCurrentPage] = useState(() => {
+    // Restore last visited page from localStorage, default to 'planner'
+    return localStorage.getItem('lastVisitedPage') || 'planner';
+  }); // planner, dashboard, forecasting, rowAnalytics, settings
   
   // Firebase states
   const [firebaseConfig, setFirebaseConfig] = useState({
@@ -279,6 +282,11 @@ const PlanogramProfitTracker = () => {
 
     return () => clearInterval(interval);
   }, [autoRefreshEnabled, shopifyConfig.connected]);
+
+  // Save current page to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('lastVisitedPage', currentPage);
+  }, [currentPage]);
 
   // 🔥 KEYBOARD SHORTCUTS for row switching
   useEffect(() => {
