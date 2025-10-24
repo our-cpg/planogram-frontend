@@ -3400,16 +3400,37 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               const withVendor = allProds.filter(p => p.vendor && p.vendor.trim() !== '').length;
               const totalProds = allProds.length;
               
-              if (totalProds > 0 && withVendor === 0) {
+              if (totalProds > 0) {
+                // Show sample product for debugging
+                const sampleProduct = allProds[0];
+                
                 return (
-                  <div className="mt-2 p-3 bg-yellow-100 border border-yellow-400 rounded text-sm">
-                    ⚠️ <strong>Debug Info:</strong> None of your {totalProds} products have vendor data. 
-                    The backend may not be returning the vendor field from Shopify.
-                    {allProds[0] && (
-                      <div className="text-xs mt-1">
-                        Sample product fields: {Object.keys(allProds[0]).join(', ')}
+                  <div className="mt-2 p-4 bg-yellow-50 border-2 border-yellow-400 rounded">
+                    <div className="font-bold text-lg mb-2">🔍 DEBUG: Product Data Analysis</div>
+                    
+                    <div className="text-sm space-y-2">
+                      <div><strong>Total Products:</strong> {totalProds}</div>
+                      <div><strong>Products with Vendor:</strong> {withVendor}</div>
+                      
+                      <div className="mt-3 p-2 bg-white rounded border">
+                        <div className="font-semibold mb-1">Sample Product Fields:</div>
+                        <div className="text-xs font-mono bg-gray-100 p-2 rounded overflow-x-auto max-h-40 overflow-y-auto">
+                          {JSON.stringify(sampleProduct, null, 2)}
+                        </div>
                       </div>
-                    )}
+                      
+                      {withVendor === 0 && (
+                        <div className="mt-2 p-2 bg-red-100 rounded text-red-800">
+                          ⚠️ <strong>ISSUE:</strong> No products have vendor data! You need to:
+                          <ol className="ml-4 mt-1">
+                            <li>1. Deploy the fixed backend (with tags fix)</li>
+                            <li>2. Go to Settings and click "Refresh Product Cache"</li>
+                            <li>3. Wait for refresh to complete (check Render logs)</li>
+                            <li>4. Come back to Forecasting page</li>
+                          </ol>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               }
