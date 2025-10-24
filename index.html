@@ -3194,69 +3194,71 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             </div>
 
             {/* 💰 Revenue by Time Period */}
+            {/* ⏰ When Do People Buy? */}
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-bold mb-4">💰 Revenue Patterns</h2>
-              <p className="text-sm text-gray-500 mb-4">Compare performance across different timeframes</p>
-              <h2 className="text-xl font-bold mb-4">💰 When Do People Spend Most?</h2>
-              <div className="space-y-3">
-                {[
-                  { period: 'day', label: 'Daily Average' },
-                  { period: 'week', label: 'Weekly Average' },
-                  { period: 'month', label: 'Monthly Average' },
-                  { period: 'quarter', label: 'Quarterly Average' },
-                  { period: 'year', label: 'Yearly Average' }
-                ].map(({ period, label }) => {
-                  const total = sections.reduce((sum, s) => {
-                    const metrics = calculateMetrics(s, period);
-                    return sum + metrics.totalRevenue;
-                  }, 0);
-                  const maxPeriod = Math.max(...['day', 'week', 'month', 'quarter', 'year'].map(p => 
-                    sections.reduce((sum, s) => sum + calculateMetrics(s, p).totalRevenue, 0)
-                  ));
-                  const percentage = maxPeriod > 0 ? (total / maxPeriod) * 100 : 0;
-                  
-                  return (
-                    <div key={period} className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium">{label}</span>
-                        <span className="font-bold text-green-600">${total.toFixed(2)}</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                        <div 
-                          className="bg-gradient-to-r from-green-400 to-green-600 h-full rounded-full transition-all"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
+              <h2 className="text-xl font-bold mb-4">⏰ When Do People Buy?</h2>
+              <p className="text-sm text-gray-500 mb-4">Sales patterns by time of day and day of month</p>
+              
+              {/* Placeholder - needs order data */}
+              <div className="space-y-6">
+                <div className="p-8 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg border-2 border-orange-200 text-center">
+                  <div className="text-4xl mb-3">🔥</div>
+                  <div className="font-bold text-lg mb-2">Import Order Data to Unlock</div>
+                  <div className="text-sm text-gray-600 mb-4">
+                    Click the <strong>🔥 Orders</strong> button in Store Planner to analyze:
+                  </div>
+                  <div className="space-y-2 text-left max-w-md mx-auto">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-green-500">✓</span>
+                      <span><strong>Peak Shopping Hours</strong> - Best times for staffing</span>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
-                {(() => {
-                  const revenues = [
-                    { period: 'Daily', value: sections.reduce((sum, s) => sum + calculateMetrics(s, 'day').totalRevenue, 0) },
-                    { period: 'Weekly', value: sections.reduce((sum, s) => sum + calculateMetrics(s, 'week').totalRevenue, 0) },
-                    { period: 'Monthly', value: sections.reduce((sum, s) => sum + calculateMetrics(s, 'month').totalRevenue, 0) },
-                    { period: 'Quarterly', value: sections.reduce((sum, s) => sum + calculateMetrics(s, 'quarter').totalRevenue, 0) },
-                    { period: 'Yearly', value: sections.reduce((sum, s) => sum + calculateMetrics(s, 'year').totalRevenue, 0) }
-                  ];
-                  const peak = revenues.reduce((max, r) => r.value > max.value ? r : max, revenues[0]);
-                  const lowest = revenues.reduce((min, r) => r.value < min.value && r.value > 0 ? r : min, revenues[0]);
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-green-500">✓</span>
+                      <span><strong>Popular Days of Month</strong> - When customers have money</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-green-500">✓</span>
+                      <span><strong>Weekend vs Weekday</strong> - Traffic patterns</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Preview/Example Charts */}
+                <div className="grid grid-cols-2 gap-4 opacity-50">
+                  <div>
+                    <div className="text-sm font-semibold mb-2">📊 Sales by Hour (Preview)</div>
+                    <div className="space-y-1">
+                      {['12am-6am', '6am-9am', '9am-12pm', '12pm-3pm', '3pm-6pm', '6pm-9pm', '9pm-12am'].map((hour, idx) => (
+                        <div key={hour} className="flex items-center gap-2">
+                          <span className="text-xs w-20">{hour}</span>
+                          <div className="flex-1 bg-gray-200 rounded h-4">
+                            <div 
+                              className="bg-blue-400 h-full rounded"
+                              style={{ width: `${[20, 40, 80, 90, 70, 95, 60][idx]}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                   
-                  return (
-                    <>
-                      <strong>💡 Action:</strong> Your <strong>{peak.period.toLowerCase()}</strong> revenue (${peak.value.toFixed(2)}) is strongest.
-                      {peak.period === 'Daily' && ' Run flash sales and daily deals to capitalize on frequent purchases.'}
-                      {peak.period === 'Weekly' && ' Schedule weekly promotions and email campaigns on your best days.'}
-                      {peak.period === 'Monthly' && ' Plan monthly sales events and inventory refreshes.'}
-                      {peak.period === 'Quarterly' && ' Focus on seasonal campaigns and quarterly product launches.'}
-                      {peak.period === 'Yearly' && ' Build loyalty programs and annual memberships.'}
-                      {lowest.value > 0 && lowest.period !== peak.period && (
-                        <> Your {lowest.period.toLowerCase()} is weakest - consider targeted promotions to boost it.</>
-                      )}
-                    </>
-                  );
-                })()}
+                  <div>
+                    <div className="text-sm font-semibold mb-2">📅 Sales by Day of Month (Preview)</div>
+                    <div className="space-y-1">
+                      {['1-5', '6-10', '11-15', '16-20', '21-25', '26-31'].map((days, idx) => (
+                        <div key={days} className="flex items-center gap-2">
+                          <span className="text-xs w-12">{days}</span>
+                          <div className="flex-1 bg-gray-200 rounded h-4">
+                            <div 
+                              className="bg-green-400 h-full rounded"
+                              style={{ width: `${[85, 60, 95, 70, 40, 30][idx]}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
