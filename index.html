@@ -306,14 +306,6 @@ const PlanogramProfitTracker = ({ onLogout }) => {
   const [syncStatus, setSyncStatus] = useState('');
   const [showFirebaseSettings, setShowFirebaseSettings] = useState(false);
   
-  // Authentication states
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [authError, setAuthError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  
   const fileInputRef = useRef(null);
   const importInputRef = useRef(null);
   const upcInputRef = useRef(null); // NEW: For auto-focus after adding product
@@ -372,22 +364,8 @@ const PlanogramProfitTracker = ({ onLogout }) => {
         initializeFirebase();
       }
       
-      // Listen for auth state changes
-      const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
-        setIsLoading(false);
-        if (user) {
-          setCurrentUser(user);
-          setIsAuthenticated(true);
-        } else {
-          setCurrentUser(null);
-          setIsAuthenticated(false);
-        }
-      });
-      
-      return () => unsubscribe();
     } catch (error) {
       console.error('Error loading saved data:', error);
-      setIsLoading(false);
     }
   }, []);
 
