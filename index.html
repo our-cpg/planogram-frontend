@@ -149,7 +149,7 @@ const PlanogramProfitTracker = () => {
   });
   
   const [showLibrary, setShowLibrary] = useState(true);
-  const [heatMapMode, setHeatMapMode] = useState(false);
+  const [heatMapMode, setHeatMapMode] = useState(true); // Heat map ON by default
   const [timePeriod, setTimePeriod] = useState('month'); // day, week, month, quarter, custom
   const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' });
   const [backgroundImage, setBackgroundImage] = useState(null);
