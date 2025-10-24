@@ -126,6 +126,15 @@ const getHandlePosition = (position) => {
 };
 
 const PlanogramProfitTracker = () => {
+  // Authentication state
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  
   const [fixtures, setFixtures] = useState([]);
   const [selectedFixture, setSelectedFixture] = useState(null);
   const [sections, setSections] = useState([]);
@@ -214,6 +223,14 @@ const PlanogramProfitTracker = () => {
   const [syncStatus, setSyncStatus] = useState('');
   const [showFirebaseSettings, setShowFirebaseSettings] = useState(false);
   
+  // Authentication states
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  
   const fileInputRef = useRef(null);
   const importInputRef = useRef(null);
   const upcInputRef = useRef(null); // NEW: For auto-focus after adding product
@@ -233,6 +250,31 @@ const PlanogramProfitTracker = () => {
     '456789012345': { name: 'Gourmet Cookies', price: 8.99, cost: 4.00, monthlySales: 312 },
     '567890123456': { name: 'Specialty Honey', price: 15.99, cost: 7.50, monthlySales: 67 },
   };
+
+  // Authentication listener
+  useEffect(() => {
+    const auth = firebase.auth();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUser(user);
+      setAuthLoading(false);
+      
+      if (user) {
+        // Load user-specific Shopify config from Firestore
+        const db = firebase.firestore();
+        db.collection('users').doc(user.uid).get()
+          .then((doc) => {
+            if (doc.exists && doc.data().shopifyConfig) {
+              setShopifyConfig(doc.data().shopifyConfig);
+            }
+          })
+          .catch((error) => {
+            console.error('Error loading user config:', error);
+          });
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     try {
@@ -266,8 +308,28 @@ const PlanogramProfitTracker = () => {
       if (savedLastOrders) {
         setLastOrdersRefresh(new Date(savedLastOrders));
       }
+      
+      // Initialize Firebase and check auth state
+      if (!firebaseInitialized) {
+        initializeFirebase();
+      }
+      
+      // Listen for auth state changes
+      const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+        setIsLoading(false);
+        if (user) {
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+        } else {
+          setCurrentUser(null);
+          setIsAuthenticated(false);
+        }
+      });
+      
+      return () => unsubscribe();
     } catch (error) {
       console.error('Error loading saved data:', error);
+      setIsLoading(false);
     }
   }, []);
 
@@ -379,6 +441,56 @@ const PlanogramProfitTracker = () => {
     }
   };
 
+  // Authentication Functions
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    
+    try {
+      const auth = firebase.auth();
+      const userCredential = await auth.createUserWithEmailAndPassword(authEmail, authPassword);
+      setUser(userCredential.user);
+      setShowAuthModal(false);
+      setAuthEmail('');
+      setAuthPassword('');
+    } catch (error) {
+      setAuthError(error.message);
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    
+    try {
+      const auth = firebase.auth();
+      const userCredential = await auth.signInWithEmailAndPassword(authEmail, authPassword);
+      setUser(userCredential.user);
+      setShowAuthModal(false);
+      setAuthEmail('');
+      setAuthPassword('');
+    } catch (error) {
+      setAuthError(error.message);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const auth = firebase.auth();
+      await auth.signOut();
+      setUser(null);
+      // Clear sensitive data
+      setShopifyConfig({
+        storeName: '',
+        accessToken: '',
+        connected: false
+      });
+      localStorage.removeItem('planogram_shopify');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
   const saveToFirebase = async (sectionsData) => {
     if (!dbRef.current || !cloudSyncEnabled) return;
 
@@ -399,6 +511,75 @@ const PlanogramProfitTracker = () => {
       console.error('Firebase save error:', error);
     }
   };
+
+  // Authentication Functions
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    
+    try {
+      if (!firebaseInitialized) {
+        initializeFirebase();
+      }
+      
+      const auth = firebase.auth();
+      const userCredential = await auth.signInWithEmailAndPassword(loginEmail, loginPassword);
+      setCurrentUser(userCredential.user);
+      setIsAuthenticated(true);
+      
+      // Load user's Shopify config from Firestore
+      const userDoc = await dbRef.current.collection('users').doc(userCredential.user.uid).get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        if (userData.shopifyConfig) {
+          setShopifyConfig(userData.shopifyConfig);
+        }
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setAuthError(error.message);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await firebase.auth().signOut();
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      setLoginEmail('');
+      setLoginPassword('');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    
+    try {
+      if (!firebaseInitialized) {
+        initializeFirebase();
+      }
+      
+      const auth = firebase.auth();
+      const userCredential = await auth.createUserWithEmailAndPassword(loginEmail, loginPassword);
+      
+      // Create user document in Firestore
+      await dbRef.current.collection('users').doc(userCredential.user.uid).set({
+        email: loginEmail,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        role: 'viewer' // Default role
+      });
+      
+      setCurrentUser(userCredential.user);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error('Signup error:', error);
+      setAuthError(error.message);
+    }
+  };
+
 
   const loadFromFirebase = async () => {
     if (!dbRef.current) return;
@@ -634,7 +815,19 @@ const PlanogramProfitTracker = () => {
       if (response.ok && data.success) {
         const updatedConfig = { ...shopifyConfig, connected: true };
         setShopifyConfig(updatedConfig);
-        localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
+        
+        // Save to Firestore if user is authenticated
+        if (user) {
+          const db = firebase.firestore();
+          await db.collection('users').doc(user.uid).set({
+            shopifyConfig: updatedConfig,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        } else {
+          // Fallback to localStorage for non-authenticated users
+          localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
+        }
+        
         setFeedback(`✅ Connected!`);
         setTimeout(() => {
           setFeedback('');
@@ -658,7 +851,18 @@ const PlanogramProfitTracker = () => {
       connected: false
     };
     setShopifyConfig(updatedConfig);
-    localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
+    
+    // Clear from Firestore if user is authenticated
+    if (user) {
+      const db = firebase.firestore();
+      db.collection('users').doc(user.uid).set({
+        shopifyConfig: updatedConfig,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    } else {
+      localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
+    }
+    
     setFeedback('✅ Disconnected');
     setTimeout(() => setFeedback(''), 2000);
   };
@@ -1995,74 +2199,95 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
   const salesStatus = getRefreshStatus(lastSalesRefresh, 7); // 7 days for sales
   const ordersStatus = getRefreshStatus(lastOrdersRefresh, 7); // 7 days for orders
 
-  return (
-    <div className="flex flex-col h-screen bg-gray-100">
-      {/* 🔥 NAVIGATION MENU */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
-        <div className="flex items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-3">
+  // Show loading spinner while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login screen if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+          <div className="text-center mb-8">
             <img 
               src="data:image/png;base64,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w4cOHDhw4cOHDhw4cOHDhw4cOHDhw4cOHDhw4cOHDhw4cOHDhw4cOHDIwAUYl0Jn/d5g9BzDOJTX30/WXy3vVrvUvDPfBDNIDMgCyccV8O8TXQGYfCQb+46PTapIEbwuAK5vAHhphPQlvEkCfs0UdWiy20W0arien1Dhw4cOHDhw4cOHDhw4cOHDhw4cOHDhw4cOHDhwySioUJaK8JA+XK1tWpjIgXGWHpgqg2vSYiwMrmbGeLI/wFckTiRPT1/Er/kt/71SYb61wGTjSoMmxirZR2N4akAu5vNbX06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dHSEMm2Jl/LSK8AAU1YL4kIkIUWny4A73Ah6Ck0SMkjrvvwpHC/lu9qX0aDKJTWiE8HMj8P427C3OzaRUDAXL2IGV+HDhw4cOHDhw4cOHDhw4cOHDhw4cOHDhw4cOHDhw4cOHDJlARlP/tzO0VO6V85QGgCkE11W9IyibF4NPtrva7CsldKP6i+Fh5rPqr3RTuMcvCkSq+adsgPWchjZWiKXRGk4CbkhJmenp9Q4cOHDhw4cOHDhw4cOHDhw4cOHDhw4cOHDhw4cOHDhw6qaiVea2vp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnTp06dOnT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"
-              alt="Ceries"
-              className="h-10"
+              alt="Store Planner Pro"
+              className="h-20 mx-auto mb-4"
             />
+            <h1 className="text-3xl font-bold text-gray-800">Store Planner Pro</h1>
+            <p className="text-gray-600 mt-2">Sign in to access your planogram</p>
           </div>
           
-          <div className="flex gap-2">
+          {authError && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {authError}
+            </div>
+          )}
+          
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="your@email.com"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+            
             <button
-              onClick={() => setCurrentPage('planner')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                currentPage === 'planner'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-blue-500 text-white hover:bg-blue-400'
-              }`}
+              type="submit"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
             >
-              🗺️ Store Planner
+              Sign In
             </button>
-            <button
-              onClick={() => setCurrentPage('dashboard')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                currentPage === 'dashboard'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-blue-500 text-white hover:bg-blue-400'
-              }`}
-            >
-              📊 Dashboard
-            </button>
-            <button
-              onClick={() => setCurrentPage('forecasting')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                currentPage === 'forecasting'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-blue-500 text-white hover:bg-blue-400'
-              }`}
-            >
-              📈 Forecasting
-            </button>
-            <button
-              onClick={() => setCurrentPage('rowAnalytics')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                currentPage === 'rowAnalytics'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-blue-500 text-white hover:bg-blue-400'
-              }`}
-            >
-              📊 Row Analytics
-            </button>
-            <button
-              onClick={() => setCurrentPage('settings')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                currentPage === 'settings'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-blue-500 text-white hover:bg-blue-400'
-              }`}
-            >
-              ⚙️ Settings
-            </button>
+            
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={handleSignup}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              >
+                Don't have an account? Sign up
+              </button>
+            </div>
+          </form>
+          
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <p className="text-xs text-gray-500 text-center">
+              🔒 Secured with Firebase Authentication<br/>
+              Your Shopify credentials are encrypted and stored securely
+            </p>
           </div>
         </div>
       </div>
+    );
+  }
 
+  return (
+    <div className="flex flex-col h-screen bg-gray-100">
       {/* PAGE CONTENT */}
       {currentPage === 'planner' && (
     <div className="flex flex-1 overflow-hidden bg-gray-100">
@@ -2318,14 +2543,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 <option value="all">All Time</option>
               </select>
             </div>
-
-            <button
-              onClick={() => setShowVisualMode(!showVisualMode)}
-              className={`px-3 py-2 rounded flex items-center gap-2 text-sm ${showVisualMode ? 'bg-purple-500 text-white' : 'bg-gray-200'}`}
-            >
-              <Icons.Eye />
-              Visual
-            </button>
 
             <input type="file" ref={fileInputRef} onChange={handleBackgroundUpload} accept="image/*" className="hidden" />
             
