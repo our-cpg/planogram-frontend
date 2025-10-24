@@ -212,6 +212,7 @@ const PlanogramProfitTracker = () => {
   const dbRef = useRef(null);
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [mouseDownPos, setMouseDownPos] = useState(null); // Track if this is a click or drag
   const canvasRef = useRef(null);
   
   const BACKEND_URL = 'https://planogram-backend-gx85.onrender.com';
@@ -496,6 +497,9 @@ const PlanogramProfitTracker = () => {
   };
 
   const handleCanvasMouseDown = (e) => {
+    // Track where the mouse went down
+    setMouseDownPos({ x: e.clientX, y: e.clientY });
+    
     // Only pan if clicking on the canvas itself (not fixtures or other elements)
     if (e.target === e.currentTarget || e.target.classList.contains('bg-gray-50')) {
       setIsPanning(true);
@@ -503,9 +507,6 @@ const PlanogramProfitTracker = () => {
         x: e.clientX - panOffset.x, 
         y: e.clientY - panOffset.y 
       });
-      
-      // Deselect any selected section when clicking on empty space
-      setSelectedSection(null);
     }
   };
 
@@ -518,8 +519,27 @@ const PlanogramProfitTracker = () => {
     }
   };
 
-  const handleCanvasMouseUp = () => {
+  const handleCanvasMouseUp = (e) => {
     setIsPanning(false);
+    
+    // If we didn't move much (less than 5 pixels), treat it as a click and deselect
+    if (mouseDownPos) {
+      const dx = Math.abs(e.clientX - mouseDownPos.x);
+      const dy = Math.abs(e.clientY - mouseDownPos.y);
+      
+      if (dx < 5 && dy < 5) {
+        // This was a click, not a drag - deselect if not clicking on a fixture
+        const clickedElement = document.elementFromPoint(e.clientX, e.clientY);
+        const isFixture = clickedElement?.closest('[data-fixture-id]');
+        
+        if (!isFixture) {
+          setSelectedSection(null);
+          setSelectedProduct(null);
+        }
+      }
+      
+      setMouseDownPos(null);
+    }
   };
 
   const testShopifyConnection = async () => {
@@ -1766,6 +1786,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
     return (
       <div
+        data-fixture-id={fixture.id}
         style={{
           position: 'absolute',
           left: fixture.x,
