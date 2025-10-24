@@ -2184,20 +2184,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
   const salesStatus = getRefreshStatus(lastSalesRefresh, 7); // 7 days for sales
   const ordersStatus = getRefreshStatus(lastOrdersRefresh, 7); // 7 days for orders
 
-  // Show loading spinner while checking auth
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show login screen if not authenticated
-  if (!isAuthenticated) {
+  // Authentication removed - handled by wrapper
+  if (false) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500">
         <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
