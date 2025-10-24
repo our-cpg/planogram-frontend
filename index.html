@@ -623,6 +623,129 @@ const PlanogramProfitTracker = () => {
     }
   };
 
+  const refreshAllProductData = async () => {
+    if (!shopifyConfig.connected) {
+      setFeedback('⚠️ Connect to Shopify first');
+      setTimeout(() => setFeedback(''), 3000);
+      return;
+    }
+
+    setIsRefreshing(true);
+    setFeedback('🔄 Refreshing all product data... Please wait.');
+
+    try {
+      // Gather all unique UPCs from all sections
+      const allUPCs = new Set();
+      sections.forEach(section => {
+        const products = section.rows ? 
+          section.rows.flatMap(row => row.products || []) : 
+          (section.products || []);
+        products.forEach(p => {
+          if (p.upc) allUPCs.add(p.upc);
+        });
+      });
+
+      const upcArray = Array.from(allUPCs);
+      console.log(`🔍 Found ${upcArray.length} unique products to refresh`);
+      setFeedback(`🔄 Refreshing ${upcArray.length} products...`);
+
+      // Fetch fresh data for each UPC
+      const freshProductData = {};
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (let i = 0; i < upcArray.length; i++) {
+        const upc = upcArray[i];
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/product/${upc}`);
+          if (response.ok) {
+            const data = await response.json();
+            freshProductData[upc] = {
+              name: data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title,
+              price: data.price,
+              compareAtPrice: data.compareAtPrice,
+              cost: data.cost,
+              dailySales: data.dailySales || 0,
+              weeklySales: data.weeklySales || 0,
+              monthlySales: data.monthlySales || 0,
+              quarterlySales: data.quarterlySales || 0,
+              yearlySales: data.yearlySales || 0,
+              allTimeSales: data.allTimeSales || 0,
+              inventoryQuantity: data.inventoryQuantity || 0,
+              sku: data.sku,
+              vendor: data.vendor,
+              tags: data.tags,
+              createdAt: data.createdAt,
+              analytics: data.analytics || {}
+            };
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (error) {
+          console.error(`Failed to fetch ${upc}:`, error);
+          errorCount++;
+        }
+
+        // Update feedback every 10 products
+        if ((i + 1) % 10 === 0) {
+          setFeedback(`🔄 Progress: ${i + 1}/${upcArray.length} products...`);
+        }
+      }
+
+      console.log(`✅ Fetched fresh data for ${successCount} products (${errorCount} errors)`);
+      setFeedback(`🔄 Updating products in planogram...`);
+
+      // Update all products in sections with fresh data
+      const updatedSections = sections.map(section => {
+        if (section.rows) {
+          // Update products in rows
+          const updatedRows = section.rows.map(row => ({
+            ...row,
+            products: (row.products || []).map(product => {
+              if (product.upc && freshProductData[product.upc]) {
+                return {
+                  ...product,
+                  ...freshProductData[product.upc],
+                  source: 'database'
+                };
+              }
+              return product;
+            })
+          }));
+          return { ...section, rows: updatedRows };
+        } else if (section.products) {
+          // Update products directly in section
+          const updatedProducts = section.products.map(product => {
+            if (product.upc && freshProductData[product.upc]) {
+              return {
+                ...product,
+                ...freshProductData[product.upc],
+                source: 'database'
+              };
+            }
+            return product;
+          });
+          return { ...section, products: updatedProducts };
+        }
+        return section;
+      });
+
+      setSections(updatedSections);
+      autoSave(updatedSections, 'Refreshed all product data');
+      
+      setFeedback(`✅ Success! Updated ${successCount} products with fresh data (${errorCount} failed)`);
+      setTimeout(() => setFeedback(''), 5000);
+
+    } catch (error) {
+      console.error('Error refreshing product data:', error);
+      setFeedback('❌ Failed to refresh product data');
+      setTimeout(() => setFeedback(''), 5000);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const refreshSalesOnly = async () => {
     if (!shopifyConfig.connected || !shopifyConfig.accessToken) {
       setFeedback('⚠️ Connect to Shopify first');
@@ -3009,13 +3132,23 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
             {shopifyConfig.connected && (
               <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-                <div className="font-semibold mb-1">💡 About Product Cache Refresh:</div>
-                <ul className="text-xs space-y-1 text-gray-700">
-                  <li>• Takes 3-5 minutes for large catalogs (1000+ products)</li>
-                  <li>• Updates vendor/brand data, prices, inventory, and sales</li>
-                  <li>• Check your Render backend logs to watch progress</li>
-                  <li>• You'll see a success message when complete</li>
-                </ul>
+                <div className="font-semibold mb-2">💡 Two Refresh Options:</div>
+                <div className="space-y-2 text-xs text-gray-700">
+                  <div className="p-2 bg-white rounded border border-blue-200">
+                    <div className="font-semibold text-blue-700">🔄 Refresh Product Cache</div>
+                    <div>• Updates the backend database with ALL products from Shopify</div>
+                    <div>• Takes 3-5 minutes for large catalogs</div>
+                    <div>• Run this FIRST if you just deployed backend updates</div>
+                    <div>• Watch progress in Render logs</div>
+                  </div>
+                  <div className="p-2 bg-white rounded border border-green-200">
+                    <div className="font-semibold text-green-700">🔄 Update My Products</div>
+                    <div>• Updates products in YOUR planogram with latest data</div>
+                    <div>• Adds vendor/brand info to existing products</div>
+                    <div>• Takes ~1 minute (only updates what's in your fixtures)</div>
+                    <div>• <strong>Keeps all your layout work!</strong></div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -3065,6 +3198,18 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     >
                       <Icons.RefreshCw />
                       {isRefreshing ? 'Refreshing... (Check Render Logs)' : 'Refresh Product Cache'}
+                    </button>
+                    <button
+                      onClick={refreshAllProductData}
+                      disabled={isRefreshing}
+                      className={`flex-1 px-4 py-2 rounded flex items-center justify-center gap-2 ${
+                        isRefreshing 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-green-500 hover:bg-green-600'
+                      } text-white`}
+                    >
+                      <Icons.RefreshCw />
+                      {isRefreshing ? 'Updating...' : 'Update My Products'}
                     </button>
                     <button
                       onClick={disconnectShopify}
