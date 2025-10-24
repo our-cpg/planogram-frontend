@@ -169,6 +169,7 @@ const PlanogramProfitTracker = () => {
   const [lastOrdersRefresh, setLastOrdersRefresh] = useState(null);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [showRefreshPrompt, setShowRefreshPrompt] = useState(false);
+  const [stickyRowMode, setStickyRowMode] = useState(true); // NEW: Keep row selected
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [heatMapType, setHeatMapType] = useState('profit'); // profit, velocity, deadStock, margin, stockHealth
   const [showHeatMapGuide, setShowHeatMapGuide] = useState(false);
@@ -212,6 +213,7 @@ const PlanogramProfitTracker = () => {
   
   const fileInputRef = useRef(null);
   const importInputRef = useRef(null);
+  const upcInputRef = useRef(null); // NEW: For auto-focus after adding product
   const firebaseRef = useRef(null);
   const dbRef = useRef(null);
   const [zoom, setZoom] = useState(1);
@@ -277,6 +279,47 @@ const PlanogramProfitTracker = () => {
 
     return () => clearInterval(interval);
   }, [autoRefreshEnabled, shopifyConfig.connected]);
+
+  // 🔥 KEYBOARD SHORTCUTS for row switching
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Only when UPC input is focused and sticky mode is on
+      if (!stickyRowMode || !newProduct.sectionId) return;
+      
+      // Ctrl+Up: Switch to previous row
+      if (e.ctrlKey && e.key === 'ArrowUp') {
+        e.preventDefault();
+        const section = sections.find(s => s.id === newProduct.sectionId);
+        if (!section?.rows) return;
+        
+        const currentRowIndex = section.rows.findIndex(r => r.id === newProduct.rowId);
+        if (currentRowIndex > 0) {
+          const prevRow = section.rows[currentRowIndex - 1];
+          setNewProduct({ ...newProduct, rowId: prevRow.id });
+          setFeedback(`⬆️ Switched to: ${prevRow.name}`);
+          setTimeout(() => setFeedback(''), 1500);
+        }
+      }
+      
+      // Ctrl+Down: Switch to next row
+      if (e.ctrlKey && e.key === 'ArrowDown') {
+        e.preventDefault();
+        const section = sections.find(s => s.id === newProduct.sectionId);
+        if (!section?.rows) return;
+        
+        const currentRowIndex = section.rows.findIndex(r => r.id === newProduct.rowId);
+        if (currentRowIndex < section.rows.length - 1) {
+          const nextRow = section.rows[currentRowIndex + 1];
+          setNewProduct({ ...newProduct, rowId: nextRow.id });
+          setFeedback(`⬇️ Switched to: ${nextRow.name}`);
+          setTimeout(() => setFeedback(''), 1500);
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [stickyRowMode, newProduct, sections]);
 
   const autoSave = (updatedSections, message = 'Auto-saved') => {
     try {
@@ -1006,7 +1049,20 @@ const PlanogramProfitTracker = () => {
     autoSave(updatedSections, 'Auto-saved after adding product');
 
     setScanning(false);
-    setNewProduct({ upc: '', sectionId: '', rowId: '' });
+    
+    // 🔥 STICKY ROW MODE: Keep section and row selected, only clear UPC
+    if (stickyRowMode) {
+      setNewProduct({ 
+        upc: '', 
+        sectionId: newProduct.sectionId, 
+        rowId: newProduct.rowId 
+      });
+      // Auto-focus UPC input for next scan
+      setTimeout(() => upcInputRef.current?.focus(), 100);
+    } else {
+      setNewProduct({ upc: '', sectionId: '', rowId: '' });
+    }
+    
     setTimeout(() => setFeedback(''), 3000);
   };
 
@@ -3202,8 +3258,51 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       </div>
                     </div>
 
+                    {/* 🔥 STICKY ROW MODE CONTROLS */}
                     <div className="space-y-2 mb-3 border-t pt-3">
+                      {/* Sticky Mode Toggle */}
+                      <div className="flex items-center justify-between p-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded border border-blue-200">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">🔒 Sticky Row Mode</span>
+                          <button
+                            onClick={() => setStickyRowMode(!stickyRowMode)}
+                            className={`px-3 py-1 rounded text-xs font-bold transition-all ${
+                              stickyRowMode 
+                                ? 'bg-green-500 text-white' 
+                                : 'bg-gray-300 text-gray-600'
+                            }`}
+                          >
+                            {stickyRowMode ? 'ON' : 'OFF'}
+                          </button>
+                        </div>
+                        {stickyRowMode && newProduct.rowId && (
+                          <span className="text-xs text-green-600 font-semibold">
+                            ✓ Row locked
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Current Row Indicator */}
+                      {newProduct.rowId && (
+                        <div className="p-3 bg-yellow-50 border-2 border-yellow-300 rounded">
+                          <div className="text-xs text-gray-600 mb-1">Scanning into:</div>
+                          <div className="text-lg font-bold text-yellow-800">
+                            {(() => {
+                              const section = sections.find(s => s.id === newProduct.sectionId);
+                              const row = section?.rows?.find(r => r.id === newProduct.rowId);
+                              return row ? `${section.name} - ${row.name}` : 'Unknown Row';
+                            })()}
+                          </div>
+                          {stickyRowMode && (
+                            <div className="text-xs text-yellow-600 mt-1">
+                              Keep scanning! Row stays selected.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
                       <input
+                        ref={upcInputRef}
                         type="text"
                         placeholder="Scan or enter UPC (select a row first)"
                         value={selectedSection === section.id ? newProduct.upc : ''}
