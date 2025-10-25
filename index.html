@@ -151,6 +151,7 @@ const PlanogramProfitTracker = () => {
     accessToken: '',
     connected: false
   });
+  const [firebaseReady, setFirebaseReady] = useState(false);
 
   // Initialize Firebase on mount
   useEffect(() => {
@@ -159,10 +160,12 @@ const PlanogramProfitTracker = () => {
         if (window.firebaseService) {
           await window.firebaseService.initialize();
           await window.firebaseService.signInAnonymously();
+          setFirebaseReady(true);
           console.log('Firebase ready');
         }
       } catch (error) {
         console.error('Firebase init failed:', error);
+        setFirebaseReady(false);
       }
     };
     initFirebase();
@@ -170,8 +173,13 @@ const PlanogramProfitTracker = () => {
 
   // Save to Firebase Cloud
   const saveToCloud = async () => {
+    if (!firebaseReady) {
+      alert('Firebase not ready. Please wait a moment and try again.');
+      return;
+    }
+
     if (!window.firebaseService || !window.firebaseService.isAuthenticated()) {
-      alert('Firebase not ready. Please refresh the page.');
+      alert('Firebase authentication failed. Please refresh the page.');
       return;
     }
 
@@ -198,8 +206,13 @@ const PlanogramProfitTracker = () => {
 
   // Load from Firebase Cloud
   const loadFromCloud = async () => {
+    if (!firebaseReady) {
+      alert('Firebase not ready. Please wait a moment and try again.');
+      return;
+    }
+
     if (!window.firebaseService || !window.firebaseService.isAuthenticated()) {
-      alert('Firebase not ready. Please refresh the page.');
+      alert('Firebase authentication failed. Please refresh the page.');
       return;
     }
 
