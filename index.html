@@ -689,8 +689,17 @@ const PlanogramProfitTracker = () => {
     // Track where the mouse went down
     setMouseDownPos({ x: e.clientX, y: e.clientY });
     
-    // Only pan if clicking on the canvas itself (not fixtures or other elements)
-    if (e.target === e.currentTarget || e.target.classList.contains('bg-gray-50')) {
+    // Pan with middle mouse button (button 1) or spacebar + left click
+    if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+      e.preventDefault();
+      setIsPanning(true);
+      setPanStart({ 
+        x: e.clientX - panOffset.x, 
+        y: e.clientY - panOffset.y 
+      });
+    }
+    // Also allow panning on empty canvas
+    else if (e.target === e.currentTarget || e.target.classList.contains('bg-gray-50')) {
       setIsPanning(true);
       setPanStart({ 
         x: e.clientX - panOffset.x, 
@@ -2684,7 +2693,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           ref={canvasRef}
           className="flex-1 relative overflow-hidden bg-gray-50"
           style={{ 
-            cursor: isPanning ? 'grabbing' : (isDraggingBg ? 'grabbing' : 'grab'),
+            cursor: isPanning ? 'grabbing' : (isDraggingBg ? 'grabbing' : 'default'),
             backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
             backgroundSize: '20px 20px'
           }}
