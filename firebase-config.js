@@ -10,21 +10,10 @@ const firebaseConfig = {
   databaseURL: "https://storeplannerpro-default-rtdb.firebaseio.com"
 };
 
-// Initialize Firebase
-let app, db, auth;
-
-function initializeFirebase() {
-  if (!firebase.apps.length) {
-    app = firebase.initializeApp(firebaseConfig);
-    db = firebase.database();
-    auth = firebase.auth();
-    console.log('Firebase initialized successfully');
-  }
-  return { app, db, auth };
+// Initialize Firebase immediately
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+  console.log('Firebase initialized successfully');
+} else {
+  console.log('Firebase already initialized');
 }
-
-// Export for use in other modules
-window.FirebaseConfig = {
-  config: firebaseConfig,
-  initialize: initializeFirebase
-};
