@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Planner Pro - Firebase Integration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #ecf0f1;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #e74c3c;
+        }
+
+        .status-indicator.connected {
+            background: #2ecc71;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ecf0f1;
+            border-radius: 8px;
+        }
+
+        .section h2 {
+            color: #34495e;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 400px;
+        }
+
+        input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background: #95a5a6;
+        }
+
+        button.secondary:hover {
+            background: #7f8c8d;
+        }
+
+        button.success {
+            background: #2ecc71;
+        }
+
+        button.success:hover {
+            background: #27ae60;
+        }
+
+        button.danger {
+            background: #e74c3c;
+        }
+
+        button.danger:hover {
+            background: #c0392b;
+        }
+
+        .planogram-list {
+            display: grid;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .planogram-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .planogram-info h3 {
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .planogram-info p {
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+
+        .log-area {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+        }
+
+        .log-entry.error {
+            color: #e74c3c;
+        }
+
+        .log-entry.success {
+            color: #2ecc71;
+        }
+
+        .instructions {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .instructions h3 {
+            color: #2980b9;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            color: #34495e;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .auto-save-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #fff3cd;
+            border-radius: 20px;
+            font-size: 13px;
+            color: #856404;
+        }
+
+        .auto-save-status.active {
+            background: #d4edda;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏪 Store Planner Pro - Firebase Integration</h1>
+        <p class="subtitle">Save your planograms, fixtures, and product data to the cloud</p>
+
+        <div class="status-bar">
+            <div class="status">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="statusText">Not connected</span>
+            </div>
+            <div class="auto-save-status" id="autoSaveStatus">
+                Auto-save: Disabled
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>🚀 Quick Setup Instructions</h3>
+            <ol>
+                <li>Create a Firebase project at <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a></li>
+                <li>Enable <strong>Realtime Database</strong> and <strong>Authentication</strong> (Email/Password & Anonymous)</li>
+                <li>Copy your Firebase config and update <code>firebase-config.js</code></li>
+                <li>Add these script tags to your Store Planner Pro HTML:</li>
+            </ol>
+            <div class="code-block">
+&lt;!-- Firebase SDK --&gt;
+&lt;script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"&gt;&lt;/script&gt;
+&lt;script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"&gt;&lt;/script&gt;
+&lt;script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"&gt;&lt;/script&gt;
+
+&lt;!-- Your Firebase integration --&gt;
+&lt;script src="firebase-config.js"&gt;&lt;/script&gt;
+&lt;script src="firebase-service.js"&gt;&lt;/script&gt;
+            </div>
+        </div>
+
+        <!-- Authentication Section -->
+        <div class="section">
+            <h2>🔐 Authentication</h2>
+            <div class="auth-form" id="authForm">
+                <input type="email" id="emailInput" placeholder="Email (optional - for account sync)">
+                <input type="password" id="passwordInput" placeholder="Password">
+                <div class="button-group">
+                    <button onclick="signInAnonymously()">Quick Start (Anonymous)</button>
+                    <button onclick="signInWithEmail()" class="secondary">Sign In</button>
+                    <button onclick="createAccount()" class="secondary">Create Account</button>
+                    <button onclick="signOut()" class="danger">Sign Out</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Planogram Management Section -->
+        <div class="section">
+            <h2>📐 Planogram Management</h2>
+            <div class="button-group">
+                <button onclick="saveCurrentPlanogram()" class="success">💾 Save Current Planogram</button>
+                <button onclick="loadPlanograms()">📂 Load Planograms</button>
+                <button onclick="testSavePlanogram()" class="secondary">🧪 Test Save</button>
+            </div>
+            <div class="planogram-list" id="planogramList"></div>
+        </div>
+
+        <!-- Data Management Section -->
+        <div class="section">
+            <h2>🗄️ Data Management</h2>
+            <div class="button-group">
+                <button onclick="saveProductCache()">Save Product Cache</button>
+                <button onclick="loadProductCache()">Load Product Cache</button>
+                <button onclick="saveFixtures()">Save Fixtures</button>
+                <button onclick="loadFixtures()">Load Fixtures</button>
+            </div>
+        </div>
+
+        <!-- Auto-Save Section -->
+        <div class="section">
+            <h2>⏰ Auto-Save</h2>
+            <div class="button-group">
+                <button onclick="startAutoSave()" class="success">Start Auto-Save (Every 2 min)</button>
+                <button onclick="stopAutoSave()" class="danger">Stop Auto-Save</button>
+            </div>
+        </div>
+
+        <!-- Backup Section -->
+        <div class="section">
+            <h2>💾 Backup & Export</h2>
+            <div class="button-group">
+                <button onclick="downloadBackup()">Download Full Backup</button>
+                <button onclick="exportAllData()">Export Data (Console)</button>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="section">
+            <h2>📋 Activity Log</h2>
+            <div class="log-area" id="logArea"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+    <!-- Firebase Configuration and Service -->
+    <script src="firebase-config.js"></script>
+    <script src="firebase-service.js"></script>
+
+    <script>
+        // Initialize Firebase service
+        let service;
+        
+        window.addEventListener('load', async () => {
+            service = window.firebaseService;
+            await service.initialize();
+            log('Firebase service initialized', 'success');
+            updateConnectionStatus();
+        });
+
+        // Update UI connection status
+        function updateConnectionStatus() {
+            const indicator = document.getElementById('statusIndicator');
+            const text = document.getElementById('statusText');
+            
+            if (service && service.isAuthenticated()) {
+                indicator.classList.add('connected');
+                text.textContent = 'Connected - User ID: ' + service.userId.substring(0, 8) + '...';
+            } else {
+                indicator.classList.remove('connected');
+                text.textContent = 'Not connected';
+            }
+        }
+
+        // Logging function
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('logArea');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logArea.insertBefore(entry, logArea.firstChild);
+            console.log(message);
+        }
+
+        // Authentication functions
+        async function signInAnonymously() {
+            const success = await service.signInAnonymously();
+            if (success) {
+                log('Signed in anonymously', 'success');
+                updateConnectionStatus();
+            } else {
+                log('Failed to sign in anonymously', 'error');
+            }
+        }
+
+        async function signInWithEmail() {
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            
+            if (!email || !password) {
+                log('Please enter email and password', 'error');
+                return;
+            }
+
+            try {
+                await service.signInWithEmail(email, password);
+                log('Signed in with email: ' + email, 'success');
+                updateConnectionStatus();
+            } catch (error) {
+                log('Sign in failed: ' + error.message, 'error');
+            }
+        }
+
+        async function createAccount() {
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            
+            if (!email || !password) {
+                log('Please enter email and password', 'error');
+                return;
+            }
+
+            try {
+                await service.createAccount(email, password);
+                log('Account created: ' + email, 'success');
+                updateConnectionStatus();
+            } catch (error) {
+                log('Account creation failed: ' + error.message, 'error');
+            }
+        }
+
+        async function signOut() {
+            await service.signOut();
+            log('Signed out', 'success');
+            updateConnectionStatus();
+        }
+
+        // Planogram functions
+        async function saveCurrentPlanogram() {
+            if (!service.isAuthenticated()) {
+                log('Please sign in first', 'error');
+                return;
+            }
+
+            // This is where you'd get your actual planogram data
+            // For now, using example data
+            const planogramData = {
+                name: 'Store Layout ' + new Date().toLocaleDateString(),
+                storeWidth: 1000,
+                storeHeight: 800,
+                fixtures: [], // Your actual fixtures
+                products: [], // Your actual products
+                sections: []  // Your actual sections
+            };
+
+            const id = await service.savePlanogram(planogramData);
+            if (id) {
+                log('Planogram saved with ID: ' + id, 'success');
+            } else {
+                log('Failed to save planogram', 'error');
+            }
+        }
+
+        async function testSavePlanogram() {
+            if (!service.isAuthenticated()) {
+                log('Please sign in first', 'error');
+                return;
+            }
+
+            const testData = {
+                name: 'Test Planogram',
+                storeWidth: 1200,
+                storeHeight: 900,
+                fixtures: [
+                    { id: 'f1', type: 'Grid Wall', x: 0, y: 0, width: 48, height: 84 }
+                ],
+                products: [
+                    { id: 'p1', name: 'Test Product', upc: '123456', price: 19.99 }
+                ],
+                sections: [
+                    { id: 's1', name: 'Hair Care', color: '#FF6B6B' }
+                ]
+            };
+
+            const id = await service.savePlanogram(testData);
+            if (id) {
+                log('Test planogram saved successfully!', 'success');
+                loadPlanograms();
+            } else {
+                log('Failed to save test planogram', 'error');
+            }
+        }
+
+        async function loadPlanograms() {
+            if (!service.isAuthenticated()) {
+                log('Please sign in first', 'error');
+                return;
+            }
+
+            const planograms = await service.listPlanograms();
+            log('Loaded ' + planograms.length + ' planograms', 'success');
+            
+            displayPlanograms(planograms);
+        }
+
+        function displayPlanograms(planograms) {
+            const listElement = document.getElementById('planogramList');
+            listElement.innerHTML = '';
+
+            if (planograms.length === 0) {
+                listElement.innerHTML = '<p style="color: #7f8c8d;">No planograms saved yet</p>';
+                return;
+            }
+
+            planograms.forEach(planogram => {
+                const item = document.createElement('div');
+                item.className = 'planogram-item';
+                
+                const lastModified = planogram.lastModified 
+                    ? new Date(planogram.lastModified).toLocaleString()
+                    : 'Unknown';
+                
+                item.innerHTML = `
+                    <div class="planogram-info">
+                        <h3>${planogram.name || 'Untitled'}</h3>
+                        <p>Last modified: ${lastModified}</p>
+                    </div>
+                    <div class="button-group">
+                        <button onclick="loadSpecificPlanogram('${planogram.id}')" class="secondary">Load</button>
+                        <button onclick="deletePlanogram('${planogram.id}')" class="danger">Delete</button>
+                    </div>
+                `;
+                
+                listElement.appendChild(item);
+            });
+        }
+
+        async function loadSpecificPlanogram(id) {
+            const planogram = await service.loadPlanogram(id);
+            if (planogram) {
+                log('Loaded planogram: ' + (planogram.name || id), 'success');
+                console.log('Planogram data:', planogram);
+                // Here you would apply this data to your Store Planner Pro interface
+            } else {
+                log('Failed to load planogram', 'error');
+            }
+        }
+
+        async function deletePlanogram(id) {
+            if (!confirm('Are you sure you want to delete this planogram?')) return;
+            
+            const success = await service.deletePlanogram(id);
+            if (success) {
+                log('Planogram deleted', 'success');
+                loadPlanograms();
+            } else {
+                log('Failed to delete planogram', 'error');
+            }
+        }
+
+        // Data management functions
+        async function saveProductCache() {
+            if (!service.isAuthenticated()) {
+                log('Please sign in first', 'error');
+                return;
+            }
+
+            // Example: Get products from your Shopify cache
+            const products = [
+                { id: '1', title: 'Product 1', price: '19.99', vendor: 'Model Model' },
+                { id: '2', title: 'Product 2', price: '24.99', vendor: 'Bobbi Boss' }
+            ];
+
+            const success = await service.saveProductCache(products);
+            if (success) {
+                log('Product cache saved (' + products.length + ' products)', 'success');
+            } else {
+                log('Failed to save product cache', 'error');
+            }
+        }
+
+        async function loadProductCache() {
+            if (!service.isAuthenticated()) {
+                log('Please sign in first', 'error');
+                return;
+            }
+
+            const cache = await service.loadProductCache();
+            if (cache) {
+                log('Product cache loaded: ' + cache.count + ' products', 'success');
+                console.log('Product cache:', cache);
+            } else {
+                log('No product cache found', 'error');
+            }
+        }
+
+        async function saveFixtures() {
+            if (!service.isAuthenticated()) {
+                log('Please sign in first', 'error');
+                return;
+            }
+
+            // Save some example fixtures
+            const fixtures = [
+                { type: 'Grid Wall', width: 48, height: 84, capacity: 20 },
+                { type: 'Gondola', width: 48, height: 72, shelves: 4 }
+            ];
+
+            for (const fixture of fixtures) {
+                await service.saveFixture(fixture);
+            }
+
+            log('Fixtures saved', 'success');
+        }
+
+        async function loadFixtures() {
+            if (!service.isAuthenticated()) {
+                log('Please sign in first', 'error');
+                return;
+            }
+
+            const fixtures = await service.loadFixtures();
+            log('Loaded ' + fixtures.length + ' fixtures', 'success');
+            console.log('Fixtures:', fixtures);
+        }
+
+        // Auto-save functions
+        function startAutoSave() {
+            if (!service.isAuthenticated()) {
+                log('Please sign in first', 'error');
+                return;
+            }
+
+            service.startAutoSave(async () => {
+                log('Auto-saving...', 'info');
+                await saveCurrentPlanogram();
+            }, 2); // Save every 2 minutes
+
+            const statusEl = document.getElementById('autoSaveStatus');
+            statusEl.textContent = 'Auto-save: Active (Every 2 min)';
+            statusEl.classList.add('active');
+            
+            log('Auto-save started', 'success');
+        }
+
+        function stopAutoSave() {
+            service.stopAutoSave();
+            
+            const statusEl = document.getElementById('autoSaveStatus');
+            statusEl.textContent = 'Auto-save: Disabled';
+            statusEl.classList.remove('active');
+            
+            log('Auto-save stopped', 'success');
+        }
+
+        // Backup functions
+        async function downloadBackup() {
+            if (!service.isAuthenticated()) {
+                log('Please sign in first', 'error');
+                return;
+            }
+
+            await service.downloadBackup();
+            log('Backup downloaded', 'success');
+        }
+
+        async function exportAllData() {
+            if (!service.isAuthenticated()) {
+                log('Please sign in first', 'error');
+                return;
+            }
+
+            const data = await service.exportAllData();
+            console.log('Exported data:', data);
+            log('Data exported to console', 'success');
+        }
+    </script>
+</body>
+</html>
