@@ -2520,11 +2520,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           }}
           onMouseUp={(e) => {
             handleBgMouseUp();
-            handleCanvasMouseUp();
+            handleCanvasMouseUp(e);
           }}
           onMouseLeave={(e) => {
             handleBgMouseUp();
-            handleCanvasMouseUp();
+            handleCanvasMouseUp(e);
           }}
           onClick={(e) => {
             // Deselect if clicking on empty canvas (not on a fixture)
