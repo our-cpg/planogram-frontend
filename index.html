@@ -195,6 +195,55 @@ const PlanogramProfitTracker = () => {
       alert('❌ Failed to save to cloud.');
     }
   };
+
+  // Load from Firebase Cloud
+  const loadFromCloud = async () => {
+    if (!window.firebaseService || !window.firebaseService.isAuthenticated()) {
+      alert('Firebase not ready. Please refresh the page.');
+      return;
+    }
+
+    try {
+      const planograms = await window.firebaseService.listPlanograms();
+      
+      if (planograms.length === 0) {
+        alert('No saved layouts found in cloud.');
+        return;
+      }
+
+      // Show list to user
+      const planogramNames = planograms.map((p, idx) => 
+        `${idx + 1}. ${p.name} (${new Date(p.lastModified).toLocaleString()})`
+      ).join('\n');
+      
+      const selection = prompt(`Choose a layout to load:\n\n${planogramNames}\n\nEnter number (1-${planograms.length}):`);
+      
+      if (selection) {
+        const index = parseInt(selection) - 1;
+        if (index >= 0 && index < planograms.length) {
+          const selectedPlanogram = planograms[index];
+          const data = await window.firebaseService.loadPlanogram(selectedPlanogram.id);
+          
+          if (data) {
+            setStoreName(data.name || 'Loaded Layout');
+            setFixtures(data.fixtures || []);
+            setSections(data.sections || []);
+            if (data.shopifyConfig) {
+              setShopifyConfig(prev => ({
+                ...prev,
+                storeName: data.shopifyConfig.storeName || prev.storeName,
+                connected: data.shopifyConfig.connected || false
+              }));
+            }
+            alert('✅ Layout loaded from cloud!');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Load failed:', error);
+      alert('❌ Failed to load from cloud.');
+    }
+  };
   
   const [showLibrary, setShowLibrary] = useState(true);
   const [heatMapMode, setHeatMapMode] = useState(true); // Heat map ON by default
@@ -2335,11 +2384,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               Export
             </button>
 
-            <input type="file" ref={importInputRef} onChange={importLayout} accept=".json" className="hidden" />
-            
-            <button onClick={() => importInputRef.current?.click()} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2 text-sm">
-              <Icons.Upload />
-              Import
+            <button onClick={loadFromCloud} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2 text-sm">
+              <Icons.Download />
+              Load from Cloud
             </button>
 
             <button onClick={() => setShowSettings(true)} className="px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm">
