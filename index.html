@@ -3399,6 +3399,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                                       }]);
                                                     }
                                                   }}
+                                                  onKeyPress={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                      e.preventDefault();
+                                                      console.log('Enter pressed - saving immediately!');
+                                                      if (cloudSyncEnabled) {
+                                                        saveToFirebase(sections);
+                                                        setFeedback('💾 Saved!');
+                                                        setTimeout(() => setFeedback(''), 2000);
+                                                      }
+                                                    }
+                                                  }}
                                                   onClick={(e) => e.stopPropagation()}
                                                   className="w-full px-2 py-1 text-xs border border-yellow-400 rounded bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-500"
                                                 />
@@ -4912,6 +4923,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           type="text"
                           value={unknown.note || ''}
                           onChange={(e) => updateUnknownProductNote(unknown.id, e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              console.log('Enter pressed - saving immediately!');
+                              if (cloudSyncEnabled) {
+                                saveToFirebase(sections);
+                                setFeedback('💾 Saved!');
+                                setTimeout(() => setFeedback(''), 2000);
+                              }
+                            }
+                          }}
                           placeholder="Enter product name or description..."
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
