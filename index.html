@@ -339,7 +339,7 @@ const PlanogramProfitTracker = () => {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [heatMapType, setHeatMapType] = useState('profit'); // profit, velocity, deadStock, margin, stockHealth
   const [showHeatMapGuide, setShowHeatMapGuide] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (was w-64 = 256px, but make it bigger)
+  const [sidebarWidth, setSidebarWidth] = useState(480); // Default 480px - wider to prevent text crushing
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [rightSidebarWidth, setRightSidebarWidth] = useState(320);
   const [isResizingRightSidebar, setIsResizingRightSidebar] = useState(false);
