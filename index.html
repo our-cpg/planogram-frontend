@@ -407,11 +407,13 @@ const PlanogramProfitTracker = () => {
       const savedLastProducts = localStorage.getItem('planogram_last_products_refresh');
       const savedLastSales = localStorage.getItem('planogram_last_sales_refresh');
       const savedLastOrders = localStorage.getItem('planogram_last_orders_refresh');
+      const savedUnknownProducts = localStorage.getItem('planogram_unknown_products');
       
       if (savedSections) setSections(JSON.parse(savedSections));
       if (savedFixtures) setFixtures(JSON.parse(savedFixtures));
       if (savedBg) setBackgroundImage(savedBg);
       if (savedBgPos) setBgImagePosition(JSON.parse(savedBgPos));
+      if (savedUnknownProducts) setUnknownProducts(JSON.parse(savedUnknownProducts));
       if (savedShopify) {
         const config = JSON.parse(savedShopify);
         setShopifyConfig(config);
@@ -2146,9 +2148,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
   // Auto-save unknown products when they change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (cloudSyncEnabled && unknownProducts.length > 0) {
-        console.log('Auto-saving unknown products to Firebase...');
-        saveToFirebase(sections);
+      if (unknownProducts.length > 0) {
+        console.log('Auto-saving unknown products...');
+        // Save to localStorage
+        localStorage.setItem('planogram_unknown_products', JSON.stringify(unknownProducts));
+        // Also save to Firebase if enabled
+        if (cloudSyncEnabled) {
+          saveToFirebase(sections);
+        }
       }
     }, 1000);
     return () => clearTimeout(timeoutId);
