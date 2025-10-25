@@ -3343,6 +3343,22 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                             {product.vendor && (
                                               <div className="text-xs text-gray-500">by {product.vendor}</div>
                                             )}
+                                            {product.source === 'placeholder' && (
+                                              <div className="mt-2">
+                                                <input
+                                                  type="text"
+                                                  placeholder="Enter product name..."
+                                                  value={unknownProducts.find(u => u.upc === product.upc)?.note || ''}
+                                                  onChange={(e) => {
+                                                    const existing = unknownProducts.find(u => u.upc === product.upc);
+                                                    if (existing) {
+                                                      updateUnknownProductNote(existing.id, e.target.value);
+                                                    }
+                                                  }}
+                                                  className="w-full px-2 py-1 text-xs border border-yellow-400 rounded bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-500"
+                                                />
+                                              </div>
+                                            )}
                                           </div>
                                           <button
                                             onClick={(e) => {
