@@ -3403,11 +3403,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                                     if (e.key === 'Enter') {
                                                       e.preventDefault();
                                                       console.log('Enter pressed - saving immediately!');
-                                                      if (cloudSyncEnabled) {
-                                                        saveToFirebase(sections);
-                                                        setFeedback('💾 Saved!');
-                                                        setTimeout(() => setFeedback(''), 2000);
-                                                      }
+                                                      saveToFirebase(sections);
+                                                      setFeedback('💾 Saved!');
+                                                      setTimeout(() => setFeedback(''), 2000);
                                                     }
                                                   }}
                                                   onClick={(e) => e.stopPropagation()}
@@ -4927,11 +4925,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
                               console.log('Enter pressed - saving immediately!');
-                              if (cloudSyncEnabled) {
-                                saveToFirebase(sections);
-                                setFeedback('💾 Saved!');
-                                setTimeout(() => setFeedback(''), 2000);
-                              }
+                              saveToFirebase(sections);
+                              setFeedback('💾 Saved!');
+                              setTimeout(() => setFeedback(''), 2000);
                             }
                           }}
                           placeholder="Enter product name or description..."
