@@ -151,6 +151,52 @@ const PlanogramProfitTracker = () => {
     accessToken: '',
     connected: false
   });
+
+  // Initialize Firebase on mount
+  useEffect(() => {
+    const initFirebase = async () => {
+      try {
+        if (window.firebaseService) {
+          await window.firebaseService.initialize();
+          await window.firebaseService.signInAnonymously();
+          console.log('Firebase ready');
+        }
+      } catch (error) {
+        console.error('Firebase init failed:', error);
+      }
+    };
+    initFirebase();
+  }, []);
+
+  // Save to Firebase Cloud
+  const saveToCloud = async () => {
+    if (!window.firebaseService || !window.firebaseService.isAuthenticated()) {
+      alert('Firebase not ready. Please refresh the page.');
+      return;
+    }
+
+    try {
+      const planogramData = {
+        name: storeName,
+        fixtures: fixtures,
+        sections: sections,
+        products: products,
+        rows: rows,
+        shopifyConfig: {
+          storeName: shopifyConfig.storeName,
+          connected: shopifyConfig.connected
+        }
+      };
+
+      const id = await window.firebaseService.savePlanogram(planogramData);
+      if (id) {
+        alert('✅ Saved to cloud!');
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+      alert('❌ Failed to save to cloud.');
+    }
+  };
   
   const [showLibrary, setShowLibrary] = useState(true);
   const [heatMapMode, setHeatMapMode] = useState(true); // Heat map ON by default
@@ -2260,11 +2306,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             </div>
 
             <button
-              onClick={() => setShowVisualMode(!showVisualMode)}
-              className={`px-3 py-2 rounded flex items-center gap-2 text-sm ${showVisualMode ? 'bg-purple-500 text-white' : 'bg-gray-200'}`}
+              onClick={saveToCloud}
+              className="px-3 py-2 bg-green-500 text-white rounded flex items-center gap-2 text-sm hover:bg-green-600"
             >
-              <Icons.Eye />
-              Visual
+              <Icons.Save />
+              Save to Cloud
             </button>
 
             <input type="file" ref={fileInputRef} onChange={handleBackgroundUpload} accept="image/*" className="hidden" />
