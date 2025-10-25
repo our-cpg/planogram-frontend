@@ -239,8 +239,8 @@ const PlanogramProfitTracker = () => {
           
           if (data) {
             setStoreName(data.name || 'Loaded Layout');
-            setFixtures(data.fixtures || []);
-            setSections(data.sections || []);
+            setFixtures(Array.isArray(data.fixtures) ? data.fixtures : []);
+            setSections(Array.isArray(data.sections) ? data.sections : []);
             if (data.shopifyConfig) {
               setShopifyConfig(prev => ({
                 ...prev,
