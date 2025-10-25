@@ -3371,13 +3371,30 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                                 <input
                                                   type="text"
                                                   placeholder="Enter product name..."
-                                                  value={unknownProducts.find(u => u.upc === product.upc)?.note || ''}
+                                                  value={(() => {
+                                                    const found = unknownProducts.find(u => u.upc === product.upc);
+                                                    console.log('Looking for UPC:', product.upc, 'Found:', found);
+                                                    return found?.note || '';
+                                                  })()}
                                                   onChange={(e) => {
+                                                    console.log('Typing in note field, UPC:', product.upc, 'Value:', e.target.value);
                                                     const existing = unknownProducts.find(u => u.upc === product.upc);
+                                                    console.log('Found unknown product:', existing);
                                                     if (existing) {
                                                       updateUnknownProductNote(existing.id, e.target.value);
+                                                    } else {
+                                                      console.error('Unknown product not found in array!');
+                                                      // Create it if it doesn't exist
+                                                      setUnknownProducts(prev => [...prev, {
+                                                        id: Date.now(),
+                                                        upc: product.upc,
+                                                        note: e.target.value,
+                                                        addedAt: new Date().toISOString(),
+                                                        resolved: false
+                                                      }]);
                                                     }
                                                   }}
+                                                  onClick={(e) => e.stopPropagation()}
                                                   className="w-full px-2 py-1 text-xs border border-yellow-400 rounded bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-500"
                                                 />
                                               </div>
