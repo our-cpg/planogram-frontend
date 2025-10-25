@@ -512,6 +512,8 @@ const PlanogramProfitTracker = () => {
 
       await dbRef.current.collection('planograms').doc('default').set(layoutData);
       console.log('☁️ Saved to Firebase');
+      console.log('📍 Unknown Products saved to: planograms/default/unknownProducts');
+      console.log('Unknown products data:', unknownProducts);
     } catch (error) {
       console.error('Firebase save error:', error);
     }
@@ -1160,7 +1162,7 @@ const PlanogramProfitTracker = () => {
       
       product = {
         upc: newProduct.upc,
-        name: `Product ${newProduct.upc.slice(-4)}`,
+        name: `UPC: ${newProduct.upc}`,
         price: 0,
         cost: 0,
         monthlySales: 0,
@@ -2130,6 +2132,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     setUnknownProducts(prev =>
       prev.map(u => u.id === id ? { ...u, note } : u)
     );
+    // Trigger auto-save when note is updated
+    setTimeout(() => {
+      if (cloudSyncEnabled) {
+        saveToFirebase(sections);
+      }
+    }, 1000); // Debounce saves by 1 second
   };
 
   const deleteUnknownProduct = (id) => {
@@ -2228,6 +2236,21 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               }`}
             >
               📊 Row Analytics
+            </button>
+            <button
+              onClick={() => setCurrentPage('unknownProducts')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all relative ${
+                currentPage === 'unknownProducts'
+                  ? 'bg-white text-blue-600 shadow-lg'
+                  : 'bg-blue-500 text-white hover:bg-blue-400'
+              }`}
+            >
+              ⚠️ Unknown Products
+              {unknownProducts.filter(u => !u.resolved).length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {unknownProducts.filter(u => !u.resolved).length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setCurrentPage('settings')}
@@ -4758,6 +4781,169 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               <p className="text-gray-600">More settings coming soon...</p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ⚠️ UNKNOWN PRODUCTS PAGE */}
+      {currentPage === 'unknownProducts' && (
+        <div className="flex-1 overflow-auto p-8 bg-gray-50">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold mb-2">⚠️ Unknown Products</h1>
+            <p className="text-gray-600">Products that need to be synced with Shopify</p>
+          </div>
+
+          {/* Analytics Cards */}
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-sm text-gray-600 mb-1">Total Unknown</div>
+              <div className="text-3xl font-bold text-orange-600">
+                {unknownProducts.filter(u => !u.resolved).length}
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-sm text-gray-600 mb-1">Resolved</div>
+              <div className="text-3xl font-bold text-green-600">
+                {unknownProducts.filter(u => u.resolved).length}
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-sm text-gray-600 mb-1">With Notes</div>
+              <div className="text-3xl font-bold text-blue-600">
+                {unknownProducts.filter(u => !u.resolved && u.note).length}
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-sm text-gray-600 mb-1">Total Store Products</div>
+              <div className="text-3xl font-bold text-gray-800">
+                {sections.reduce((total, section) => {
+                  return total + (section.rows?.reduce((rowTotal, row) => {
+                    return rowTotal + (row.products?.length || 0);
+                  }, 0) || 0);
+                }, 0)}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {((unknownProducts.filter(u => !u.resolved).length / Math.max(1, sections.reduce((total, section) => {
+                  return total + (section.rows?.reduce((rowTotal, row) => {
+                    return rowTotal + (row.products?.length || 0);
+                  }, 0) || 0);
+                }, 0))) * 100).toFixed(1)}% unsynced
+              </div>
+            </div>
+          </div>
+
+          {/* Actions Bar */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={checkUnknownAgainstShopify}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2"
+            >
+              <Icons.RefreshCw />
+              Check All Against Shopify
+            </button>
+          </div>
+
+          {/* Unknown Products List */}
+          <div className="space-y-4">
+            {unknownProducts.filter(u => !u.resolved).length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <div className="text-4xl mb-4">🎉</div>
+                <div className="text-xl font-semibold text-gray-800">All products synced!</div>
+                <div className="text-gray-600 mt-2">No unknown products found.</div>
+              </div>
+            ) : (
+              unknownProducts.filter(u => !u.resolved).map(unknown => {
+                // Find which section and row this product is in
+                let location = null;
+                sections.forEach(section => {
+                  section.rows?.forEach(row => {
+                    const product = row.products?.find(p => p.upc === unknown.upc);
+                    if (product) {
+                      location = { sectionName: section.name, rowName: row.name };
+                    }
+                  });
+                });
+
+                return (
+                  <div key={unknown.id} className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-start gap-6">
+                      {/* UPC & Location */}
+                      <div className="flex-shrink-0">
+                        <div className="text-sm text-gray-600 mb-1">UPC</div>
+                        <div className="font-mono text-lg font-bold">{unknown.upc}</div>
+                        {location && (
+                          <div className="mt-2 text-xs text-gray-600">
+                            📍 {location.sectionName} → {location.rowName}
+                          </div>
+                        )}
+                        <div className="text-xs text-gray-500 mt-1">
+                          Added {new Date(unknown.addedAt).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      {/* Note Field */}
+                      <div className="flex-1">
+                        <div className="text-sm text-gray-600 mb-1">Product Name / Notes</div>
+                        <input
+                          type="text"
+                          value={unknown.note || ''}
+                          onChange={(e) => updateUnknownProductNote(unknown.id, e.target.value)}
+                          placeholder="Enter product name or description..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex-shrink-0 flex gap-2">
+                        <button
+                          onClick={checkUnknownAgainstShopify}
+                          className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-1"
+                          title="Check if now in Shopify"
+                        >
+                          <Icons.RefreshCw />
+                          Check
+                        </button>
+                        <button
+                          onClick={() => deleteUnknownProduct(unknown.id)}
+                          className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                          title="Delete"
+                        >
+                          <Icons.Trash2 />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Resolved Products */}
+          {unknownProducts.filter(u => u.resolved).length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-2xl font-bold mb-4">✅ Recently Resolved</h2>
+              <div className="space-y-2">
+                {unknownProducts.filter(u => u.resolved).map(unknown => (
+                  <div key={unknown.id} className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="font-semibold text-green-800">{unknown.matchedProduct?.name}</div>
+                      <div className="text-sm text-gray-600">
+                        UPC: {unknown.upc} • {unknown.matchedProduct?.vendor} • ${unknown.matchedProduct?.price}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => deleteUnknownProduct(unknown.id)}
+                      className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
