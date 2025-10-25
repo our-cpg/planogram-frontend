@@ -239,8 +239,20 @@ const PlanogramProfitTracker = () => {
           
           if (data) {
             setStoreName(data.name || 'Loaded Layout');
+            
+            // Ensure fixtures is always an array
             setFixtures(Array.isArray(data.fixtures) ? data.fixtures : []);
-            setSections(Array.isArray(data.sections) ? data.sections : []);
+            
+            // Ensure sections is always an array and each section has rows array
+            const safeSections = Array.isArray(data.sections) 
+              ? data.sections.map(section => ({
+                  ...section,
+                  rows: Array.isArray(section.rows) ? section.rows : [],
+                  products: Array.isArray(section.products) ? section.products : []
+                }))
+              : [];
+            setSections(safeSections);
+            
             if (data.shopifyConfig) {
               setShopifyConfig(prev => ({
                 ...prev,
