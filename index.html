@@ -2129,16 +2129,21 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
   // Unknown Products Management
   const updateUnknownProductNote = (id, note) => {
-    setUnknownProducts(prev =>
-      prev.map(u => u.id === id ? { ...u, note } : u)
-    );
-    // Trigger auto-save when note is updated
-    setTimeout(() => {
-      if (cloudSyncEnabled) {
+    const updatedProducts = unknownProducts.map(u => u.id === id ? { ...u, note } : u);
+    setUnknownProducts(updatedProducts);
+    console.log('Updated unknown products:', updatedProducts);
+  };
+
+  // Auto-save unknown products when they change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (cloudSyncEnabled && unknownProducts.length > 0) {
+        console.log('Auto-saving unknown products to Firebase...');
         saveToFirebase(sections);
       }
-    }, 1000); // Debounce saves by 1 second
-  };
+    }, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [unknownProducts]);
 
   const deleteUnknownProduct = (id) => {
     setUnknownProducts(prev => prev.filter(u => u.id !== id));
