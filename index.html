@@ -3692,33 +3692,39 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                   </button>
                                 </div>
                                 
-                                {/* Summary Stats Grid */}
-                                <div className="grid grid-cols-4 gap-2 text-xs">
-                                  <div className="bg-gray-50 p-2 rounded">
-                                    <div className="text-gray-600 text-xs">Products</div>
-                                    <div className="font-bold text-gray-800">{rowProducts.length}</div>
-                                  </div>
-                                  
-                                  <div className={`p-2 rounded ${rowTotalSales > 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-                                    <div className="text-gray-600 text-xs">Sales</div>
-                                    <div className={`font-bold ${rowTotalSales > 0 ? 'text-green-700' : 'text-red-600'}`}>
-                                      {rowTotalSales}
+                                {/* Summary Stats - Compact when collapsed, full grid when expanded */}
+                                {isExpanded ? (
+                                  <div className="grid grid-cols-4 gap-2 text-xs">
+                                    <div className="bg-gray-50 p-2 rounded">
+                                      <div className="text-gray-600 text-xs">Products</div>
+                                      <div className="font-bold text-gray-800">{rowProducts.length}</div>
+                                    </div>
+                                    
+                                    <div className={`p-2 rounded ${rowTotalSales > 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                                      <div className="text-gray-600 text-xs">Sales</div>
+                                      <div className={`font-bold ${rowTotalSales > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                                        {rowTotalSales}
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="bg-blue-50 p-2 rounded">
+                                      <div className="text-gray-600 text-xs">Profit</div>
+                                      <div className="font-bold text-blue-700">${rowProfit.toFixed(2)}</div>
+                                    </div>
+                                    
+                                    <div className={`p-2 rounded ${rowDeadStockCount > 0 ? 'bg-orange-50' : 'bg-gray-50'}`}>
+                                      <div className="text-gray-600 text-xs">Stock</div>
+                                      <div className={`font-bold ${rowDeadStockCount > 0 ? 'text-orange-700' : 'text-gray-700'}`}>
+                                        {rowTotalStock}
+                                        {rowDeadStockCount > 0 && <span className="text-xs ml-1">⚠️{rowDeadStockCount}</span>}
+                                      </div>
                                     </div>
                                   </div>
-                                  
-                                  <div className="bg-blue-50 p-2 rounded">
-                                    <div className="text-gray-600 text-xs">Profit</div>
-                                    <div className="font-bold text-blue-700">${rowProfit.toFixed(2)}</div>
+                                ) : (
+                                  <div className="text-xs text-gray-600">
+                                    {rowProducts.length} products • ${rowProfit.toFixed(0)} profit • {rowTotalSales} sales
                                   </div>
-                                  
-                                  <div className={`p-2 rounded ${rowDeadStockCount > 0 ? 'bg-orange-50' : 'bg-gray-50'}`}>
-                                    <div className="text-gray-600 text-xs">Stock</div>
-                                    <div className={`font-bold ${rowDeadStockCount > 0 ? 'text-orange-700' : 'text-gray-700'}`}>
-                                      {rowTotalStock}
-                                      {rowDeadStockCount > 0 && <span className="text-xs ml-1">⚠️{rowDeadStockCount}</span>}
-                                    </div>
-                                  </div>
-                                </div>
+                                )}
                               </div>
                               
                               {/* Expanded Product Details */}
