@@ -437,11 +437,20 @@ const PlanogramProfitTracker = () => {
       const savedLastOrders = localStorage.getItem('planogram_last_orders_refresh');
       const savedUnknownProducts = localStorage.getItem('planogram_unknown_products');
       
-      if (savedSections) setSections(JSON.parse(savedSections));
-      if (savedFixtures) setFixtures(JSON.parse(savedFixtures));
+      if (savedSections) {
+        const parsed = JSON.parse(savedSections);
+        setSections(Array.isArray(parsed) ? parsed : []);
+      }
+      if (savedFixtures) {
+        const parsed = JSON.parse(savedFixtures);
+        setFixtures(Array.isArray(parsed) ? parsed : []);
+      }
       if (savedBg) setBackgroundImage(savedBg);
       if (savedBgPos) setBgImagePosition(JSON.parse(savedBgPos));
-      if (savedUnknownProducts) setUnknownProducts(JSON.parse(savedUnknownProducts));
+      if (savedUnknownProducts) {
+        const parsed = JSON.parse(savedUnknownProducts);
+        setUnknownProducts(Array.isArray(parsed) ? parsed : []);
+      }
       if (savedShopify) {
         const config = JSON.parse(savedShopify);
         setShopifyConfig(config);
@@ -567,12 +576,12 @@ const PlanogramProfitTracker = () => {
         const data = doc.data();
         if (data.storeName) setStoreName(data.storeName);
         if (data.fixtures) {
-          setFixtures(data.fixtures);
-          localStorage.setItem('planogram_fixtures', JSON.stringify(data.fixtures));
+          setFixtures(Array.isArray(data.fixtures) ? data.fixtures : []);
+          localStorage.setItem('planogram_fixtures', JSON.stringify(Array.isArray(data.fixtures) ? data.fixtures : []));
         }
         if (data.sections) {
-          setSections(data.sections);
-          localStorage.setItem('planogram_sections', JSON.stringify(data.sections));
+          setSections(Array.isArray(data.sections) ? data.sections : []);
+          localStorage.setItem('planogram_sections', JSON.stringify(Array.isArray(data.sections) ? data.sections : []));
         }
         if (data.unknownProducts) {
           setUnknownProducts(data.unknownProducts);
@@ -1397,7 +1406,7 @@ const PlanogramProfitTracker = () => {
   };
 
   const updateFixture = (updatedFixture) => {
-    const updatedFixtures = fixtures.map(f => 
+    const updatedFixtures = (fixtures || []).map(f => 
       f.id === updatedFixture.id ? updatedFixture : f
     );
     setFixtures(updatedFixtures);
@@ -1512,7 +1521,7 @@ const PlanogramProfitTracker = () => {
   };
 
   const updateFixtureName = (fixtureId, newName) => {
-    const updatedFixtures = fixtures.map(fixture => {
+    const updatedFixtures = (fixtures || []).map(fixture => {
       if (fixture.id === fixtureId) {
         return { ...fixture, name: newName };
       }
@@ -2503,7 +2512,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           <div className="mt-6 pt-6 border-t">
             <h3 className="font-bold mb-2">Active Fixtures</h3>
             <div className="space-y-1">
-              {fixtures.map(fixture => (
+              {(fixtures || []).map(fixture => (
                 <div
                   key={fixture.id}
                   className={`p-2 rounded cursor-pointer flex items-center justify-between ${
@@ -2880,7 +2889,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             />
           )}
 
-          {fixtures.map(fixture => (
+          {(fixtures || []).map(fixture => (
             <Fixture
               key={fixture.id}
               fixture={fixture}
@@ -4092,7 +4101,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 <span className="text-sm font-normal text-gray-500">(by profit)</span>
               </h2>
               <div className="space-y-3">
-                {fixtures.map(fixture => {
+                {(fixtures || []).map(fixture => {
                   const fixtureSections = sections.filter(s => s.fixtureId === fixture.id);
                   const totalProfit = fixtureSections.reduce((sum, s) => {
                     const metrics = calculateMetrics(s, timePeriod);
@@ -4132,7 +4141,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 <span className="text-sm font-normal text-gray-500">(by revenue)</span>
               </h2>
               <div className="space-y-3">
-                {sections.map(section => {
+                {(sections || []).map(section => {
                   const metrics = calculateMetrics(section, timePeriod);
                   return { section, metrics };
                 }).sort((a, b) => b.metrics.totalRevenue - a.metrics.totalRevenue).slice(0, 10).map(({ section, metrics }, idx) => (
@@ -4304,7 +4313,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   className="px-3 py-2 border rounded text-sm min-w-[150px]"
                 >
                   <option value="all">All Fixtures</option>
-                  {fixtures.map(fixture => (
+                  {(fixtures || []).map(fixture => (
                     <option key={fixture.id} value={fixture.id}>{fixture.name}</option>
                   ))}
                 </select>
@@ -4727,7 +4736,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   className="px-3 py-2 border rounded text-sm min-w-[150px]"
                 >
                   <option value="all">All Fixtures</option>
-                  {sections.map(section => (
+                  {(sections || []).map(section => (
                     <option key={section.id} value={section.id}>{section.name}</option>
                   ))}
                 </select>
