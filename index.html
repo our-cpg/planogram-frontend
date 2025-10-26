@@ -2127,24 +2127,21 @@ const PlanogramProfitTracker = () => {
     const width = (layoutWidth / 100) * fixture.width;
     const height = (layoutHeight / 100) * fixture.height;
 
-    // In heat map mode, very subtle blur for edge blending
-    const expansion = heatMapMode && !isSelected ? 0.5 : 0;
-    const blur = heatMapMode && !isSelected ? 'blur(2px)' : 'none';
-
     return (
       <div
         style={{
           position: 'absolute',
-          left: left - expansion,
-          top: top - expansion,
-          width: width + (expansion * 2),
-          height: height + (expansion * 2),
+          left: left,
+          top: top,
+          width: width,
+          height: height,
           backgroundColor: color,
           border: isSelected 
             ? '2px solid #3b82f6' 
-            : heatMapMode 
-              ? 'none'
-              : '1px solid rgba(255,255,255,0.5)',
+            : 'none',
+          boxShadow: heatMapMode && !isSelected 
+            ? `0 0 4px 2px ${color}40`
+            : 'none',
           cursor: isDragging ? 'grabbing' : 'grab',
           pointerEvents: 'auto',
           display: 'flex',
@@ -2155,8 +2152,7 @@ const PlanogramProfitTracker = () => {
           fontWeight: 'bold',
           textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
           zIndex: isSelected ? 60 : 40,
-          overflow: 'visible',
-          filter: blur
+          overflow: 'hidden'
         }}
         onMouseDown={handleMouseDown}
       >
