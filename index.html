@@ -343,7 +343,7 @@ const PlanogramProfitTracker = () => {
   const [lastProductsRefresh, setLastProductsRefresh] = useState(null);
   const [lastSalesRefresh, setLastSalesRefresh] = useState(null);
   const [lastOrdersRefresh, setLastOrdersRefresh] = useState(null);
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false); // Disabled by default to prevent errors
   const [showRefreshPrompt, setShowRefreshPrompt] = useState(false);
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [collapsedSectionLayouts, setCollapsedSectionLayouts] = useState(new Set(['all'])); // Start with all collapsed
@@ -872,42 +872,47 @@ const PlanogramProfitTracker = () => {
     }
     
     try {
+      // Use backend proxy to avoid CORS issues
       const response = await fetch(`${BACKEND_URL}/api/shopify`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           storeName: shopifyConfig.storeName,
           accessToken: shopifyConfig.accessToken,
-          action: 'refreshCache'
+          action: 'refreshProducts'
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`Backend returned ${response.status}`);
+      }
+
       const data = await response.json();
 
-      if (response.ok && data.success) {
+      if (data.success) {
         const now = new Date();
         setLastRefresh(now);
         setLastProductsRefresh(now);
-        setLastSalesRefresh(now);
         localStorage.setItem('planogram_last_refresh', now.toISOString());
         localStorage.setItem('planogram_last_products_refresh', now.toISOString());
-        localStorage.setItem('planogram_last_sales_refresh', now.toISOString());
         
         if (!isAutoRefresh) {
-          setFeedback(`✅ ${data.message}`);
+          setFeedback(`✅ ${data.message || 'Products refreshed from Shopify'}`);
           setTimeout(() => setFeedback(''), 5000);
         } else {
           console.log('✅ Auto-refresh completed at', now.toLocaleTimeString());
         }
       } else {
         if (!isAutoRefresh) {
-          setFeedback(`❌ ${data.error || 'Failed'}`);
+          setFeedback(`❌ ${data.error || 'Refresh failed'}`);
           setTimeout(() => setFeedback(''), 5000);
         }
       }
     } catch (error) {
       if (!isAutoRefresh) {
-        setFeedback('❌ Cache refresh failed - check console for details');
+        setFeedback(`❌ Cache refresh failed: ${error.message}. Check Shopify connection.`);
         setTimeout(() => setFeedback(''), 5000);
       }
       console.error('Refresh error:', error);
@@ -2190,6 +2195,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             isSelected={selectedSection === section.id}
             onSelect={() => {
               setSelectedSection(section.id);
+              setSelectedFixture(section.fixtureId); // Open the fixture sidebar
+              
               // Expand all collapsible sections when clicking on map
               const newLayoutCollapsed = new Set(collapsedSectionLayouts);
               newLayoutCollapsed.delete('all');
