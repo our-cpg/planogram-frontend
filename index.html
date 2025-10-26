@@ -346,9 +346,9 @@ const PlanogramProfitTracker = () => {
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [showRefreshPrompt, setShowRefreshPrompt] = useState(false);
   const [expandedRows, setExpandedRows] = useState(new Set());
-  const [collapsedSectionLayouts, setCollapsedSectionLayouts] = useState(new Set()); // Track which section layouts are collapsed
-  const [collapsedRowsSections, setCollapsedRowsSections] = useState(new Set()); // Track which Rows sections are collapsed
-  const [collapsedUnknownProducts, setCollapsedUnknownProducts] = useState(new Set()); // Track which Unknown Products sections are collapsed
+  const [collapsedSectionLayouts, setCollapsedSectionLayouts] = useState(new Set(['all'])); // Start with all collapsed
+  const [collapsedRowsSections, setCollapsedRowsSections] = useState(new Set(['all'])); // Start with all collapsed
+  const [collapsedUnknownProducts, setCollapsedUnknownProducts] = useState(new Set(['all'])); // Start with all collapsed
   const [heatMapType, setHeatMapType] = useState('profit'); // profit, velocity, deadStock, margin, stockHealth
   const [showHeatMapGuide, setShowHeatMapGuide] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(500); // Default 500px - balanced width
@@ -2185,7 +2185,24 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             section={section}
             fixture={fixture}
             isSelected={selectedSection === section.id}
-            onSelect={() => setSelectedSection(section.id)}
+            onSelect={() => {
+              setSelectedSection(section.id);
+              // Expand all collapsible sections when clicking on map
+              const newLayoutCollapsed = new Set(collapsedSectionLayouts);
+              newLayoutCollapsed.delete('all');
+              newLayoutCollapsed.delete(section.id);
+              setCollapsedSectionLayouts(newLayoutCollapsed);
+              
+              const newRowsCollapsed = new Set(collapsedRowsSections);
+              newRowsCollapsed.delete('all');
+              newRowsCollapsed.delete(section.id);
+              setCollapsedRowsSections(newRowsCollapsed);
+              
+              const newUnknownCollapsed = new Set(collapsedUnknownProducts);
+              newUnknownCollapsed.delete('all');
+              newUnknownCollapsed.delete(section.id);
+              setCollapsedUnknownProducts(newUnknownCollapsed);
+            }}
           />
         ))}
 
@@ -3074,7 +3091,24 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   <div
                     key={section.id}
                     className={`p-4 border-2 rounded-lg ${selectedSection === section.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
-                    onClick={() => setSelectedSection(section.id)}
+                    onClick={() => {
+                      setSelectedSection(section.id);
+                      // Expand all collapsible sections when clicking
+                      const newLayoutCollapsed = new Set(collapsedSectionLayouts);
+                      newLayoutCollapsed.delete('all');
+                      newLayoutCollapsed.delete(section.id);
+                      setCollapsedSectionLayouts(newLayoutCollapsed);
+                      
+                      const newRowsCollapsed = new Set(collapsedRowsSections);
+                      newRowsCollapsed.delete('all');
+                      newRowsCollapsed.delete(section.id);
+                      setCollapsedRowsSections(newRowsCollapsed);
+                      
+                      const newUnknownCollapsed = new Set(collapsedUnknownProducts);
+                      newUnknownCollapsed.delete('all');
+                      newUnknownCollapsed.delete(section.id);
+                      setCollapsedUnknownProducts(newUnknownCollapsed);
+                    }}
                   >
                     <div className="flex items-center justify-between mb-2">
                       {editingSection === section.id ? (
@@ -3182,6 +3216,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           e.stopPropagation();
                           e.preventDefault();
                           const newCollapsed = new Set(collapsedSectionLayouts);
+                          newCollapsed.delete('all'); // Remove 'all' flag when manually toggling
                           if (newCollapsed.has(section.id)) {
                             newCollapsed.delete(section.id);
                           } else {
@@ -3192,11 +3227,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       >
                         <div className="text-xs font-bold text-gray-600">SECTION LAYOUT</div>
                         <span className="text-lg text-gray-500 font-bold">
-                          {collapsedSectionLayouts.has(section.id) ? '▶' : '▼'}
+                          {(collapsedSectionLayouts.has('all') || collapsedSectionLayouts.has(section.id)) ? '▶' : '▼'}
                         </span>
                       </div>
                       
-                      {!collapsedSectionLayouts.has(section.id) && (
+                      {!(collapsedSectionLayouts.has('all') || collapsedSectionLayouts.has(section.id)) && (
                         <>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
@@ -3386,6 +3421,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           e.stopPropagation();
                           e.preventDefault();
                           const newCollapsed = new Set(collapsedRowsSections);
+                          newCollapsed.delete('all'); // Remove 'all' flag when manually toggling
                           if (newCollapsed.has(section.id)) {
                             newCollapsed.delete(section.id);
                           } else {
@@ -3397,7 +3433,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         <div className="flex items-center gap-2">
                           <h4 className="font-semibold text-sm">Rows (Height Tracking)</h4>
                           <span className="text-lg text-gray-500 font-bold">
-                            {collapsedRowsSections.has(section.id) ? '▶' : '▼'}
+                            {(collapsedRowsSections.has('all') || collapsedRowsSections.has(section.id)) ? '▶' : '▼'}
                           </span>
                         </div>
                         <button
@@ -3412,7 +3448,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         </button>
                       </div>
                       
-                      {!collapsedRowsSections.has(section.id) && (
+                      {!(collapsedRowsSections.has('all') || collapsedRowsSections.has(section.id)) && (
                       <div className="space-y-2">
                         {(section.rows || []).map((row, rowIdx) => {
                           // Calculate row metrics
@@ -4019,6 +4055,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                               e.stopPropagation();
                               e.preventDefault();
                               const newCollapsed = new Set(collapsedUnknownProducts);
+                              newCollapsed.delete('all'); // Remove 'all' flag when manually toggling
                               if (newCollapsed.has(section.id)) {
                                 newCollapsed.delete(section.id);
                               } else {
@@ -4031,11 +4068,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                               ⚠️ UNKNOWN PRODUCTS ({unknownProducts.filter(u => !u.resolved).length})
                             </div>
                             <span className="text-lg text-yellow-600 font-bold">
-                              {collapsedUnknownProducts.has(section.id) ? '▶' : '▼'}
+                              {(collapsedUnknownProducts.has('all') || collapsedUnknownProducts.has(section.id)) ? '▶' : '▼'}
                             </span>
                           </div>
                           
-                          {!collapsedUnknownProducts.has(section.id) && (
+                          {!(collapsedUnknownProducts.has('all') || collapsedUnknownProducts.has(section.id)) && (
                             <>
                       {unknownProducts.filter(u => !u.resolved).map(unknown => (
                         <div key={unknown.id} className="flex items-center justify-between p-2 bg-yellow-50 border border-yellow-300 rounded text-sm">
