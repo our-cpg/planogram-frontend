@@ -1671,6 +1671,43 @@ const PlanogramProfitTracker = () => {
   };
 
   const getHeatMapColor = (metrics) => {
+    // Smooth gradient helper - creates continuous color transitions
+    const getGradientColor = (intensity) => {
+      // Clamp intensity between 0 and 1
+      intensity = Math.max(0, Math.min(1, intensity));
+      
+      // Create smooth gradient from red (0) -> orange -> yellow -> green (1)
+      if (intensity < 0.25) {
+        // Red to Orange (0-25%)
+        const t = intensity / 0.25;
+        const r = 239;
+        const g = Math.floor(68 + (115 - 68) * t);
+        const b = 68;
+        return `rgba(${r}, ${g}, ${b}, 0.75)`;
+      } else if (intensity < 0.5) {
+        // Orange to Yellow (25-50%)
+        const t = (intensity - 0.25) / 0.25;
+        const r = Math.floor(249 - (249 - 234) * t);
+        const g = Math.floor(115 + (179 - 115) * t);
+        const b = Math.floor(22 - 14 * t);
+        return `rgba(${r}, ${g}, ${b}, 0.75)`;
+      } else if (intensity < 0.75) {
+        // Yellow to Light Green (50-75%)
+        const t = (intensity - 0.5) / 0.25;
+        const r = Math.floor(234 - (234 - 134) * t);
+        const g = Math.floor(179 + (197 - 179) * t);
+        const b = Math.floor(8 + (86 * t));
+        return `rgba(${r}, ${g}, ${b}, 0.75)`;
+      } else {
+        // Light Green to Dark Green (75-100%)
+        const t = (intensity - 0.75) / 0.25;
+        const r = Math.floor(134 - (134 - 34) * t);
+        const g = 197;
+        const b = Math.floor(94 - (94 - 94) * t);
+        return `rgba(${r}, ${g}, ${b}, 0.75)`;
+      }
+    };
+    
     // Calculate different metrics for different heat map types
     const allMetrics = sections.map(s => calculateMetrics(s, timePeriod));
     
@@ -1678,34 +1715,30 @@ const PlanogramProfitTracker = () => {
       case 'profit': {
         const maxProfit = Math.max(...allMetrics.map(m => m.profitPerSqFt), 0.01);
         const intensity = maxProfit > 0 ? metrics.profitPerSqFt / maxProfit : 0;
-        if (intensity > 0.7) return 'rgba(34, 197, 94, 0.7)'; // Green - High profit
-        if (intensity > 0.4) return 'rgba(234, 179, 8, 0.7)'; // Yellow
-        if (intensity > 0.1) return 'rgba(249, 115, 22, 0.7)'; // Orange
-        return 'rgba(239, 68, 68, 0.7)'; // Red - Low profit
+        return getGradientColor(intensity);
       }
       
       case 'velocity': {
         const maxVelocity = Math.max(...allMetrics.map(m => m.totalVelocity), 0.01);
         const intensity = maxVelocity > 0 ? metrics.totalVelocity / maxVelocity : 0;
-        if (intensity > 0.7) return 'rgba(34, 197, 94, 0.7)'; // Green - Fast moving
-        if (intensity > 0.4) return 'rgba(234, 179, 8, 0.7)'; // Yellow
-        if (intensity > 0.1) return 'rgba(249, 115, 22, 0.7)'; // Orange
-        return 'rgba(239, 68, 68, 0.7)'; // Red - Slow moving
+        return getGradientColor(intensity);
       }
       
       case 'deadStock': {
         // Count dead stock items (inventory > 0 but sales = 0)
-        const deadStockCount = metrics.productMetrics.filter(p => 
-          (p.inventoryQuantity || 0) > 0 && p.periodVolume === 0
-        ).length;
         const deadStockValue = metrics.productMetrics
           .filter(p => (p.inventoryQuantity || 0) > 0 && p.periodVolume === 0)
           .reduce((sum, p) => sum + (p.inventoryQuantity || 0) * p.cost, 0);
         
-        if (deadStockValue > 1000) return 'rgba(239, 68, 68, 0.8)'; // Red - Major problem
-        if (deadStockValue > 500) return 'rgba(249, 115, 22, 0.7)'; // Orange
-        if (deadStockValue > 100) return 'rgba(234, 179, 8, 0.6)'; // Yellow
-        return 'rgba(34, 197, 94, 0.5)'; // Green - No dead stock
+        const maxDeadStock = Math.max(...allMetrics.map(m => 
+          m.productMetrics
+            .filter(p => (p.inventoryQuantity || 0) > 0 && p.periodVolume === 0)
+            .reduce((sum, p) => sum + (p.inventoryQuantity || 0) * p.cost, 0)
+        ), 1);
+        
+        // Invert for dead stock (more dead stock = worse = red)
+        const intensity = 1 - (deadStockValue / maxDeadStock);
+        return getGradientColor(intensity);
       }
       
       case 'margin': {
@@ -1716,10 +1749,9 @@ const PlanogramProfitTracker = () => {
             return sum + margin;
           }, 0) / metrics.productMetrics.length : 0;
         
-        if (avgMargin > 0.5) return 'rgba(34, 197, 94, 0.7)'; // Green - High margin
-        if (avgMargin > 0.3) return 'rgba(234, 179, 8, 0.7)'; // Yellow
-        if (avgMargin > 0.15) return 'rgba(249, 115, 22, 0.7)'; // Orange
-        return 'rgba(239, 68, 68, 0.7)'; // Red - Low margin
+        // Scale margin to 0-1 (assume max 70% margin is best)
+        const intensity = Math.min(avgMargin / 0.7, 1);
+        return getGradientColor(intensity);
       }
       
       case 'stockHealth': {
@@ -1736,11 +1768,21 @@ const PlanogramProfitTracker = () => {
         ).length;
         
         const problemScore = outOfStock * 3 + lowStock * 2 + deadStock;
+        const maxProblemScore = Math.max(...allMetrics.map(m => {
+          const p = m.productMetrics;
+          const os = p.filter(pr => (pr.inventoryQuantity || 0) === 0 && pr.periodVolume > 0).length;
+          const ls = p.filter(pr => {
+            const stock = pr.inventoryQuantity || 0;
+            const daysRemaining = pr.periodVolume > 0 ? stock / (pr.periodVolume / 30) : Infinity;
+            return stock > 0 && daysRemaining < 7;
+          }).length;
+          const ds = p.filter(pr => (pr.inventoryQuantity || 0) > 0 && pr.periodVolume === 0).length;
+          return os * 3 + ls * 2 + ds;
+        }), 1);
         
-        if (problemScore === 0) return 'rgba(34, 197, 94, 0.7)'; // Green - Healthy
-        if (problemScore < 3) return 'rgba(234, 179, 8, 0.7)'; // Yellow - Minor issues
-        if (problemScore < 6) return 'rgba(249, 115, 22, 0.7)'; // Orange - Needs attention
-        return 'rgba(239, 68, 68, 0.7)'; // Red - Critical
+        // Invert (lower problem score = better = green)
+        const intensity = 1 - (problemScore / maxProblemScore);
+        return getGradientColor(intensity);
       }
       
       case 'aov': {
@@ -1750,10 +1792,15 @@ const PlanogramProfitTracker = () => {
             return sum + (p.analytics?.averageOrderValue || 0);
           }, 0) / metrics.productMetrics.filter(p => p.analytics?.averageOrderValue > 0).length : 0;
         
-        if (avgAOV > 150) return 'rgba(34, 197, 94, 0.8)'; // Green - High value orders
-        if (avgAOV > 100) return 'rgba(234, 179, 8, 0.7)'; // Yellow
-        if (avgAOV > 50) return 'rgba(249, 115, 22, 0.7)'; // Orange
-        return 'rgba(239, 68, 68, 0.7)'; // Red - Low value orders
+        const maxAOV = Math.max(...allMetrics.map(m => {
+          const aov = m.productMetrics.length > 0 ?
+            m.productMetrics.reduce((sum, p) => sum + (p.analytics?.averageOrderValue || 0), 0) / 
+            m.productMetrics.filter(p => p.analytics?.averageOrderValue > 0).length : 0;
+          return aov || 0;
+        }), 1);
+        
+        const intensity = avgAOV / maxAOV;
+        return getGradientColor(intensity);
       }
       
       case 'returningCustomers': {
@@ -1767,10 +1814,7 @@ const PlanogramProfitTracker = () => {
             return total > 0;
           }).length : 0;
         
-        if (returningCustomerRatio > 0.7) return 'rgba(34, 197, 94, 0.8)'; // Green - Loyal customer favorites
-        if (returningCustomerRatio > 0.5) return 'rgba(234, 179, 8, 0.7)'; // Yellow
-        if (returningCustomerRatio > 0.3) return 'rgba(249, 115, 22, 0.7)'; // Orange
-        return 'rgba(147, 51, 234, 0.7)'; // Purple - New customer products
+        return getGradientColor(returningCustomerRatio);
       }
       
       case 'shoppingPath': {
@@ -1780,10 +1824,16 @@ const PlanogramProfitTracker = () => {
             return sum + (p.analytics?.averageCartPosition || 99);
           }, 0) / metrics.productMetrics.filter(p => p.analytics?.averageCartPosition > 0).length : 0;
         
-        if (avgCartPosition <= 2) return 'rgba(34, 197, 94, 0.8)'; // Green - Grabbed FIRST (entry products)
-        if (avgCartPosition <= 4) return 'rgba(234, 179, 8, 0.7)'; // Yellow - Early shopping
-        if (avgCartPosition <= 6) return 'rgba(249, 115, 22, 0.7)'; // Orange - Mid shopping
-        return 'rgba(239, 68, 68, 0.7)'; // Red - Grabbed LAST (checkout impulse)
+        const maxCartPosition = Math.max(...allMetrics.map(m => {
+          const pos = m.productMetrics.length > 0 ?
+            m.productMetrics.reduce((sum, p) => sum + (p.analytics?.averageCartPosition || 99), 0) / 
+            m.productMetrics.filter(p => p.analytics?.averageCartPosition > 0).length : 0;
+          return pos || 10;
+        }), 10);
+        
+        // Invert - lower cart position (grabbed first) = better = green
+        const intensity = 1 - (avgCartPosition / maxCartPosition);
+        return getGradientColor(intensity);
       }
       
       default:
