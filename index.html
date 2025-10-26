@@ -319,6 +319,13 @@ const PlanogramProfitTracker = () => {
   const [showLibrary, setShowLibrary] = useState(false);
   const [heatMapMode, setHeatMapMode] = useState(true); // Heat map ON by default
   const [timePeriod, setTimePeriod] = useState('month'); // day, week, month, quarter, custom
+  const [customStartDate, setCustomStartDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [customEndDate, setCustomEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
   const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' });
   const [backgroundImage, setBackgroundImage] = useState(null);
   const [bgImagePosition, setBgImagePosition] = useState({ x: 0, y: 0 });
@@ -1630,8 +1637,17 @@ const PlanogramProfitTracker = () => {
           salesVolume = p.allTimeSales || 0;
           break;
         case 'custom':
-          // For custom, use monthly as default (would need custom logic to calculate actual range)
-          salesVolume = p.monthlySales || 0;
+          // Calculate days in custom range and estimate proportionally
+          if (customStartDate && customEndDate) {
+            const start = new Date(customStartDate);
+            const end = new Date(customEndDate);
+            const daysInRange = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            const daysInMonth = 30;
+            // Estimate based on monthly sales proportionally
+            salesVolume = (p.monthlySales || 0) * (daysInRange / daysInMonth);
+          } else {
+            salesVolume = p.monthlySales || 0;
+          }
           break;
         default:
           salesVolume = p.monthlySales || 0;
@@ -3972,7 +3988,27 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 <option value="quarter">📅 Quarterly</option>
                 <option value="year">📅 Yearly</option>
                 <option value="all">📅 All Time</option>
+                <option value="custom">📅 Custom Range</option>
               </select>
+              
+              {/* Custom Date Range Picker */}
+              {timePeriod === 'custom' && (
+                <div className="flex items-center gap-2 ml-2">
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="px-3 py-2 border-2 border-blue-300 rounded text-sm focus:outline-none focus:border-blue-600"
+                  />
+                  <span className="text-gray-600">to</span>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="px-3 py-2 border-2 border-blue-300 rounded text-sm focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+              )}
             </div>
           </div>
           
