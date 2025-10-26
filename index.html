@@ -155,6 +155,7 @@ const PlanogramProfitTracker = () => {
   const [firebaseReady, setFirebaseReady] = useState(false);
   const [stickyRowMode, setStickyRowMode] = useState(true); // NEW: Sticky row scanning mode
   const [unknownProducts, setUnknownProducts] = useState([]);
+  const [badStockProducts, setBadStockProducts] = useState([]); // NEW: Separate list for negative stock items
   const [showUnknownProducts, setShowUnknownProducts] = useState(true);
 
   // Initialize Firebase on mount
@@ -1104,16 +1105,16 @@ const PlanogramProfitTracker = () => {
         if (response.ok && data.title) {
           // 🔥 Check for negative inventory - treat as bad stock
           if (data.inventoryQuantity < 0) {
-            // Add to unknown/bad stock list
-            const existingUnknown = unknownProducts.find(u => u.upc === newProduct.upc);
-            if (!existingUnknown) {
-              setUnknownProducts(prev => [...prev, {
+            // Add to BAD STOCK list (separate from unknown)
+            const existingBadStock = badStockProducts.find(b => b.upc === newProduct.upc);
+            if (!existingBadStock) {
+              setBadStockProducts(prev => [...prev, {
                 id: Date.now(),
                 upc: newProduct.upc,
-                note: `${data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title} (NEGATIVE STOCK: ${data.inventoryQuantity})`,
+                note: `${data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title} (Stock: ${data.inventoryQuantity})`,
                 addedAt: new Date().toISOString(),
                 resolved: false,
-                isNegativeStock: true,
+                inventoryQuantity: data.inventoryQuantity,
                 productData: data
               }]);
             }
@@ -1150,7 +1151,7 @@ const PlanogramProfitTracker = () => {
               visualY: Math.random() * 80 + 10
             };
             
-            setFeedback(`⚠️ NEGATIVE STOCK (${data.inventoryQuantity}) - ${product.name} added to Unknown & Bad Stock list`);
+            setFeedback(`⚠️ NEGATIVE STOCK (${data.inventoryQuantity}) - ${product.name} added to Bad Stock list`);
           } else {
             product = {
               upc: newProduct.upc,
@@ -2216,6 +2217,38 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     setUnknownProducts(prev => prev.filter(u => u.id !== id));
   };
 
+  // Bad Stock Products Management
+  const updateBadStockNote = (id, note) => {
+    const updatedProducts = badStockProducts.map(b => b.id === id ? { ...b, note } : b);
+    setBadStockProducts(updatedProducts);
+    console.log('Updated bad stock products:', updatedProducts);
+  };
+
+  // Auto-save bad stock products when they change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (badStockProducts.length > 0) {
+        console.log('Auto-saving bad stock products...');
+        localStorage.setItem('planogram_bad_stock_products', JSON.stringify(badStockProducts));
+        if (cloudSyncEnabled) {
+          saveToFirebase(sections);
+        }
+      }
+    }, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [badStockProducts]);
+
+  const deleteBadStockProduct = (id) => {
+    setBadStockProducts(prev => prev.filter(b => b.id !== id));
+  };
+
+  const resolveBadStock = (id) => {
+    setBadStockProducts(prev =>
+      prev.map(b => b.id === id ? { ...b, resolved: true } : b)
+    );
+    setFeedback('✅ Marked as resolved');
+  };
+
   const checkUnknownAgainstShopify = async () => {
     if (!shopifyConfig.connected) {
       setFeedback('⚠️ Connect to Shopify first');
@@ -2317,10 +2350,25 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   : 'bg-blue-500 text-white hover:bg-blue-400'
               }`}
             >
-              ⚠️ Unknown & Bad Stock
+              ⚠️ Unknown Products
               {unknownProducts.filter(u => !u.resolved).length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   {unknownProducts.filter(u => !u.resolved).length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setCurrentPage('badStock')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all relative ${
+                currentPage === 'badStock'
+                  ? 'bg-white text-blue-600 shadow-lg'
+                  : 'bg-orange-500 text-white hover:bg-orange-400'
+              }`}
+            >
+              📦 Bad Stock
+              {badStockProducts.filter(b => !b.resolved).length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {badStockProducts.filter(b => !b.resolved).length}
                 </span>
               )}
             </button>
@@ -4808,6 +4856,167 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         </div>
       )}
 
+      {/* 📦 BAD STOCK PAGE */}
+      {currentPage === 'badStock' && (
+        <div className="flex-1 overflow-auto p-8 bg-gray-50">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold mb-2">📦 Bad Stock</h1>
+            <p className="text-gray-600">Products with negative inventory that need stock verification and updates</p>
+          </div>
+
+          {/* Analytics Cards */}
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-sm text-gray-600 mb-1">Total Bad Stock</div>
+              <div className="text-3xl font-bold text-red-600">
+                {badStockProducts.filter(b => !b.resolved).length}
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-sm text-gray-600 mb-1">Resolved</div>
+              <div className="text-3xl font-bold text-green-600">
+                {badStockProducts.filter(b => b.resolved).length}
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-sm text-gray-600 mb-1">Avg. Negative Stock</div>
+              <div className="text-3xl font-bold text-orange-600">
+                {badStockProducts.filter(b => !b.resolved).length > 0 
+                  ? Math.round(badStockProducts.filter(b => !b.resolved).reduce((sum, b) => sum + (b.inventoryQuantity || 0), 0) / badStockProducts.filter(b => !b.resolved).length)
+                  : 0}
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-sm text-gray-600 mb-1">Total Negative Units</div>
+              <div className="text-3xl font-bold text-gray-800">
+                {badStockProducts.filter(b => !b.resolved).reduce((sum, b) => sum + Math.abs(b.inventoryQuantity || 0), 0)}
+              </div>
+            </div>
+          </div>
+
+          {/* Action Info */}
+          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+            <p className="text-blue-800">
+              <strong>💡 Workflow:</strong> These products have negative inventory counts in Shopify. Review each item, verify physical stock, and update Shopify inventory accordingly. Mark as resolved when fixed.
+            </p>
+          </div>
+
+          {/* Bad Stock List */}
+          <div className="space-y-4">
+            {badStockProducts.filter(b => !b.resolved).length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <div className="text-4xl mb-4">✅</div>
+                <div className="text-xl font-semibold text-gray-800">All stock verified!</div>
+                <div className="text-gray-600 mt-2">No negative stock issues found.</div>
+              </div>
+            ) : (
+              badStockProducts.filter(b => !b.resolved).map(badStock => {
+                // Find which section and row this product is in
+                let location = null;
+                sections.forEach(section => {
+                  section.rows?.forEach(row => {
+                    const product = row.products?.find(p => p.upc === badStock.upc);
+                    if (product) {
+                      location = { sectionName: section.name, rowName: row.name };
+                    }
+                  });
+                });
+
+                return (
+                  <div key={badStock.id} className="bg-red-50 border-2 border-red-300 rounded-lg shadow p-6">
+                    <div className="flex items-start gap-6">
+                      {/* UPC & Location */}
+                      <div className="flex-shrink-0">
+                        <div className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded mb-2">
+                          ⚠️ NEGATIVE STOCK: {badStock.inventoryQuantity}
+                        </div>
+                        <div className="text-sm text-gray-600 mb-1">UPC</div>
+                        <div className="font-mono text-lg font-bold">{badStock.upc}</div>
+                        {location && (
+                          <div className="mt-2 text-xs text-gray-600">
+                            📍 {location.sectionName} → {location.rowName}
+                          </div>
+                        )}
+                        <div className="text-xs text-gray-500 mt-1">
+                          Detected {new Date(badStock.addedAt).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      {/* Note Field */}
+                      <div className="flex-1">
+                        <div className="text-sm text-gray-600 mb-1">Product Info / Notes</div>
+                        <input
+                          type="text"
+                          value={badStock.note || ''}
+                          onChange={(e) => updateBadStockNote(badStock.id, e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              console.log('Enter pressed - saving immediately!');
+                              saveToFirebase(sections);
+                              setFeedback('💾 Saved!');
+                              setTimeout(() => setFeedback(''), 2000);
+                            }
+                          }}
+                          placeholder="Add notes about stock verification..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex-shrink-0 flex gap-2">
+                        <button
+                          onClick={() => resolveBadStock(badStock.id)}
+                          className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-1"
+                          title="Mark as Resolved"
+                        >
+                          ✓ Resolved
+                        </button>
+                        <button
+                          onClick={() => deleteBadStockProduct(badStock.id)}
+                          className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                          title="Delete"
+                        >
+                          <Icons.Trash2 />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Resolved Bad Stock */}
+          {badStockProducts.filter(b => b.resolved).length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-2xl font-bold mb-4">✅ Recently Resolved</h2>
+              <div className="space-y-2">
+                {badStockProducts.filter(b => b.resolved).map(badStock => (
+                  <div key={badStock.id} className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="font-semibold text-green-800">{badStock.note || `UPC: ${badStock.upc}`}</div>
+                      <div className="text-sm text-gray-600">
+                        Previous Stock: {badStock.inventoryQuantity}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => deleteBadStockProduct(badStock.id)}
+                      className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {currentPage === 'settings' && (
         <div className="flex-1 overflow-auto p-8">
           <h1 className="text-3xl font-bold mb-6">⚙️ Settings</h1>
@@ -4868,8 +5077,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       {currentPage === 'unknownProducts' && (
         <div className="flex-1 overflow-auto p-8 bg-gray-50">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">⚠️ Unknown & Bad Stock</h1>
-            <p className="text-gray-600">Products that need to be synced with Shopify or have negative inventory</p>
+            <h1 className="text-3xl font-bold mb-2">⚠️ Unknown Products</h1>
+            <p className="text-gray-600">Products that need to be synced with Shopify</p>
           </div>
 
           {/* Analytics Cards */}
@@ -4947,15 +5156,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 });
 
                 return (
-                  <div key={unknown.id} className={`rounded-lg shadow p-6 ${unknown.isNegativeStock ? 'bg-red-50 border-2 border-red-300' : 'bg-white'}`}>
+                  <div key={unknown.id} className="bg-white rounded-lg shadow p-6">
                     <div className="flex items-start gap-6">
                       {/* UPC & Location */}
                       <div className="flex-shrink-0">
-                        {unknown.isNegativeStock && (
-                          <div className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded mb-2">
-                            ⚠️ NEGATIVE STOCK
-                          </div>
-                        )}
                         <div className="text-sm text-gray-600 mb-1">UPC</div>
                         <div className="font-mono text-lg font-bold">{unknown.upc}</div>
                         {location && (
