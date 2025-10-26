@@ -3831,7 +3831,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         ref={upcInputRef}
                         type="text"
                         placeholder="Scan or enter UPC (select a row first)"
-                        value={selectedSection === section.id ? newProduct.upc : ''}
+                        value={newProduct.upc}
                         onChange={(e) => {
                           const newUPC = e.target.value;
                           const currentRowId = currentScanTarget.current.rowId;
@@ -3840,11 +3840,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           setSelectedSection(section.id);
                           setNewProduct({ ...newProduct, upc: newUPC, sectionId: section.id });
                           
-                          console.log('📝 UPC changed:', {
+                          console.log('📝 UPC input changed:', {
                             newUPC,
                             length: newUPC.length,
                             rowId: currentRowId,
                             sectionId: currentSectionId,
+                            scanTargetRef: currentScanTarget.current,
                             willAutoSubmit: newUPC.length >= 8 && currentRowId
                           });
                           
@@ -3852,7 +3853,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           if (newUPC.length >= 8 && currentRowId) {
                             clearTimeout(window.scannerTimeout);
                             window.scannerTimeout = setTimeout(() => {
-                              console.log('🔫 Attempting auto-submit for UPC:', newUPC);
+                              console.log('🔫 Auto-submitting scanned UPC:', newUPC);
                               addProductToSection();
                             }, 300);
                           } else {
