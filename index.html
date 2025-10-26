@@ -1102,44 +1102,95 @@ const PlanogramProfitTracker = () => {
         const data = await response.json();
 
         if (response.ok && data.title) {
-          product = {
-            upc: newProduct.upc,
-            name: data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title,
-            price: data.price,
-            compareAtPrice: data.compareAtPrice,
-            cost: data.cost,
-            dailySales: data.dailySales || 0,
-            weeklySales: data.weeklySales || 0,
-            monthlySales: data.monthlySales || 0,
-            quarterlySales: data.quarterlySales || 0,
-            yearlySales: data.yearlySales || 0,
-            allTimeSales: data.allTimeSales || 0,
-            inventoryQuantity: data.inventoryQuantity || 0,
-            sku: data.sku,
-            vendor: data.vendor,
-            distributor: data.distributor,
-            tags: data.tags,
-            createdAt: data.createdAt,
-            // 🔥 BEAST MODE Analytics
-            analytics: data.analytics || {
-              timesPurchased: 0,
-              averageOrderValue: 0,
-              returningCustomerPurchases: 0,
-              newCustomerPurchases: 0,
-              averageCartPosition: 0,
-              boughtTogether: []
-            },
-            quantity: 1,
-            source: 'database',
-            visualX: Math.random() * 80 + 10,
-            visualY: Math.random() * 80 + 10
-          };
-          
-          // Create detailed feedback with stock info + analytics
-          const stockWarning = data.inventoryQuantity === 0 ? ' ⚠️ OUT OF STOCK' : 
-                              data.inventoryQuantity < 10 ? ' ⚠️ LOW STOCK' : '';
-          const aovInfo = data.analytics?.averageOrderValue > 0 ? ` | AOV: $${data.analytics.averageOrderValue.toFixed(2)}` : '';
-          setFeedback(`✅ Added: ${product.name} (${data.monthlySales || 0} sales, ${data.inventoryQuantity} stock)${stockWarning}${aovInfo}`);
+          // 🔥 Check for negative inventory - treat as bad stock
+          if (data.inventoryQuantity < 0) {
+            // Add to unknown/bad stock list
+            const existingUnknown = unknownProducts.find(u => u.upc === newProduct.upc);
+            if (!existingUnknown) {
+              setUnknownProducts(prev => [...prev, {
+                id: Date.now(),
+                upc: newProduct.upc,
+                note: `${data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title} (NEGATIVE STOCK: ${data.inventoryQuantity})`,
+                addedAt: new Date().toISOString(),
+                resolved: false,
+                isNegativeStock: true,
+                productData: data
+              }]);
+            }
+            
+            product = {
+              upc: newProduct.upc,
+              name: data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title,
+              price: data.price,
+              compareAtPrice: data.compareAtPrice,
+              cost: data.cost,
+              dailySales: data.dailySales || 0,
+              weeklySales: data.weeklySales || 0,
+              monthlySales: data.monthlySales || 0,
+              quarterlySales: data.quarterlySales || 0,
+              yearlySales: data.yearlySales || 0,
+              allTimeSales: data.allTimeSales || 0,
+              inventoryQuantity: data.inventoryQuantity,
+              sku: data.sku,
+              vendor: data.vendor,
+              distributor: data.distributor,
+              tags: data.tags,
+              createdAt: data.createdAt,
+              analytics: data.analytics || {
+                timesPurchased: 0,
+                averageOrderValue: 0,
+                returningCustomerPurchases: 0,
+                newCustomerPurchases: 0,
+                averageCartPosition: 0,
+                boughtTogether: []
+              },
+              quantity: 1,
+              source: 'database',
+              visualX: Math.random() * 80 + 10,
+              visualY: Math.random() * 80 + 10
+            };
+            
+            setFeedback(`⚠️ NEGATIVE STOCK (${data.inventoryQuantity}) - ${product.name} added to Unknown & Bad Stock list`);
+          } else {
+            product = {
+              upc: newProduct.upc,
+              name: data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title,
+              price: data.price,
+              compareAtPrice: data.compareAtPrice,
+              cost: data.cost,
+              dailySales: data.dailySales || 0,
+              weeklySales: data.weeklySales || 0,
+              monthlySales: data.monthlySales || 0,
+              quarterlySales: data.quarterlySales || 0,
+              yearlySales: data.yearlySales || 0,
+              allTimeSales: data.allTimeSales || 0,
+              inventoryQuantity: data.inventoryQuantity || 0,
+              sku: data.sku,
+              vendor: data.vendor,
+              distributor: data.distributor,
+              tags: data.tags,
+              createdAt: data.createdAt,
+              // 🔥 BEAST MODE Analytics
+              analytics: data.analytics || {
+                timesPurchased: 0,
+                averageOrderValue: 0,
+                returningCustomerPurchases: 0,
+                newCustomerPurchases: 0,
+                averageCartPosition: 0,
+                boughtTogether: []
+              },
+              quantity: 1,
+              source: 'database',
+              visualX: Math.random() * 80 + 10,
+              visualY: Math.random() * 80 + 10
+            };
+            
+            // Create detailed feedback with stock info + analytics
+            const stockWarning = data.inventoryQuantity === 0 ? ' ⚠️ OUT OF STOCK' : 
+                                data.inventoryQuantity < 10 ? ' ⚠️ LOW STOCK' : '';
+            const aovInfo = data.analytics?.averageOrderValue > 0 ? ` | AOV: $${data.analytics.averageOrderValue.toFixed(2)}` : '';
+            setFeedback(`✅ Added: ${product.name} (${data.monthlySales || 0} sales, ${data.inventoryQuantity} stock)${stockWarning}${aovInfo}`);
+          }
         }
       } catch (error) {
         console.error('Error fetching from database:', error);
@@ -2266,7 +2317,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   : 'bg-blue-500 text-white hover:bg-blue-400'
               }`}
             >
-              ⚠️ Unknown Products
+              ⚠️ Unknown & Bad Stock
               {unknownProducts.filter(u => !u.resolved).length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   {unknownProducts.filter(u => !u.resolved).length}
@@ -4817,8 +4868,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       {currentPage === 'unknownProducts' && (
         <div className="flex-1 overflow-auto p-8 bg-gray-50">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">⚠️ Unknown Products</h1>
-            <p className="text-gray-600">Products that need to be synced with Shopify</p>
+            <h1 className="text-3xl font-bold mb-2">⚠️ Unknown & Bad Stock</h1>
+            <p className="text-gray-600">Products that need to be synced with Shopify or have negative inventory</p>
           </div>
 
           {/* Analytics Cards */}
@@ -4896,10 +4947,15 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 });
 
                 return (
-                  <div key={unknown.id} className="bg-white rounded-lg shadow p-6">
+                  <div key={unknown.id} className={`rounded-lg shadow p-6 ${unknown.isNegativeStock ? 'bg-red-50 border-2 border-red-300' : 'bg-white'}`}>
                     <div className="flex items-start gap-6">
                       {/* UPC & Location */}
                       <div className="flex-shrink-0">
+                        {unknown.isNegativeStock && (
+                          <div className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded mb-2">
+                            ⚠️ NEGATIVE STOCK
+                          </div>
+                        )}
                         <div className="text-sm text-gray-600 mb-1">UPC</div>
                         <div className="font-mono text-lg font-bold">{unknown.upc}</div>
                         {location && (
