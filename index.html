@@ -167,6 +167,45 @@ const PlanogramProfitTracker = () => {
           await window.firebaseService.signInAnonymously();
           setFirebaseReady(true);
           console.log('Firebase ready');
+          
+          // Auto-load the most recent planogram from cloud
+          setTimeout(async () => {
+            try {
+              const planograms = await window.firebaseService.listPlanograms();
+              
+              if (planograms.length > 0) {
+                // Load the most recent one (first in list)
+                const mostRecent = planograms[0];
+                const data = await window.firebaseService.loadPlanogram(mostRecent.id);
+                
+                if (data) {
+                  setStoreName(data.name || 'Loaded Layout');
+                  setFixtures(Array.isArray(data.fixtures) ? data.fixtures : []);
+                  
+                  const safeSections = Array.isArray(data.sections) 
+                    ? data.sections.map(section => ({
+                        ...section,
+                        rows: Array.isArray(section.rows) ? section.rows : [],
+                        products: Array.isArray(section.products) ? section.products : []
+                      }))
+                    : [];
+                  setSections(safeSections);
+                  
+                  if (data.shopifyConfig) {
+                    setShopifyConfig(prev => ({
+                      ...prev,
+                      storeName: data.shopifyConfig.storeName || prev.storeName,
+                      connected: data.shopifyConfig.connected || false
+                    }));
+                  }
+                  
+                  console.log('✅ Auto-loaded from cloud:', mostRecent.name);
+                }
+              }
+            } catch (error) {
+              console.log('Auto-load skipped:', error.message);
+            }
+          }, 1000); // Wait 1 second for Firebase to fully initialize
         }
       } catch (error) {
         console.error('Firebase init failed:', error);
