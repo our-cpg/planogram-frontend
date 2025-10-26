@@ -1491,6 +1491,37 @@ const PlanogramProfitTracker = () => {
     autoSave(updatedSections, 'Auto-saved after adding section');
   };
 
+  const snapAllToFixture = (fixtureId) => {
+    const fixtureSections = sections.filter(s => s.fixtureId === fixtureId);
+    if (fixtureSections.length === 0) return;
+
+    // Sort sections left to right, top to bottom
+    const sortedSections = [...fixtureSections].sort((a, b) => {
+      if (Math.abs(a.layoutY - b.layoutY) < 5) {
+        return a.layoutX - b.layoutX;
+      }
+      return a.layoutY - b.layoutY;
+    });
+
+    // Calculate equal width for all sections
+    const sectionWidth = 100 / sortedSections.length;
+
+    // Snap sections edge-to-edge horizontally, full height
+    const snappedSections = sortedSections.map((section, index) => ({
+      ...section,
+      layoutX: index * sectionWidth,
+      layoutY: 0,
+      layoutWidth: sectionWidth,
+      layoutHeight: 100
+    }));
+
+    // Update all sections
+    const otherSections = sections.filter(s => s.fixtureId !== fixtureId);
+    const updatedSections = [...otherSections, ...snappedSections];
+    setSections(updatedSections);
+    autoSave(updatedSections, 'Auto-saved after snapping sections');
+  };
+
   const deleteSection = (sectionId) => {
     if (!confirm('Delete section and all products?')) return;
     
@@ -2136,7 +2167,11 @@ const PlanogramProfitTracker = () => {
           width: width,
           height: height,
           backgroundColor: color,
-          border: isSelected ? '2px solid #3b82f6' : '1px solid rgba(255,255,255,0.5)',
+          border: isSelected 
+            ? '2px solid #3b82f6' 
+            : heatMapMode 
+              ? 'none'
+              : '1px solid rgba(255,255,255,0.3)',
           cursor: isDragging ? 'grabbing' : 'grab',
           pointerEvents: 'auto',
           display: 'flex',
@@ -3201,6 +3236,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           >
             <Icons.Plus />
             Add Section
+          </button>
+
+          <button
+            onClick={() => snapAllToFixture(selectedFixture)}
+            className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 mb-2 flex items-center justify-center gap-2"
+          >
+            <Icons.AlignVertical />
+            Snap All to Fixture
           </button>
 
           <button
