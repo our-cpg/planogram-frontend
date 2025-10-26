@@ -388,6 +388,8 @@ const PlanogramProfitTracker = () => {
   const [collapsedSectionLayouts, setCollapsedSectionLayouts] = useState(new Set(['all'])); // Start with all collapsed
   const [collapsedRowsSections, setCollapsedRowsSections] = useState(new Set(['all'])); // Start with all collapsed
   const [collapsedUnknownProducts, setCollapsedUnknownProducts] = useState(new Set(['all'])); // Start with all collapsed
+  const [collapsedSections, setCollapsedSections] = useState(new Set()); // Track which sections are collapsed
+  const sectionRefs = useRef({}); // Refs for scrolling to sections
   const [heatMapType, setHeatMapType] = useState('profit'); // profit, velocity, deadStock, margin, stockHealth
   const [showHeatMapGuide, setShowHeatMapGuide] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(500); // Default 500px - balanced width
@@ -2243,6 +2245,16 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               setSelectedSection(section.id);
               setSelectedFixture(section.fixtureId); // Open the fixture sidebar
               
+              // Scroll to section in sidebar
+              setTimeout(() => {
+                if (sectionRefs.current[section.id]) {
+                  sectionRefs.current[section.id].scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                  });
+                }
+              }, 100);
+              
               // Expand all collapsible sections when clicking on map
               const newLayoutCollapsed = new Set(collapsedSectionLayouts);
               newLayoutCollapsed.delete('all');
@@ -3172,10 +3184,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               .filter(s => s.fixtureId === selectedFixture)
               .map(section => {
                 const metrics = calculateMetrics(section, timePeriod);
+                const isSectionCollapsed = collapsedSections.has(section.id);
                 
                 return (
                   <div
                     key={section.id}
+                    ref={el => sectionRefs.current[section.id] = el}
                     className={`p-4 border-2 rounded-lg ${selectedSection === section.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
                     onClick={() => {
                       setSelectedSection(section.id);
@@ -3205,6 +3219,22 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     }}
                   >
                     <div className="flex items-center justify-between mb-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newCollapsed = new Set(collapsedSections);
+                          if (isSectionCollapsed) {
+                            newCollapsed.delete(section.id);
+                          } else {
+                            newCollapsed.add(section.id);
+                          }
+                          setCollapsedSections(newCollapsed);
+                        }}
+                        className="text-gray-600 hover:text-gray-800 mr-2 font-bold text-lg"
+                        title={isSectionCollapsed ? "Expand section" : "Collapse section"}
+                      >
+                        {isSectionCollapsed ? '▶' : '▼'}
+                      </button>
                       {editingSection === section.id ? (
                         <input
                           type="text"
@@ -3253,7 +3283,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       </button>
                     </div>
 
-                    <div className="text-sm space-y-1 mb-3">
+                    {!isSectionCollapsed && (
+                      <>
+                        <div className="text-sm space-y-1 mb-3">
                       <div className="flex items-center gap-2">
                         {editingSectionArea === section.id ? (
                           <input
@@ -4211,6 +4243,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         </div>
                       )}
                     </div>
+                      </>\n                    )}
                   </div>
                 );
               })}
