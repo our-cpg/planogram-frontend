@@ -402,7 +402,7 @@ const PlanogramProfitTracker = () => {
       const section = sections.find(s => s.id === selectedSection);
       if (section) {
         const canvasRect = canvasRef.current.getBoundingClientRect();
-        const sidebarWidth = 400; // Approximate width of the right sidebar
+        const sidebarWidth = 500; // Actual width of the right sidebar
         const targetX = (canvasRect.width - sidebarWidth) / 4; // Position section on left quarter of visible area
         
         // Calculate the pan offset needed to center the section at targetX
