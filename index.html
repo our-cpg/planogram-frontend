@@ -3788,21 +3788,29 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       <input
                         type="text"
                         placeholder="Scan or enter UPC (select a row first)"
-                        value={selectedSection === section.id ? newProduct.upc : ''}
+                        value={newProduct.upc}
                         onChange={(e) => {
                           const newUPC = e.target.value;
-                          setSelectedSection(section.id);
-                          setNewProduct({ ...newProduct, upc: newUPC, sectionId: section.id });
+                          const currentRowId = scanTargetRef.current?.rowId || newProduct.rowId;
+                          const currentSectionId = scanTargetRef.current?.sectionId || section.id;
+                          
+                          setSelectedSection(currentSectionId);
+                          setNewProduct({ 
+                            upc: newUPC, 
+                            sectionId: currentSectionId,
+                            rowId: currentRowId
+                          });
                           
                           console.log('📝 UPC input changed:', {
                             newUPC,
                             length: newUPC.length,
-                            rowId: newProduct.rowId,
-                            sectionId: section.id
+                            rowId: currentRowId,
+                            sectionId: currentSectionId,
+                            scanTargetRef: scanTargetRef.current
                           });
                           
                           // Auto-submit after barcode scanner finishes (200ms delay)
-                          if (newUPC.length >= 8 && newProduct.rowId) {
+                          if (newUPC.length >= 8 && currentRowId) {
                             clearTimeout(window.scannerTimeout);
                             window.scannerTimeout = setTimeout(() => {
                               console.log('🔫 Auto-submitting scanned UPC:', newUPC);
@@ -3812,7 +3820,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             console.log('❌ NOT auto-submitting:', {
                               reason: newUPC.length < 8 ? 'UPC too short' : 'No row selected',
                               upcLength: newUPC.length,
-                              hasRow: !!newProduct.rowId
+                              hasRow: !!currentRowId
                             });
                           }
                         }}
