@@ -136,6 +136,7 @@ const PlanogramProfitTracker = () => {
   const [sections, setSections] = useState([]);
   const [selectedSection, setSelectedSection] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null); // For clicking products on canvas
   const [scale, setScale] = useState(20);
   const [storeName, setStoreName] = useState('My Store Layout');
   const [newProduct, setNewProduct] = useState({ upc: '', sectionId: '', rowId: '' });
