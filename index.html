@@ -3176,9 +3176,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     {/* Section Layout Controls */}
                     <div className="space-y-2 mb-3 border-t pt-3">
                       <div 
-                        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded"
+                        className="flex items-center justify-between cursor-pointer hover:bg-blue-50 p-2 rounded -mx-2"
                         onClick={(e) => {
                           e.stopPropagation();
+                          e.preventDefault();
                           const newCollapsed = new Set(collapsedSectionLayouts);
                           if (newCollapsed.has(section.id)) {
                             newCollapsed.delete(section.id);
@@ -3189,7 +3190,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         }}
                       >
                         <div className="text-xs font-bold text-gray-600">SECTION LAYOUT</div>
-                        <span className="text-gray-500">
+                        <span className="text-lg text-gray-500 font-bold">
                           {collapsedSectionLayouts.has(section.id) ? '▶' : '▼'}
                         </span>
                       </div>
@@ -3379,9 +3380,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     {/* Rows Section */}
                     <div className="border-t pt-3 mb-3">
                       <div 
-                        className="flex justify-between items-center mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                        className="flex justify-between items-center mb-2 cursor-pointer hover:bg-blue-50 p-2 rounded -mx-2"
                         onClick={(e) => {
                           e.stopPropagation();
+                          e.preventDefault();
                           const newCollapsed = new Set(collapsedRowsSections);
                           if (newCollapsed.has(section.id)) {
                             newCollapsed.delete(section.id);
@@ -3393,13 +3395,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       >
                         <div className="flex items-center gap-2">
                           <h4 className="font-semibold text-sm">Rows (Height Tracking)</h4>
-                          <span className="text-gray-500 text-xs">
+                          <span className="text-lg text-gray-500 font-bold">
                             {collapsedRowsSections.has(section.id) ? '▶' : '▼'}
                           </span>
                         </div>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            e.preventDefault();
                             addRowToSection(section.id);
                           }}
                           className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
