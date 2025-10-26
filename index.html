@@ -3557,7 +3557,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                     
                                     return (
                                       <div key={pIdx} className="bg-white border-2 border-gray-200 p-3 rounded-lg group hover:border-blue-300 transition-all">
-                                        {/* Product Name & Delete */}
+                                        {/* Product Name & Controls */}
                                         <div className="flex items-start justify-between mb-2">
                                           <div className="flex-1">
                                             <div className="font-semibold text-sm text-gray-800">{product.name}</div>
@@ -3610,33 +3610,101 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                               </div>
                                             )}
                                           </div>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              const updatedSections = sections.map(s => {
-                                                if (s.id === section.id) {
-                                                  const updatedRows = s.rows.map(r => {
-                                                    if (r.id === row.id) {
-                                                      return {
-                                                        ...r,
-                                                        products: r.products.filter((_, idx) => idx !== pIdx)
-                                                      };
+                                          
+                                          {/* Action Buttons */}
+                                          <div className="flex gap-1 ml-2">
+                                            {/* Move Up */}
+                                            {pIdx > 0 && (
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  const updatedSections = sections.map(s => {
+                                                    if (s.id === section.id) {
+                                                      const updatedRows = s.rows.map(r => {
+                                                        if (r.id === row.id) {
+                                                          const newProducts = [...r.products];
+                                                          [newProducts[pIdx - 1], newProducts[pIdx]] = [newProducts[pIdx], newProducts[pIdx - 1]];
+                                                          return { ...r, products: newProducts };
+                                                        }
+                                                        return r;
+                                                      });
+                                                      return { ...s, rows: updatedRows };
                                                     }
-                                                    return r;
+                                                    return s;
                                                   });
-                                                  return { ...s, rows: updatedRows };
-                                                }
-                                                return s;
-                                              });
-                                              setSections(updatedSections);
-                                              setFeedback('🗑️ Product removed');
-                                              setTimeout(() => setFeedback(''), 2000);
-                                            }}
-                                            className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-1"
-                                            title="Delete product"
-                                          >
-                                            <Icons.X />
-                                          </button>
+                                                  setSections(updatedSections);
+                                                  autoSave(updatedSections, 'Reordered product');
+                                                  setFeedback('↑ Moved up');
+                                                  setTimeout(() => setFeedback(''), 1000);
+                                                }}
+                                                className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 p-1"
+                                                title="Move up"
+                                              >
+                                                ↑
+                                              </button>
+                                            )}
+                                            
+                                            {/* Move Down */}
+                                            {pIdx < row.products.length - 1 && (
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  const updatedSections = sections.map(s => {
+                                                    if (s.id === section.id) {
+                                                      const updatedRows = s.rows.map(r => {
+                                                        if (r.id === row.id) {
+                                                          const newProducts = [...r.products];
+                                                          [newProducts[pIdx], newProducts[pIdx + 1]] = [newProducts[pIdx + 1], newProducts[pIdx]];
+                                                          return { ...r, products: newProducts };
+                                                        }
+                                                        return r;
+                                                      });
+                                                      return { ...s, rows: updatedRows };
+                                                    }
+                                                    return s;
+                                                  });
+                                                  setSections(updatedSections);
+                                                  autoSave(updatedSections, 'Reordered product');
+                                                  setFeedback('↓ Moved down');
+                                                  setTimeout(() => setFeedback(''), 1000);
+                                                }}
+                                                className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 p-1"
+                                                title="Move down"
+                                              >
+                                                ↓
+                                              </button>
+                                            )}
+                                            
+                                            {/* Delete */}
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                const updatedSections = sections.map(s => {
+                                                  if (s.id === section.id) {
+                                                    const updatedRows = s.rows.map(r => {
+                                                      if (r.id === row.id) {
+                                                        return {
+                                                          ...r,
+                                                          products: r.products.filter((_, idx) => idx !== pIdx)
+                                                        };
+                                                      }
+                                                      return r;
+                                                    });
+                                                    return { ...s, rows: updatedRows };
+                                                  }
+                                                  return s;
+                                                });
+                                                setSections(updatedSections);
+                                                autoSave(updatedSections, 'Deleted product');
+                                                setFeedback('🗑️ Product removed');
+                                                setTimeout(() => setFeedback(''), 2000);
+                                              }}
+                                              className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-1"
+                                              title="Delete product"
+                                            >
+                                              <Icons.X />
+                                            </button>
+                                          </div>
                                         </div>
 
                                         {/* Key Metrics Grid */}
