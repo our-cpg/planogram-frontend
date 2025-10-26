@@ -3075,10 +3075,22 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
           <button
             onClick={() => addSection(selectedFixture)}
-            className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 mb-4 flex items-center justify-center gap-2"
+            className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 mb-2 flex items-center justify-center gap-2"
           >
             <Icons.Plus />
             Add Section
+          </button>
+
+          <button
+            onClick={() => {
+              // Collapse all sections
+              setCollapsedSectionLayouts(new Set(['all']));
+              setCollapsedRowsSections(new Set(['all']));
+              setCollapsedUnknownProducts(new Set(['all']));
+            }}
+            className="w-full px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 mb-4 flex items-center justify-center gap-2 text-sm"
+          >
+            ▲ Collapse All Sections
           </button>
 
           <div className="space-y-4">
