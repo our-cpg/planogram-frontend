@@ -136,7 +136,6 @@ const PlanogramProfitTracker = () => {
   const [sections, setSections] = useState([]);
   const [selectedSection, setSelectedSection] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
-  const [selectedProduct, setSelectedProduct] = useState(null); // For clicking products on canvas
   const [scale, setScale] = useState(20);
   const [storeName, setStoreName] = useState('My Store Layout');
   const [newProduct, setNewProduct] = useState({ upc: '', sectionId: '', rowId: '' });
@@ -193,13 +192,8 @@ const PlanogramProfitTracker = () => {
         if (currentRowIndex > 0) {
           const prevRow = section.rows[currentRowIndex - 1];
           setNewProduct({ ...newProduct, rowId: prevRow.id });
-          setSelectedRow(prevRow.id);
-          currentScanTarget.current = { sectionId: section.id, rowId: prevRow.id };
           setFeedback(`⬆️ Switched to: ${prevRow.name}`);
-          setTimeout(() => {
-            setFeedback('');
-            if (upcInputRef.current) upcInputRef.current.focus();
-          }, 1500);
+          setTimeout(() => setFeedback(''), 1500);
         }
       }
       
@@ -213,13 +207,8 @@ const PlanogramProfitTracker = () => {
         if (currentRowIndex < section.rows.length - 1 && currentRowIndex !== -1) {
           const nextRow = section.rows[currentRowIndex + 1];
           setNewProduct({ ...newProduct, rowId: nextRow.id });
-          setSelectedRow(nextRow.id);
-          currentScanTarget.current = { sectionId: section.id, rowId: nextRow.id };
           setFeedback(`⬇️ Switched to: ${nextRow.name}`);
-          setTimeout(() => {
-            setFeedback('');
-            if (upcInputRef.current) upcInputRef.current.focus();
-          }, 1500);
+          setTimeout(() => setFeedback(''), 1500);
         }
       }
     };
@@ -402,8 +391,6 @@ const PlanogramProfitTracker = () => {
   const importInputRef = useRef(null);
   const firebaseRef = useRef(null);
   const dbRef = useRef(null);
-  const upcInputRef = useRef(null); // For auto-focusing UPC input
-  const currentScanTarget = useRef({ sectionId: null, rowId: null }); // For immediate access without state delay
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [mouseDownPos, setMouseDownPos] = useState(null); // Track if this is a click or drag
@@ -1142,14 +1129,6 @@ const PlanogramProfitTracker = () => {
 
 
   const addProductToSection = async () => {
-    console.log('🔍 Adding product:', {
-      upc: newProduct.upc,
-      sectionId: newProduct.sectionId,
-      rowId: newProduct.rowId,
-      selectedRow,
-      selectedSection
-    });
-    
     if (!newProduct.upc || !newProduct.sectionId || !newProduct.rowId) {
       setFeedback('⚠️ Enter UPC and select section & row');
       setTimeout(() => setFeedback(''), 3000);
@@ -2538,25 +2517,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             </div>
           </div>
 
-          {/* Floating Close Button */}
-          <button
-            onClick={() => setShowLibrary(false)}
-            className="absolute top-4 right-8 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg z-50 transition-colors"
-            title="Close Fixture Library"
-          >
-            ✕
-          </button>
-
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Icons.Package />
               Fixture Library
             </h2>
-            <button 
-              onClick={() => setShowLibrary(false)} 
-              className="p-2 hover:bg-red-50 rounded-lg border border-gray-200 hover:border-red-300 transition-colors"
-              title="Close Fixture Library"
-            >
+            <button onClick={() => setShowLibrary(false)} className="p-1 hover:bg-gray-100 rounded">
               <Icons.X />
             </button>
           </div>
@@ -3483,15 +3449,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                 className="p-3 cursor-pointer"
                                 onClick={() => {
                                   setSelectedRow(row.id);
-                                  setSelectedSection(section.id);
                                   setNewProduct({ ...newProduct, sectionId: section.id, rowId: row.id });
-                                  // Update ref for immediate access
-                                  currentScanTarget.current = { sectionId: section.id, rowId: row.id };
-                                  console.log('✅ Row clicked - scan target set:', currentScanTarget.current);
-                                  // Auto-focus UPC input
-                                  setTimeout(() => {
-                                    if (upcInputRef.current) upcInputRef.current.focus();
-                                  }, 100);
                                 }}
                               >
                                 <div className="flex justify-between items-start mb-2">
@@ -3828,45 +3786,16 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       </div>
 
                       <input
-                        ref={upcInputRef}
                         type="text"
                         placeholder="Scan or enter UPC (select a row first)"
-                        value={newProduct.upc}
+                        value={selectedSection === section.id ? newProduct.upc : ''}
                         onChange={(e) => {
-                          const newUPC = e.target.value;
-                          const currentRowId = currentScanTarget.current.rowId;
-                          const currentSectionId = currentScanTarget.current.sectionId;
-                          
                           setSelectedSection(section.id);
-                          setNewProduct({ ...newProduct, upc: newUPC, sectionId: section.id });
-                          
-                          console.log('📝 UPC input changed:', {
-                            newUPC,
-                            length: newUPC.length,
-                            rowId: currentRowId,
-                            sectionId: currentSectionId,
-                            scanTargetRef: currentScanTarget.current,
-                            willAutoSubmit: newUPC.length >= 8 && currentRowId
-                          });
-                          
-                          // Auto-submit after barcode scanner finishes (300ms delay)
-                          if (newUPC.length >= 8 && currentRowId) {
-                            clearTimeout(window.scannerTimeout);
-                            window.scannerTimeout = setTimeout(() => {
-                              console.log('🔫 Auto-submitting scanned UPC:', newUPC);
-                              addProductToSection();
-                            }, 300);
-                          } else {
-                            console.log('❌ NOT auto-submitting:', { 
-                              reason: !currentRowId ? 'No row selected' : 'UPC too short',
-                              upcLength: newUPC.length 
-                            });
-                          }
+                          setNewProduct({ ...newProduct, upc: e.target.value, sectionId: section.id });
                         }}
                         className="w-full px-3 py-2 border rounded text-sm"
                         onKeyPress={(e) => {
                           if (e.key === 'Enter' && newProduct.upc && newProduct.rowId) {
-                            clearTimeout(window.scannerTimeout); // Cancel auto-submit
                             addProductToSection();
                           }
                         }}
