@@ -331,6 +331,7 @@ const PlanogramProfitTracker = () => {
   const [editingAreaValue, setEditingAreaValue] = useState('');
   const [editingFixture, setEditingFixture] = useState(null);
   const [editingFixtureName, setEditingFixtureName] = useState('');
+  const [editingRow, setEditingRow] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [lastProductsRefresh, setLastProductsRefresh] = useState(null);
   const [lastSalesRefresh, setLastSalesRefresh] = useState(null);
@@ -467,15 +468,21 @@ const PlanogramProfitTracker = () => {
     return () => clearInterval(interval);
   }, [autoRefreshEnabled, shopifyConfig.connected]);
 
-  const autoSave = (updatedSections, message = 'Auto-saved') => {
+  const autoSave = (updatedSections, updatedFixtures = null, message = 'Auto-saved') => {
     try {
       localStorage.setItem('planogram_sections', JSON.stringify(updatedSections));
       localStorage.setItem('planogram_last_save', new Date().toISOString());
+      
+      // Also save fixtures if provided
+      if (updatedFixtures) {
+        localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
+      }
+      
       console.log(`✅ ${message}`);
       
       // Also save to Firebase if enabled
       if (cloudSyncEnabled && dbRef.current) {
-        saveToFirebase(updatedSections);
+        saveToFirebase(updatedSections, updatedFixtures || fixtures, unknownProducts, badStockProducts);
       }
     } catch (error) {
       console.error('❌ Auto-save failed:', error);
@@ -517,15 +524,16 @@ const PlanogramProfitTracker = () => {
     }
   };
 
-  const saveToFirebase = async (sectionsData) => {
+  const saveToFirebase = async (sectionsData, fixturesData = null, unknownData = null, badStockData = null) => {
     if (!dbRef.current || !cloudSyncEnabled) return;
 
     try {
       const layoutData = {
         storeName,
-        fixtures,
+        fixtures: fixturesData || fixtures,
         sections: sectionsData,
-        unknownProducts,
+        unknownProducts: unknownData || unknownProducts,
+        badStockProducts: badStockData || badStockProducts,
         backgroundImage: backgroundImage ? 'stored_separately' : null, // Don't store large base64 in Firestore
         bgImagePosition,
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
@@ -535,7 +543,7 @@ const PlanogramProfitTracker = () => {
       await dbRef.current.collection('planograms').doc('default').set(layoutData);
       console.log('☁️ Saved to Firebase');
       console.log('📍 Unknown Products saved to: planograms/default/unknownProducts');
-      console.log('Unknown products data:', unknownProducts);
+      console.log('Unknown products data:', unknownData || unknownProducts);
     } catch (error) {
       console.error('Firebase save error:', error);
     }
@@ -561,6 +569,9 @@ const PlanogramProfitTracker = () => {
         }
         if (data.unknownProducts) {
           setUnknownProducts(data.unknownProducts);
+        }
+        if (data.badStockProducts) {
+          setBadStockProducts(data.badStockProducts);
         }
         if (data.bgImagePosition) {
           setBgImagePosition(data.bgImagePosition);
@@ -1359,6 +1370,7 @@ const PlanogramProfitTracker = () => {
     setFixtures(updatedFixtures);
     localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
     setSelectedFixture(newFixture.id);
+    autoSave(sections, updatedFixtures, 'Auto-saved after adding fixture');
   };
 
   const deleteFixture = (fixtureId) => {
@@ -1370,7 +1382,7 @@ const PlanogramProfitTracker = () => {
     
     const updatedSections = sections.filter(s => s.fixtureId !== fixtureId);
     setSections(updatedSections);
-    autoSave(updatedSections, 'Auto-saved after deleting fixture');
+    autoSave(updatedSections, updatedFixtures, 'Auto-saved after deleting fixture');
     
     if (selectedFixture === fixtureId) {
       setSelectedFixture(null);
@@ -1383,6 +1395,7 @@ const PlanogramProfitTracker = () => {
     );
     setFixtures(updatedFixtures);
     localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
+    autoSave(sections, updatedFixtures, 'Auto-saved after updating fixture');
   };
 
   const addSection = (fixtureId) => {
@@ -2219,13 +2232,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
   // Auto-save unknown products when they change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (unknownProducts.length > 0) {
+      if (unknownProducts.length >= 0) {  // Changed to >= 0 so it saves even when list is empty
         console.log('Auto-saving unknown products...');
         // Save to localStorage
         localStorage.setItem('planogram_unknown_products', JSON.stringify(unknownProducts));
         // Also save to Firebase if enabled
-        if (cloudSyncEnabled) {
-          saveToFirebase(sections);
+        if (cloudSyncEnabled && dbRef.current) {
+          saveToFirebase(sections, fixtures, unknownProducts);
         }
       }
     }, 1000);
@@ -2246,11 +2259,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
   // Auto-save bad stock products when they change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (badStockProducts.length > 0) {
+      if (badStockProducts.length >= 0) {  // Changed to >= 0 so it saves even when list is empty
         console.log('Auto-saving bad stock products...');
         localStorage.setItem('planogram_bad_stock_products', JSON.stringify(badStockProducts));
-        if (cloudSyncEnabled) {
-          saveToFirebase(sections);
+        if (cloudSyncEnabled && dbRef.current) {
+          saveToFirebase(sections, fixtures, unknownProducts, badStockProducts);
         }
       }
     }, 1000);
@@ -3381,7 +3394,48 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
-                                      <span className="font-semibold text-base">{row.name}</span>
+                                      {editingRow === row.id ? (
+                                        <input
+                                          type="text"
+                                          defaultValue={row.name}
+                                          autoFocus
+                                          onBlur={(e) => {
+                                            updateRowName(section.id, row.id, e.target.value);
+                                            setEditingRow(null);
+                                          }}
+                                          onKeyPress={(e) => {
+                                            if (e.key === 'Enter') {
+                                              updateRowName(section.id, row.id, e.target.value);
+                                              setEditingRow(null);
+                                            }
+                                          }}
+                                          className="font-semibold text-base px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      ) : (
+                                        <>
+                                          <span 
+                                            className="font-semibold text-base cursor-pointer hover:text-blue-600"
+                                            onDoubleClick={(e) => {
+                                              e.stopPropagation();
+                                              setEditingRow(row.id);
+                                            }}
+                                            title="Double-click to rename"
+                                          >
+                                            {row.name}
+                                          </span>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setEditingRow(row.id);
+                                            }}
+                                            className="text-gray-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50"
+                                            title="Rename row"
+                                          >
+                                            ✏️
+                                          </button>
+                                        </>
+                                      )}
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
