@@ -1157,7 +1157,7 @@ const PlanogramProfitTracker = () => {
         const data = await response.json();
 
         if (response.ok && data.title) {
-          // 🔥 Check for negative inventory - treat as bad stock
+          // 🔥 Check for negative inventory - add to bad stock list BUT STILL add to row
           if (data.inventoryQuantity < 0) {
             // Add to BAD STOCK list (separate from unknown)
             const existingBadStock = badStockProducts.find(b => b.upc === newProduct.upc);
@@ -1172,8 +1172,10 @@ const PlanogramProfitTracker = () => {
                 productData: data
               }]);
             }
-            
-            product = {
+          }
+          
+          // ALWAYS create product object regardless of stock level
+          product = {
               upc: newProduct.upc,
               name: data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title,
               price: data.price,
@@ -1205,47 +1207,15 @@ const PlanogramProfitTracker = () => {
               visualY: Math.random() * 80 + 10
             };
             
-            setFeedback(`⚠️ NEGATIVE STOCK (${data.inventoryQuantity}) - ${product.name} added to Bad Stock list`);
-          } else {
-            product = {
-              upc: newProduct.upc,
-              name: data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title,
-              price: data.price,
-              compareAtPrice: data.compareAtPrice,
-              cost: data.cost,
-              dailySales: data.dailySales || 0,
-              weeklySales: data.weeklySales || 0,
-              monthlySales: data.monthlySales || 0,
-              quarterlySales: data.quarterlySales || 0,
-              yearlySales: data.yearlySales || 0,
-              allTimeSales: data.allTimeSales || 0,
-              inventoryQuantity: data.inventoryQuantity || 0,
-              sku: data.sku,
-              vendor: data.vendor,
-              distributor: data.distributor,
-              tags: data.tags,
-              createdAt: data.createdAt,
-              // 🔥 BEAST MODE Analytics
-              analytics: data.analytics || {
-                timesPurchased: 0,
-                averageOrderValue: 0,
-                returningCustomerPurchases: 0,
-                newCustomerPurchases: 0,
-                averageCartPosition: 0,
-                boughtTogether: []
-              },
-              quantity: 1,
-              source: 'database',
-              visualX: Math.random() * 80 + 10,
-              visualY: Math.random() * 80 + 10
-            };
-            
-            // Create detailed feedback with stock info + analytics
-            const stockWarning = data.inventoryQuantity === 0 ? ' ⚠️ OUT OF STOCK' : 
-                                data.inventoryQuantity < 10 ? ' ⚠️ LOW STOCK' : '';
-            const aovInfo = data.analytics?.averageOrderValue > 0 ? ` | AOV: $${data.analytics.averageOrderValue.toFixed(2)}` : '';
-            setFeedback(`✅ Added: ${product.name} (${data.monthlySales || 0} sales, ${data.inventoryQuantity} stock)${stockWarning}${aovInfo}`);
-          }
+            // Create feedback based on stock level
+            if (data.inventoryQuantity < 0) {
+              setFeedback(`⚠️ NEGATIVE STOCK (${data.inventoryQuantity}) - ${product.name} added to row AND Bad Stock list`);
+            } else {
+              const stockWarning = data.inventoryQuantity === 0 ? ' ⚠️ OUT OF STOCK' : 
+                                  data.inventoryQuantity < 10 ? ' ⚠️ LOW STOCK' : '';
+              const aovInfo = data.analytics?.averageOrderValue > 0 ? ` | AOV: $${data.analytics.averageOrderValue.toFixed(2)}` : '';
+              setFeedback(`✅ Added: ${product.name} (${data.monthlySales || 0} sales, ${data.inventoryQuantity} stock)${stockWarning}${aovInfo}`);
+            }
         }
       } catch (error) {
         console.error('Error fetching from database:', error);
