@@ -2015,13 +2015,7 @@ const PlanogramProfitTracker = () => {
             newLayoutY = startLayoutY + (startLayoutHeight - heightChange);
           }
 
-          // Snap to 5% grid
-          const snapSize = 5;
-          newLayoutX = Math.round(newLayoutX / snapSize) * snapSize;
-          newLayoutY = Math.round(newLayoutY / snapSize) * snapSize;
-          newLayoutWidth = Math.round(newLayoutWidth / snapSize) * snapSize;
-          newLayoutHeight = Math.round(newLayoutHeight / snapSize) * snapSize;
-
+          // No snapping - free resizing
           updateSection({
             ...section,
             layoutX: Math.max(0, Math.min(100 - newLayoutWidth, newLayoutX)),
@@ -2059,55 +2053,11 @@ const PlanogramProfitTracker = () => {
         let newX = Math.max(0, Math.min(100 - layoutWidth, startLayoutX + deltaX));
         let newY = Math.max(0, Math.min(100 - layoutHeight, startLayoutY + deltaY));
         
-        // Snap to 5% grid
-        const snapSize = 5;
-        const snappedX = Math.round(newX / snapSize) * snapSize;
-        const snappedY = Math.round(newY / snapSize) * snapSize;
-        
-        // Snap to other sections (within 3% threshold)
-        const snapThreshold = 3;
-        const otherSections = sections.filter(s => s.fixtureId === section.fixtureId && s.id !== section.id);
-        
-        let finalX = snappedX;
-        let finalY = snappedY;
-        
-        for (const other of otherSections) {
-          const otherX = other.layoutX || 0;
-          const otherY = other.layoutY || 0;
-          const otherWidth = other.layoutWidth || 100;
-          const otherHeight = other.layoutHeight || 100;
-          
-          // Snap left edge to other's right edge
-          if (Math.abs(snappedX - (otherX + otherWidth)) < snapThreshold) {
-            finalX = otherX + otherWidth;
-          }
-          // Snap right edge to other's left edge
-          if (Math.abs((snappedX + layoutWidth) - otherX) < snapThreshold) {
-            finalX = otherX - layoutWidth;
-          }
-          // Snap top edge to other's bottom edge
-          if (Math.abs(snappedY - (otherY + otherHeight)) < snapThreshold) {
-            finalY = otherY + otherHeight;
-          }
-          // Snap bottom edge to other's top edge
-          if (Math.abs((snappedY + layoutHeight) - otherY) < snapThreshold) {
-            finalY = otherY - layoutHeight;
-          }
-          
-          // Snap left edges together
-          if (Math.abs(snappedX - otherX) < snapThreshold) {
-            finalX = otherX;
-          }
-          // Snap top edges together
-          if (Math.abs(snappedY - otherY) < snapThreshold) {
-            finalY = otherY;
-          }
-        }
-        
+        // No snapping - free positioning
         updateSection({
           ...section,
-          layoutX: Math.max(0, Math.min(100 - layoutWidth, finalX)),
-          layoutY: Math.max(0, Math.min(100 - layoutHeight, finalY))
+          layoutX: newX,
+          layoutY: newY
         });
       };
 
@@ -2135,12 +2085,9 @@ const PlanogramProfitTracker = () => {
           top: top,
           width: width,
           height: height,
-          backgroundColor: color,
+          backgroundColor: heatMapMode && !isSelected ? `${color}E6` : color, // 90% opacity in heat map mode
           border: isSelected 
             ? '2px solid #3b82f6' 
-            : 'none',
-          boxShadow: heatMapMode && !isSelected 
-            ? `0 0 4px 2px ${color}40`
             : 'none',
           cursor: isDragging ? 'grabbing' : 'grab',
           pointerEvents: 'auto',
