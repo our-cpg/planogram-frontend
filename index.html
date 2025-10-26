@@ -193,7 +193,8 @@ const PlanogramProfitTracker = () => {
         if (currentRowIndex > 0) {
           const prevRow = section.rows[currentRowIndex - 1];
           setNewProduct({ ...newProduct, rowId: prevRow.id });
-          setSelectedRow(prevRow.id); // Also update selectedRow
+          setSelectedRow(prevRow.id);
+          currentScanTarget.current = { sectionId: section.id, rowId: prevRow.id };
           setFeedback(`⬆️ Switched to: ${prevRow.name}`);
           setTimeout(() => {
             setFeedback('');
@@ -212,7 +213,8 @@ const PlanogramProfitTracker = () => {
         if (currentRowIndex < section.rows.length - 1 && currentRowIndex !== -1) {
           const nextRow = section.rows[currentRowIndex + 1];
           setNewProduct({ ...newProduct, rowId: nextRow.id });
-          setSelectedRow(nextRow.id); // Also update selectedRow
+          setSelectedRow(nextRow.id);
+          currentScanTarget.current = { sectionId: section.id, rowId: nextRow.id };
           setFeedback(`⬇️ Switched to: ${nextRow.name}`);
           setTimeout(() => {
             setFeedback('');
@@ -401,6 +403,7 @@ const PlanogramProfitTracker = () => {
   const firebaseRef = useRef(null);
   const dbRef = useRef(null);
   const upcInputRef = useRef(null); // For auto-focusing UPC input
+  const currentScanTarget = useRef({ sectionId: null, rowId: null }); // For immediate access without state delay
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [mouseDownPos, setMouseDownPos] = useState(null); // Track if this is a click or drag
@@ -3482,6 +3485,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                   setSelectedRow(row.id);
                                   setSelectedSection(section.id);
                                   setNewProduct({ ...newProduct, sectionId: section.id, rowId: row.id });
+                                  // Update ref for immediate access
+                                  currentScanTarget.current = { sectionId: section.id, rowId: row.id };
+                                  console.log('✅ Row clicked - scan target set:', currentScanTarget.current);
                                   // Auto-focus UPC input
                                   setTimeout(() => {
                                     if (upcInputRef.current) upcInputRef.current.focus();
@@ -3827,12 +3833,39 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         placeholder="Scan or enter UPC (select a row first)"
                         value={selectedSection === section.id ? newProduct.upc : ''}
                         onChange={(e) => {
+                          const newUPC = e.target.value;
+                          const currentRowId = currentScanTarget.current.rowId;
+                          const currentSectionId = currentScanTarget.current.sectionId;
+                          
                           setSelectedSection(section.id);
-                          setNewProduct({ ...newProduct, upc: e.target.value, sectionId: section.id });
+                          setNewProduct({ ...newProduct, upc: newUPC, sectionId: section.id });
+                          
+                          console.log('📝 UPC changed:', {
+                            newUPC,
+                            length: newUPC.length,
+                            rowId: currentRowId,
+                            sectionId: currentSectionId,
+                            willAutoSubmit: newUPC.length >= 8 && currentRowId
+                          });
+                          
+                          // Auto-submit after barcode scanner finishes (300ms delay)
+                          if (newUPC.length >= 8 && currentRowId) {
+                            clearTimeout(window.scannerTimeout);
+                            window.scannerTimeout = setTimeout(() => {
+                              console.log('🔫 Attempting auto-submit for UPC:', newUPC);
+                              addProductToSection();
+                            }, 300);
+                          } else {
+                            console.log('❌ NOT auto-submitting:', { 
+                              reason: !currentRowId ? 'No row selected' : 'UPC too short',
+                              upcLength: newUPC.length 
+                            });
+                          }
                         }}
                         className="w-full px-3 py-2 border rounded text-sm"
                         onKeyPress={(e) => {
                           if (e.key === 'Enter' && newProduct.upc && newProduct.rowId) {
+                            clearTimeout(window.scannerTimeout); // Cancel auto-submit
                             addProductToSection();
                           }
                         }}
