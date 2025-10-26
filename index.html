@@ -348,6 +348,7 @@ const PlanogramProfitTracker = () => {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [collapsedSectionLayouts, setCollapsedSectionLayouts] = useState(new Set()); // Track which section layouts are collapsed
   const [collapsedRowsSections, setCollapsedRowsSections] = useState(new Set()); // Track which Rows sections are collapsed
+  const [collapsedUnknownProducts, setCollapsedUnknownProducts] = useState(new Set()); // Track which Unknown Products sections are collapsed
   const [heatMapType, setHeatMapType] = useState('profit'); // profit, velocity, deadStock, margin, stockHealth
   const [showHeatMapGuide, setShowHeatMapGuide] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(500); // Default 500px - balanced width
@@ -4010,6 +4011,32 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       ))}
                       
                       {/* Unknown Products for this section - inline */}
+                      {unknownProducts.filter(u => !u.resolved).length > 0 && (
+                        <div className="mt-3 pt-3 border-t">
+                          <div 
+                            className="flex items-center justify-between cursor-pointer hover:bg-yellow-50 p-2 rounded -mx-2 mb-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              const newCollapsed = new Set(collapsedUnknownProducts);
+                              if (newCollapsed.has(section.id)) {
+                                newCollapsed.delete(section.id);
+                              } else {
+                                newCollapsed.add(section.id);
+                              }
+                              setCollapsedUnknownProducts(newCollapsed);
+                            }}
+                          >
+                            <div className="text-xs font-bold text-yellow-700">
+                              ⚠️ UNKNOWN PRODUCTS ({unknownProducts.filter(u => !u.resolved).length})
+                            </div>
+                            <span className="text-lg text-yellow-600 font-bold">
+                              {collapsedUnknownProducts.has(section.id) ? '▶' : '▼'}
+                            </span>
+                          </div>
+                          
+                          {!collapsedUnknownProducts.has(section.id) && (
+                            <>
                       {unknownProducts.filter(u => !u.resolved).map(unknown => (
                         <div key={unknown.id} className="flex items-center justify-between p-2 bg-yellow-50 border border-yellow-300 rounded text-sm">
                           <div className="flex-1">
@@ -4041,6 +4068,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           </div>
                         </div>
                       ))}
+                      </>
+                      )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
