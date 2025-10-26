@@ -383,6 +383,7 @@ const PlanogramProfitTracker = () => {
   const [lastProductsRefresh, setLastProductsRefresh] = useState(null);
   const [lastSalesRefresh, setLastSalesRefresh] = useState(null);
   const [lastOrdersRefresh, setLastOrdersRefresh] = useState(null);
+  const [orderAnalytics, setOrderAnalytics] = useState(null);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false); // Disabled by default to prevent errors
   const [showRefreshPrompt, setShowRefreshPrompt] = useState(false);
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -515,6 +516,11 @@ const PlanogramProfitTracker = () => {
       }
       if (savedLastOrders) {
         setLastOrdersRefresh(new Date(savedLastOrders));
+      }
+      
+      const savedAnalytics = localStorage.getItem('planogram_order_analytics');
+      if (savedAnalytics) {
+        setOrderAnalytics(JSON.parse(savedAnalytics));
       }
       
       // Mark initial load as complete after a brief delay
@@ -1167,6 +1173,12 @@ const PlanogramProfitTracker = () => {
         const now = new Date();
         setLastOrdersRefresh(now);
         localStorage.setItem('planogram_last_orders_refresh', now.toISOString());
+        
+        if (data.analytics) {
+          setOrderAnalytics(data.analytics);
+          localStorage.setItem('planogram_order_analytics', JSON.stringify(data.analytics));
+        }
+        
         setFeedback(`✅ BEAST MODE: ${data.ordersProcessed} orders, ${data.itemsProcessed} items analyzed!`);
         setTimeout(() => setFeedback(''), 8000);
       } else {
@@ -4670,67 +4682,119 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               <h2 className="text-xl font-bold mb-4">⏰ When Do People Buy?</h2>
               <p className="text-sm text-gray-500 mb-4">Sales patterns by time of day and day of month</p>
               
-              {/* Placeholder - needs order data */}
-              <div className="space-y-6">
-                <div className="p-8 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg border-2 border-orange-200 text-center">
-                  <div className="text-4xl mb-3">🔥</div>
-                  <div className="font-bold text-lg mb-2">Import Order Data to Unlock</div>
-                  <div className="text-sm text-gray-600 mb-4">
-                    Click the <strong>🔥 Orders</strong> button in Store Planner to analyze:
-                  </div>
-                  <div className="space-y-2 text-left max-w-md mx-auto">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-green-500">✓</span>
-                      <span><strong>Peak Shopping Hours</strong> - Best times for staffing</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-green-500">✓</span>
-                      <span><strong>Popular Days of Month</strong> - When customers have money</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-green-500">✓</span>
-                      <span><strong>Weekend vs Weekday</strong> - Traffic patterns</span>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Preview/Example Charts */}
-                <div className="grid grid-cols-2 gap-4 opacity-50">
-                  <div>
-                    <div className="text-sm font-semibold mb-2">📊 Sales by Hour (Preview)</div>
-                    <div className="space-y-1">
-                      {['12am-6am', '6am-9am', '9am-12pm', '12pm-3pm', '3pm-6pm', '6pm-9pm', '9pm-12am'].map((hour, idx) => (
-                        <div key={hour} className="flex items-center gap-2">
-                          <span className="text-xs w-20">{hour}</span>
-                          <div className="flex-1 bg-gray-200 rounded h-4">
-                            <div 
-                              className="bg-blue-400 h-full rounded"
-                              style={{ width: `${[20, 40, 80, 90, 70, 95, 60][idx]}%` }}
-                            />
+              {orderAnalytics ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-sm font-semibold mb-2">📊 Sales by Hour</div>
+                      <div className="space-y-1">
+                        {orderAnalytics.byHour.map((hourData) => (
+                          <div key={hourData.hour} className="flex items-center gap-2">
+                            <span className="text-xs w-20">{hourData.label}</span>
+                            <div className="flex-1 bg-gray-200 rounded h-4">
+                              <div 
+                                className="bg-blue-500 h-full rounded transition-all"
+                                style={{ width: `${(hourData.count / orderAnalytics.maxHourly * 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs w-12 text-right text-gray-600">{hourData.count}</span>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="text-sm font-semibold mb-2">📅 Sales by Day of Month</div>
+                      <div className="space-y-1">
+                        {orderAnalytics.byDayOfMonth.map((dayData) => (
+                          <div key={dayData.range} className="flex items-center gap-2">
+                            <span className="text-xs w-12">{dayData.range}</span>
+                            <div className="flex-1 bg-gray-200 rounded h-4">
+                              <div 
+                                className="bg-green-500 h-full rounded transition-all"
+                                style={{ width: `${(dayData.count / orderAnalytics.maxDaily * 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs w-12 text-right text-gray-600">{dayData.count}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   
-                  <div>
-                    <div className="text-sm font-semibold mb-2">📅 Sales by Day of Month (Preview)</div>
-                    <div className="space-y-1">
-                      {['1-5', '6-10', '11-15', '16-20', '21-25', '26-31'].map((days, idx) => (
-                        <div key={days} className="flex items-center gap-2">
-                          <span className="text-xs w-12">{days}</span>
-                          <div className="flex-1 bg-gray-200 rounded h-4">
-                            <div 
-                              className="bg-green-400 h-full rounded"
-                              style={{ width: `${[85, 60, 95, 70, 40, 30][idx]}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">{orderAnalytics.peakHour}</div>
+                      <div className="text-sm text-gray-600">Peak Shopping Hour</div>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">{orderAnalytics.peakDayRange}</div>
+                      <div className="text-sm text-gray-600">Peak Days of Month</div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="p-8 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg border-2 border-orange-200 text-center">
+                    <div className="text-4xl mb-3">🔥</div>
+                    <div className="font-bold text-lg mb-2">Import Order Data to Unlock</div>
+                    <div className="text-sm text-gray-600 mb-4">
+                      Click the <strong>🔥 Orders</strong> button in Store Planner to analyze:
+                    </div>
+                    <div className="space-y-2 text-left max-w-md mx-auto">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-green-500">✓</span>
+                        <span><strong>Peak Shopping Hours</strong> - Best times for staffing</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-green-500">✓</span>
+                        <span><strong>Popular Days of Month</strong> - When customers have money</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-green-500">✓</span>
+                        <span><strong>Weekend vs Weekday</strong> - Traffic patterns</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Preview/Example Charts */}
+                  <div className="grid grid-cols-2 gap-4 opacity-50">
+                    <div>
+                      <div className="text-sm font-semibold mb-2">📊 Sales by Hour (Preview)</div>
+                      <div className="space-y-1">
+                        {['12am-6am', '6am-9am', '9am-12pm', '12pm-3pm', '3pm-6pm', '6pm-9pm', '9pm-12am'].map((hour, idx) => (
+                          <div key={hour} className="flex items-center gap-2">
+                            <span className="text-xs w-20">{hour}</span>
+                            <div className="flex-1 bg-gray-200 rounded h-4">
+                              <div 
+                                className="bg-blue-400 h-full rounded"
+                                style={{ width: `${[20, 40, 80, 90, 70, 95, 60][idx]}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="text-sm font-semibold mb-2">📅 Sales by Day of Month (Preview)</div>
+                      <div className="space-y-1">
+                        {['1-5', '6-10', '11-15', '16-20', '21-25', '26-31'].map((days, idx) => (
+                          <div key={days} className="flex items-center gap-2">
+                            <span className="text-xs w-12">{days}</span>
+                            <div className="flex-1 bg-gray-200 rounded h-4">
+                              <div 
+                                className="bg-green-400 h-full rounded"
+                                style={{ width: `${[85, 60, 95, 70, 40, 30][idx]}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>
