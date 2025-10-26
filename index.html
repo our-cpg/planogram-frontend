@@ -1476,9 +1476,9 @@ const PlanogramProfitTracker = () => {
       name: `Section ${existingSections.length + 1}`,
       products: [],
       area: 10,
-      length: 4, // default 4 ft
-      depth: 2.5, // default 2.5 ft
-      height: 6, // default 6 ft
+      length: 48, // default 48 inches
+      depth: 30, // default 30 inches
+      height: 72, // default 72 inches
       // Position and size within fixture (percentage-based 0-100)
       layoutX: defaultX,
       layoutY: defaultY,
@@ -3293,14 +3293,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       <div className="space-y-2">
                         {editingSectionArea === section.id ? (
                           <div className="space-y-2 p-2 bg-blue-50 rounded" onClick={(e) => e.stopPropagation()}>
-                            <div className="font-semibold text-xs text-blue-700">Dimensions (ft):</div>
+                            <div className="font-semibold text-xs text-blue-700">Dimensions (inches):</div>
                             <div className="grid grid-cols-3 gap-2">
                               <div>
                                 <label className="text-xs text-gray-600">Length</label>
                                 <input
                                   type="number"
-                                  step="0.1"
-                                  min="0.1"
+                                  step="1"
+                                  min="1"
                                   value={editingDimensions.length}
                                   onChange={(e) => setEditingDimensions({ ...editingDimensions, length: e.target.value })}
                                   className="w-full px-2 py-1 border-2 border-blue-300 rounded text-sm"
@@ -3311,8 +3311,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                 <label className="text-xs text-gray-600">Depth</label>
                                 <input
                                   type="number"
-                                  step="0.1"
-                                  min="0.1"
+                                  step="1"
+                                  min="1"
                                   value={editingDimensions.depth}
                                   onChange={(e) => setEditingDimensions({ ...editingDimensions, depth: e.target.value })}
                                   className="w-full px-2 py-1 border-2 border-blue-300 rounded text-sm"
@@ -3323,8 +3323,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                 <label className="text-xs text-gray-600">Height</label>
                                 <input
                                   type="number"
-                                  step="0.1"
-                                  min="0.1"
+                                  step="1"
+                                  min="1"
                                   value={editingDimensions.height}
                                   onChange={(e) => setEditingDimensions({ ...editingDimensions, height: e.target.value })}
                                   className="w-full px-2 py-1 border-2 border-blue-300 rounded text-sm"
@@ -3333,7 +3333,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                               </div>
                             </div>
                             <div className="text-xs text-gray-600">
-                              = {(parseFloat(editingDimensions.length) * parseFloat(editingDimensions.depth) || 0).toFixed(1)} sq ft
+                              = {((parseFloat(editingDimensions.length) * parseFloat(editingDimensions.depth)) / 144 || 0).toFixed(2)} sq ft
                             </div>
                             <div className="flex gap-2">
                               <button
@@ -3343,7 +3343,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                   const d = parseFloat(editingDimensions.depth);
                                   const h = parseFloat(editingDimensions.height);
                                   if (l && d && h) {
-                                    const area = l * d;
+                                    const area = (l * d) / 144; // Convert square inches to square feet
                                     const updatedSections = sections.map(s => 
                                       s.id === section.id 
                                         ? { ...s, length: l, depth: d, height: h, area: area }
@@ -3376,16 +3376,16 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                               e.stopPropagation();
                               setEditingSectionArea(section.id);
                               setEditingDimensions({
-                                length: (section.length || 4).toString(),
-                                depth: (section.depth || 2.5).toString(),
-                                height: (section.height || 6).toString()
+                                length: (section.length || 48).toString(),
+                                depth: (section.depth || 30).toString(),
+                                height: (section.height || 72).toString()
                               });
                             }}
                             title="Click to edit dimensions"
                           >
                             <div className="text-xs text-gray-600">Dimensions (L×D×H):</div>
-                            <div className="font-semibold">{section.length || 4}' × {section.depth || 2.5}' × {section.height || 6}'</div>
-                            <div className="text-xs text-gray-600">Area: {section.area} sq ft</div>
+                            <div className="font-semibold">{section.length || 48}" × {section.depth || 30}" × {section.height || 72}"</div>
+                            <div className="text-xs text-gray-600">Area: {section.area.toFixed(2)} sq ft</div>
                           </div>
                         )}
                       </div>
