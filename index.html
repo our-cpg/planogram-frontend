@@ -2127,14 +2127,17 @@ const PlanogramProfitTracker = () => {
     const width = (layoutWidth / 100) * fixture.width;
     const height = (layoutHeight / 100) * fixture.height;
 
+    // In heat map mode, expand sections slightly to eliminate gaps
+    const expansion = heatMapMode && !isSelected ? 1 : 0;
+
     return (
       <div
         style={{
           position: 'absolute',
-          left: left,
-          top: top,
-          width: width,
-          height: height,
+          left: left - expansion,
+          top: top - expansion,
+          width: width + (expansion * 2),
+          height: height + (expansion * 2),
           backgroundColor: color,
           border: isSelected 
             ? '2px solid #3b82f6' 
