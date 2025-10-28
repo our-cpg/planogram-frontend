@@ -425,6 +425,7 @@ const PlanogramProfitTracker = () => {
   const [firebaseConfig, setFirebaseConfig] = useState({
     apiKey: 'AIzaSyBZ6qLt8KVgV877K6IBy0pwZ5a9y1FqGLY',
     authDomain: 'storeplannerpro.firebaseapp.com',
+    databaseURL: 'https://storeplannerpro-default-rtdb.firebaseio.com',
     projectId: 'storeplannerpro',
     storageBucket: 'storeplannerpro.firebasestorage.app',
     messagingSenderId: '339443807903',
@@ -581,6 +582,7 @@ const PlanogramProfitTracker = () => {
       const config = {
         apiKey: firebaseConfig.apiKey,
         authDomain: firebaseConfig.authDomain,
+        databaseURL: firebaseConfig.databaseURL,
         projectId: firebaseConfig.projectId,
         storageBucket: firebaseConfig.storageBucket,
         messagingSenderId: firebaseConfig.messagingSenderId,
@@ -593,13 +595,16 @@ const PlanogramProfitTracker = () => {
         firebaseRef.current = firebase.app();
       }
       
-      dbRef.current = firebase.firestore();
+      // Use Realtime Database instead of Firestore
+      dbRef.current = firebase.database();
       setFirebaseInitialized(true);
       setSyncStatus('✅ Firebase connected');
       setTimeout(() => setSyncStatus(''), 3000);
       
       // Save config to localStorage
       localStorage.setItem('planogram_firebase_config', JSON.stringify(firebaseConfig));
+      
+      console.log('🔥 Firebase initialized with Realtime Database');
       
       return true;
     } catch (error) {
@@ -620,16 +625,15 @@ const PlanogramProfitTracker = () => {
         sections: sectionsData,
         unknownProducts: unknownData || unknownProducts,
         badStockProducts: badStockData || badStockProducts,
-        backgroundImage: backgroundImage ? 'stored_separately' : null, // Don't store large base64 in Firestore
+        backgroundImage: backgroundImage ? 'stored_separately' : null,
         bgImagePosition,
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+        lastUpdated: Date.now(),
         version: 3
       };
 
-      await dbRef.current.collection('planograms').doc('default').set(layoutData);
-      console.log('☁️ Saved to Firebase');
-      console.log('📍 Unknown Products saved to: planograms/default/unknownProducts');
-      console.log('Unknown products data:', unknownData || unknownProducts);
+      // Use Realtime Database API: ref().set()
+      await dbRef.current.ref('planograms/default').set(layoutData);
+      console.log('☁️ Saved to Firebase Realtime Database');
     } catch (error) {
       console.error('Firebase save error:', error);
     }
@@ -640,10 +644,12 @@ const PlanogramProfitTracker = () => {
 
     try {
       setSyncStatus('🔄 Loading from cloud...');
-      const doc = await dbRef.current.collection('planograms').doc('default').get();
       
-      if (doc.exists) {
-        const data = doc.data();
+      // Use Realtime Database API: ref().once()
+      const snapshot = await dbRef.current.ref('planograms/default').once('value');
+      
+      if (snapshot.exists()) {
+        const data = snapshot.val();
         if (data.storeName) setStoreName(data.storeName);
         if (data.fixtures) {
           setFixtures(Array.isArray(data.fixtures) ? data.fixtures : []);
