@@ -434,6 +434,10 @@ const PlanogramProfitTracker = () => {
   const [firebaseInitialized, setFirebaseInitialized] = useState(false);
   const [cloudSyncEnabled, setCloudSyncEnabled] = useState(true);
   const initialLoadComplete = useRef(false);
+  const sectionsRef = useRef([]);
+  const fixturesRef = useRef([]);
+  const unknownProductsRef = useRef([]);
+  const badStockProductsRef = useRef([]);
   const [syncStatus, setSyncStatus] = useState('');
   const [showFirebaseSettings, setShowFirebaseSettings] = useState(false);
   
@@ -535,6 +539,23 @@ const PlanogramProfitTracker = () => {
       initialLoadComplete.current = true; // Enable auto-save even if there's an error
     }
   }, []);
+
+  // Keep refs in sync with state for Firebase saves
+  useEffect(() => {
+    sectionsRef.current = sections;
+  }, [sections]);
+
+  useEffect(() => {
+    fixturesRef.current = fixtures;
+  }, [fixtures]);
+
+  useEffect(() => {
+    unknownProductsRef.current = unknownProducts;
+  }, [unknownProducts]);
+
+  useEffect(() => {
+    badStockProductsRef.current = badStockProducts;
+  }, [badStockProducts]);
 
   // Load correlations when connected to Shopify
   useEffect(() => {
@@ -2477,12 +2498,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         localStorage.setItem('planogram_unknown_products', JSON.stringify(unknownProducts));
         // Also save to Firebase if enabled
         if (cloudSyncEnabled && dbRef.current) {
-          saveToFirebase(sections, fixtures, unknownProducts, badStockProducts);
+          saveToFirebase(
+            sectionsRef.current,
+            fixturesRef.current,
+            unknownProductsRef.current,
+            badStockProductsRef.current
+          );
         }
       }
     }, 1000);
     return () => clearTimeout(timeoutId);
-  }, [unknownProducts, cloudSyncEnabled, sections, fixtures, badStockProducts]);
+  }, [unknownProducts]);
 
   const deleteUnknownProduct = (id) => {
     setUnknownProducts(prev => prev.filter(u => u.id !== id));
@@ -2504,12 +2530,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         console.log('Auto-saving bad stock products...');
         localStorage.setItem('planogram_bad_stock_products', JSON.stringify(badStockProducts));
         if (cloudSyncEnabled && dbRef.current) {
-          saveToFirebase(sections, fixtures, unknownProducts, badStockProducts);
+          saveToFirebase(
+            sectionsRef.current,
+            fixturesRef.current,
+            unknownProductsRef.current,
+            badStockProductsRef.current
+          );
         }
       }
     }, 1000);
     return () => clearTimeout(timeoutId);
-  }, [badStockProducts, cloudSyncEnabled, sections, fixtures, unknownProducts]);
+  }, [badStockProducts]);
 
   const deleteBadStockProduct = (id) => {
     setBadStockProducts(prev => prev.filter(b => b.id !== id));
@@ -2523,11 +2554,16 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       console.log('Auto-saving sections to Firebase...');
       localStorage.setItem('planogram_sections', JSON.stringify(sections));
       if (cloudSyncEnabled && dbRef.current && sections.length >= 0) {
-        saveToFirebase(sections, fixtures, unknownProducts, badStockProducts);
+        saveToFirebase(
+          sectionsRef.current, 
+          fixturesRef.current, 
+          unknownProductsRef.current, 
+          badStockProductsRef.current
+        );
       }
     }, 2000); // 2 second delay
     return () => clearTimeout(timeoutId);
-  }, [sections, cloudSyncEnabled, fixtures, unknownProducts, badStockProducts]);
+  }, [sections]);
 
   // Auto-save fixtures when they change
   useEffect(() => {
@@ -2537,11 +2573,16 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       console.log('Auto-saving fixtures to Firebase...');
       localStorage.setItem('planogram_fixtures', JSON.stringify(fixtures));
       if (cloudSyncEnabled && dbRef.current && fixtures.length >= 0) {
-        saveToFirebase(sections, fixtures, unknownProducts, badStockProducts);
+        saveToFirebase(
+          sectionsRef.current,
+          fixturesRef.current,
+          unknownProductsRef.current,
+          badStockProductsRef.current
+        );
       }
     }, 2000); // 2 second delay
     return () => clearTimeout(timeoutId);
-  }, [fixtures, cloudSyncEnabled, sections, unknownProducts, badStockProducts]);
+  }, [fixtures]);
 
   const resolveBadStock = (id) => {
     setBadStockProducts(prev =>
