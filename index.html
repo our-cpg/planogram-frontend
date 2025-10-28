@@ -1182,16 +1182,56 @@ const PlanogramProfitTracker = () => {
         setLastOrdersRefresh(now);
         localStorage.setItem('planogram_last_orders_refresh', now.toISOString());
         
-        if (data.analytics) {
-          setOrderAnalytics(data.analytics);
-          localStorage.setItem('planogram_order_analytics', JSON.stringify(data.analytics));
+        // Check if processing in background
+        if (data.processing) {
+          setFeedback(`🔥 BEAST MODE: Processing 7,314 orders in background... (2-3 minutes)`);
+          
+          // Poll every 10 seconds to check if done
+          const checkStatus = setInterval(async () => {
+            try {
+              const statusRes = await fetch(`${BACKEND_URL}/api/orders/status`);
+              const statusData = await statusRes.json();
+              
+              if (!statusData.isProcessing && statusData.lastResult) {
+                clearInterval(checkStatus);
+                
+                // Update with results
+                if (statusData.lastResult.analytics) {
+                  setOrderAnalytics(statusData.lastResult.analytics);
+                  localStorage.setItem('planogram_order_analytics', JSON.stringify(statusData.lastResult.analytics));
+                }
+                
+                setLastOrdersRefresh(new Date(statusData.lastCompleted));
+                localStorage.setItem('planogram_last_orders_refresh', statusData.lastCompleted);
+                
+                // Fetch correlations after orders are processed
+                fetchCorrelations();
+                
+                setFeedback(`✅ COMPLETE: ${statusData.lastResult.ordersProcessed} orders, ${statusData.lastResult.itemsProcessed} items analyzed!`);
+                setTimeout(() => setFeedback(''), 8000);
+              }
+            } catch (err) {
+              console.error('Status check failed:', err);
+            }
+          }, 10000); // Check every 10 seconds
+          
+          // Also set a timeout to stop polling after 5 minutes
+          setTimeout(() => {
+            clearInterval(checkStatus);
+          }, 5 * 60 * 1000);
+        } else {
+          // Old response format (immediate completion)
+          if (data.analytics) {
+            setOrderAnalytics(data.analytics);
+            localStorage.setItem('planogram_order_analytics', JSON.stringify(data.analytics));
+          }
+          
+          // Fetch correlations after orders are processed
+          fetchCorrelations();
+          
+          setFeedback(`✅ BEAST MODE: ${data.ordersProcessed} orders, ${data.itemsProcessed} items analyzed!`);
+          setTimeout(() => setFeedback(''), 8000);
         }
-        
-        // Fetch correlations after orders are processed
-        fetchCorrelations();
-        
-        setFeedback(`✅ BEAST MODE: ${data.ordersProcessed} orders, ${data.itemsProcessed} items analyzed!`);
-        setTimeout(() => setFeedback(''), 8000);
       } else {
         setFeedback(`❌ ${data.error || 'Order import failed'}`);
         setTimeout(() => setFeedback(''), 5000);
