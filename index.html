@@ -432,6 +432,8 @@ const PlanogramProfitTracker = () => {
   const [rowFilterBrand, setRowFilterBrand] = useState('all');
   const [rowFilterDistributor, setRowFilterDistributor] = useState('all');
   const [rowSortBy, setRowSortBy] = useState('profit'); // profit, sales, products, stock
+  const [rowDateRangeStart, setRowDateRangeStart] = useState('');
+  const [rowDateRangeEnd, setRowDateRangeEnd] = useState('');
   
   // Navigation
   const [currentPage, setCurrentPage] = useState('planner'); // planner, dashboard, forecasting, rowAnalytics, settings
@@ -5476,6 +5478,38 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 </select>
               </div>
               
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={rowDateRangeStart}
+                  onChange={(e) => setRowDateRangeStart(e.target.value)}
+                  className="px-3 py-2 border rounded text-sm"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
+                <input
+                  type="date"
+                  value={rowDateRangeEnd}
+                  onChange={(e) => setRowDateRangeEnd(e.target.value)}
+                  className="px-3 py-2 border rounded text-sm"
+                />
+              </div>
+              
+              {(rowDateRangeStart || rowDateRangeEnd) && (
+                <button
+                  onClick={() => {
+                    setRowDateRangeStart('');
+                    setRowDateRangeEnd('');
+                  }}
+                  className="px-3 py-2 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 mt-5"
+                >
+                  Clear Dates
+                </button>
+              )}
+              
               {(rowFilterFixture !== 'all' || rowFilterBrand !== 'all' || rowFilterDistributor !== 'all') && (
                 <div className="pt-5">
                   <button
@@ -5518,11 +5552,38 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       products = products.filter(p => (p.distributor?.trim() || 'Unknown Distributor') === rowFilterDistributor);
                     }
                     
+                    // Calculate sales based on date range if specified
+                    let salesMultiplier = 1; // Default to monthlySales
+                    let salesLabel = 'Monthly';
+                    
+                    if (rowDateRangeStart && rowDateRangeEnd) {
+                      const start = new Date(rowDateRangeStart);
+                      const end = new Date(rowDateRangeEnd);
+                      const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                      
+                      // Estimate sales for custom date range based on monthly average
+                      salesMultiplier = daysDiff / 30;
+                      salesLabel = `${daysDiff} Days`;
+                    } else if (rowDateRangeStart) {
+                      const start = new Date(rowDateRangeStart);
+                      const now = new Date();
+                      const daysDiff = Math.ceil((now - start) / (1000 * 60 * 60 * 24));
+                      salesMultiplier = daysDiff / 30;
+                      salesLabel = `Since ${rowDateRangeStart}`;
+                    } else if (rowDateRangeEnd) {
+                      const end = new Date(rowDateRangeEnd);
+                      const monthAgo = new Date(end);
+                      monthAgo.setDate(monthAgo.getDate() - 30);
+                      const daysDiff = 30;
+                      salesMultiplier = daysDiff / 30;
+                      salesLabel = `Until ${rowDateRangeEnd}`;
+                    }
+                    
                     const totalProducts = products.length;
-                    const totalSales = products.reduce((sum, p) => sum + (p.monthlySales || 0), 0);
+                    const totalSales = products.reduce((sum, p) => sum + ((p.monthlySales || 0) * salesMultiplier), 0);
                     const totalProfit = products.reduce((sum, p) => {
                       const profit = (p.price || 0) - (p.cost || 0);
-                      return sum + (profit * (p.monthlySales || 0));
+                      return sum + (profit * ((p.monthlySales || 0) * salesMultiplier));
                     }, 0);
                     const totalStock = products.reduce((sum, p) => sum + (p.inventoryQuantity || 0), 0);
                     
@@ -5532,7 +5593,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       totalProducts,
                       totalSales,
                       totalProfit,
-                      totalStock
+                      totalStock,
+                      salesLabel
                     };
                   })
                   .filter(row => row.totalProducts > 0) // Only show rows with products after filtering
@@ -5554,7 +5616,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     
                     <div className="space-y-4">
                       {filteredRows.map((rowData) => {
-                        const { rowIndex, products, totalProducts, totalSales, totalProfit, totalStock } = rowData;
+                        const { rowIndex, products, totalProducts, totalSales, totalProfit, totalStock, salesLabel } = rowData;
                         const lowStockCount = products.filter(p => (p.inventoryQuantity || 0) < 10).length;
                         
                         // Determine row color based on performance
@@ -5580,12 +5642,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                               </div>
                               
                               <div className="bg-white rounded-lg p-3 shadow">
-                                <div className="text-sm text-gray-600 mb-1">Monthly Sales</div>
-                                <div className="text-2xl font-bold text-green-600">{totalSales}</div>
+                                <div className="text-sm text-gray-600 mb-1">{salesLabel} Sales</div>
+                                <div className="text-2xl font-bold text-green-600">{Math.round(totalSales)}</div>
                               </div>
                               
                               <div className="bg-white rounded-lg p-3 shadow">
-                                <div className="text-sm text-gray-600 mb-1">Monthly Profit</div>
+                                <div className="text-sm text-gray-600 mb-1">{salesLabel} Profit</div>
                                 <div className="text-2xl font-bold text-blue-600">${totalProfit.toFixed(2)}</div>
                               </div>
                               
