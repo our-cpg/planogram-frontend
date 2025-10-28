@@ -71,8 +71,8 @@ const FIXTURE_TYPES = {
     name: 'Gondola',
     icon: 'Layers',
     color: '#ef4444',
-    defaultWidth: 180,
-    defaultHeight: 120
+    defaultWidth: 14,  // 14 inches deep
+    defaultHeight: 57.5  // 57.5 inches high
   },
   SLAT_WALL: {
     id: 'slat_wall',
@@ -4323,8 +4323,21 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         }}
                         className="w-full px-3 py-2 border rounded text-sm"
                         onKeyPress={(e) => {
-                          if (e.key === 'Enter' && newProduct.upc && newProduct.rowId) {
-                            addProductToSection();
+                          console.log('🔍 Key pressed:', e.key);
+                          console.log('🔍 newProduct.upc:', newProduct.upc);
+                          console.log('🔍 newProduct.rowId:', newProduct.rowId);
+                          console.log('🔍 newProduct.sectionId:', newProduct.sectionId);
+                          console.log('🔍 selectedSection:', selectedSection);
+                          console.log('🔍 section.id:', section.id);
+                          
+                          if (e.key === 'Enter') {
+                            console.log('🔍 ENTER PRESSED!');
+                            if (newProduct.upc && newProduct.rowId) {
+                              console.log('🔍 Calling addProductToSection()');
+                              addProductToSection();
+                            } else {
+                              console.log('❌ Missing UPC or rowId - UPC:', newProduct.upc, 'rowId:', newProduct.rowId);
+                            }
                           }
                         }}
                       />
