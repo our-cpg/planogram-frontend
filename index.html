@@ -1623,10 +1623,10 @@ const PlanogramProfitTracker = () => {
       fixtureId: fixtureId,
       name: `Section ${existingSections.length + 1}`,
       products: [],
-      area: 10,
       length: 48, // default 48 inches
-      depth: 30, // default 30 inches
+      depth: 30, // default 30 inches  
       height: 72, // default 72 inches
+      area: (48 * 30) / 144, // Calculate from dimensions: 10 sq ft
       // Position and size within fixture (percentage-based 0-100)
       layoutX: defaultX,
       layoutY: defaultY,
@@ -1798,7 +1798,10 @@ const PlanogramProfitTracker = () => {
   };
 
   const calculateMetrics = (section, timePeriodFilter) => {
-    const area = section.area || 1;
+    // ALWAYS calculate area from dimensions if available, never rely on stored area
+    const area = (section.length && section.depth) 
+      ? (section.length * section.depth) / 144  // Convert sq inches to sq feet
+      : (section.area || 1); // Fallback to stored area or 1
 
     // Gather all products from all rows
     const allProducts = section.rows ? 
@@ -3541,7 +3544,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           >
                             <div className="text-xs text-gray-600">Dimensions (L×D×H):</div>
                             <div className="font-semibold">{section.length || 48}" × {section.depth || 30}" × {section.height || 72}"</div>
-                            <div className="text-xs text-gray-600">Area: {section.area.toFixed(2)} sq ft</div>
+                            <div className="text-xs text-gray-600">
+                              Area: {(((section.length || 48) * (section.depth || 30)) / 144).toFixed(2)} sq ft
+                            </div>
                           </div>
                         )}
                       </div>
@@ -3823,7 +3828,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           // Calculate heat map color for this row
                           let rowHeatColor = 'bg-white';
                           if (heatMapMode && rowProducts.length > 0) {
-                            const sectionArea = section.area || 1;
+                            const sectionArea = (section.length && section.depth) 
+                              ? (section.length * section.depth) / 144
+                              : (section.area || 1);
                             const rowProfitPerSqFt = rowProfit / sectionArea;
                             const rowVelocity = rowTotalSales / sectionArea;
                             
