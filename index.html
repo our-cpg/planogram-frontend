@@ -1454,6 +1454,8 @@ const PlanogramProfitTracker = () => {
 
     setScanning(false);
     
+    console.log('🔍 Before clearing - UPC:', newProduct.upc, 'Sticky mode:', stickyRowMode);
+    
     // 🔥 STICKY ROW MODE: Keep section and row selected, only clear UPC
     if (stickyRowMode) {
       setNewProduct({ 
@@ -1461,6 +1463,14 @@ const PlanogramProfitTracker = () => {
         sectionId: newProduct.sectionId, 
         rowId: newProduct.rowId 
       });
+      // Refocus the UPC input for rapid scanning
+      setTimeout(() => {
+        console.log('🔍 After clearing - UPC should be empty, refocusing input');
+        if (upcInputRef.current) {
+          upcInputRef.current.focus();
+          upcInputRef.current.value = ''; // Force clear the input value
+        }
+      }, 100);
     } else {
       setNewProduct({ upc: '', sectionId: '', rowId: '' });
     }
