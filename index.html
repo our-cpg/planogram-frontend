@@ -263,14 +263,14 @@ const PlanogramProfitTracker = () => {
   }, [stickyRowMode, newProduct, sections]);
 
   // Save to Firebase Cloud
-  const saveToCloud = async () => {
+  const saveToCloud = async (silent = false) => {
     if (!firebaseReady) {
-      alert('Firebase not ready. Please wait a moment and try again.');
+      if (!silent) alert('Firebase not ready. Please wait a moment and try again.');
       return;
     }
 
     if (!window.firebaseService || !window.firebaseService.isAuthenticated()) {
-      alert('Firebase authentication failed. Please refresh the page.');
+      if (!silent) alert('Firebase authentication failed. Please refresh the page.');
       return;
     }
 
@@ -292,14 +292,17 @@ const PlanogramProfitTracker = () => {
       const id = await window.firebaseService.savePlanogram(planogramData);
       if (id) {
         const timestamp = new Date().toLocaleTimeString();
-        setSyncStatus(`✅ Saved at ${timestamp}`);
-        setTimeout(() => setSyncStatus(''), 5000);
+        setSyncStatus(`☁️ Saved at ${timestamp}`);
+        setTimeout(() => setSyncStatus(''), 3000);
+        console.log(`☁️ ${silent ? 'Auto-saved' : 'Saved'} at ${timestamp}`);
       }
     } catch (error) {
       console.error('Save failed:', error);
       setSyncStatus('❌ Save failed!');
-      setTimeout(() => setSyncStatus(''), 5000);
-      alert('❌ Failed to save to cloud: ' + error.message);
+      setTimeout(() => setSyncStatus(''), 3000);
+      if (!silent) {
+        alert('❌ Failed to save to cloud: ' + error.message);
+      }
     }
   };
 
@@ -2506,21 +2509,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     if (!initialLoadComplete.current) return; // Skip first render
     
     const timeoutId = setTimeout(() => {
-      if (unknownProducts.length >= 0) {  // Changed to >= 0 so it saves even when list is empty
+      if (unknownProducts.length >= 0) {
         console.log('Auto-saving unknown products...');
-        // Save to localStorage
         localStorage.setItem('planogram_unknown_products', JSON.stringify(unknownProducts));
-        // Also save to Firebase if enabled
-        if (cloudSyncEnabled && dbRef.current) {
-          saveToFirebase(
-            sectionsRef.current,
-            fixturesRef.current,
-            unknownProductsRef.current,
-            badStockProductsRef.current
-          );
+        if (firebaseReady) {
+          saveToCloud(true); // silent mode
         }
       }
-    }, 1000);
+    }, 2000);
     return () => clearTimeout(timeoutId);
   }, [unknownProducts]);
 
@@ -2540,19 +2536,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     if (!initialLoadComplete.current) return; // Skip first render
     
     const timeoutId = setTimeout(() => {
-      if (badStockProducts.length >= 0) {  // Changed to >= 0 so it saves even when list is empty
+      if (badStockProducts.length >= 0) {
         console.log('Auto-saving bad stock products...');
         localStorage.setItem('planogram_bad_stock_products', JSON.stringify(badStockProducts));
-        if (cloudSyncEnabled && dbRef.current) {
-          saveToFirebase(
-            sectionsRef.current,
-            fixturesRef.current,
-            unknownProductsRef.current,
-            badStockProductsRef.current
-          );
+        if (firebaseReady) {
+          saveToCloud(true); // silent mode
         }
       }
-    }, 1000);
+    }, 2000);
     return () => clearTimeout(timeoutId);
   }, [badStockProducts]);
 
@@ -2567,13 +2558,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     const timeoutId = setTimeout(() => {
       console.log('Auto-saving sections to Firebase...');
       localStorage.setItem('planogram_sections', JSON.stringify(sections));
-      if (cloudSyncEnabled && dbRef.current && sections.length >= 0) {
-        saveToFirebase(
-          sectionsRef.current, 
-          fixturesRef.current, 
-          unknownProductsRef.current, 
-          badStockProductsRef.current
-        );
+      if (firebaseReady) {
+        saveToCloud(true); // silent mode
       }
     }, 2000); // 2 second delay
     return () => clearTimeout(timeoutId);
@@ -2586,13 +2572,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     const timeoutId = setTimeout(() => {
       console.log('Auto-saving fixtures to Firebase...');
       localStorage.setItem('planogram_fixtures', JSON.stringify(fixtures));
-      if (cloudSyncEnabled && dbRef.current && fixtures.length >= 0) {
-        saveToFirebase(
-          sectionsRef.current,
-          fixturesRef.current,
-          unknownProductsRef.current,
-          badStockProductsRef.current
-        );
+      if (firebaseReady) {
+        saveToCloud(true); // silent mode
       }
     }, 2000); // 2 second delay
     return () => clearTimeout(timeoutId);
@@ -2988,14 +2969,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
             <button
               onClick={saveToCloud}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg font-bold text-lg hover:bg-green-700 shadow-lg border-2 border-green-400 flex items-center gap-2"
+              className="px-3 py-2 bg-green-500 text-white rounded flex items-center gap-2 text-sm hover:bg-green-600"
             >
-              <Icons.Save className="w-6 h-6" />
-              💾 SAVE NOW
+              <Icons.Save />
+              Save
             </button>
-            
+
             {syncStatus && (
-              <div className="text-sm text-green-600 font-semibold">
+              <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
                 {syncStatus}
               </div>
             )}
