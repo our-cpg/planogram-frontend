@@ -1304,20 +1304,28 @@ const PlanogramProfitTracker = () => {
 
 
   const addProductToSection = async () => {
+    console.log('🔥 addProductToSection CALLED');
+    console.log('🔥 newProduct:', newProduct);
+    
     if (!newProduct.upc || !newProduct.sectionId || !newProduct.rowId) {
+      console.log('❌ Missing required fields');
       setFeedback('⚠️ Enter UPC and select section & row');
       setTimeout(() => setFeedback(''), 3000);
       return;
     }
 
+    console.log('✅ All fields present, starting scan...');
     setScanning(true);
     const sectionIndex = sections.findIndex(s => s.id === newProduct.sectionId);
     
     if (sectionIndex === -1) {
+      console.log('❌ Section not found');
       setFeedback('⚠️ Section not found');
       setScanning(false);
       return;
     }
+
+    console.log('✅ Section found at index:', sectionIndex);
 
     let product = null;
     
@@ -1442,11 +1450,17 @@ const PlanogramProfitTracker = () => {
     const rowIndex = (section.rows || []).findIndex(r => r.id === newProduct.rowId);
     
     if (rowIndex >= 0) {
+      // Initialize products array if it doesn't exist
+      if (!section.rows[rowIndex].products) {
+        section.rows[rowIndex].products = [];
+      }
       section.rows[rowIndex].products.push(product);
+      console.log('✅ Product added to row:', section.rows[rowIndex].name);
     } else {
       // Fallback: add to section products if row not found
       if (!section.products) section.products = [];
       section.products.push(product);
+      console.log('⚠️ Row not found, added to section products');
     }
     
     setSections(updatedSections);
