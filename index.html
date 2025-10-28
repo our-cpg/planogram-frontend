@@ -1618,15 +1618,25 @@ const PlanogramProfitTracker = () => {
       defaultY = row * 50;
     }
 
+    // Set default dimensions based on fixture type
+    let defaultLength = 48;
+    let defaultDepth = 30;
+    let defaultHeight = 72;
+    
+    if (fixture.type === 'gondola') {
+      defaultDepth = 14;    // Gondolas are always 14" deep
+      defaultHeight = 57.5; // Gondolas are always 57.5" high
+    }
+
     const newSection = {
       id: `section-${Date.now()}`,
       fixtureId: fixtureId,
       name: `Section ${existingSections.length + 1}`,
       products: [],
-      length: 48, // default 48 inches
-      depth: 30, // default 30 inches  
-      height: 72, // default 72 inches
-      area: (48 * 30) / 144, // Calculate from dimensions: 10 sq ft
+      length: defaultLength,
+      depth: defaultDepth,
+      height: defaultHeight,
+      area: (defaultLength * defaultDepth) / 144, // Calculate from dimensions
       // Position and size within fixture (percentage-based 0-100)
       layoutX: defaultX,
       layoutY: defaultY,
