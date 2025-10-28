@@ -2468,6 +2468,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
   // Auto-save unknown products when they change
   useEffect(() => {
+    if (!initialLoadComplete.current) return; // Skip first render
+    
     const timeoutId = setTimeout(() => {
       if (unknownProducts.length >= 0) {  // Changed to >= 0 so it saves even when list is empty
         console.log('Auto-saving unknown products...');
@@ -2475,12 +2477,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         localStorage.setItem('planogram_unknown_products', JSON.stringify(unknownProducts));
         // Also save to Firebase if enabled
         if (cloudSyncEnabled && dbRef.current) {
-          saveToFirebase(sections, fixtures, unknownProducts);
+          saveToFirebase(sections, fixtures, unknownProducts, badStockProducts);
         }
       }
     }, 1000);
     return () => clearTimeout(timeoutId);
-  }, [unknownProducts]);
+  }, [unknownProducts, cloudSyncEnabled, sections, fixtures, badStockProducts]);
 
   const deleteUnknownProduct = (id) => {
     setUnknownProducts(prev => prev.filter(u => u.id !== id));
@@ -2495,6 +2497,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
   // Auto-save bad stock products when they change
   useEffect(() => {
+    if (!initialLoadComplete.current) return; // Skip first render
+    
     const timeoutId = setTimeout(() => {
       if (badStockProducts.length >= 0) {  // Changed to >= 0 so it saves even when list is empty
         console.log('Auto-saving bad stock products...');
@@ -2505,7 +2509,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       }
     }, 1000);
     return () => clearTimeout(timeoutId);
-  }, [badStockProducts]);
+  }, [badStockProducts, cloudSyncEnabled, sections, fixtures, unknownProducts]);
 
   const deleteBadStockProduct = (id) => {
     setBadStockProducts(prev => prev.filter(b => b.id !== id));
@@ -2523,7 +2527,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       }
     }, 2000); // 2 second delay
     return () => clearTimeout(timeoutId);
-  }, [sections]);
+  }, [sections, cloudSyncEnabled, fixtures, unknownProducts, badStockProducts]);
 
   // Auto-save fixtures when they change
   useEffect(() => {
@@ -2537,7 +2541,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       }
     }, 2000); // 2 second delay
     return () => clearTimeout(timeoutId);
-  }, [fixtures]);
+  }, [fixtures, cloudSyncEnabled, sections, unknownProducts, badStockProducts]);
 
   const resolveBadStock = (id) => {
     setBadStockProducts(prev =>
