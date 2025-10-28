@@ -250,6 +250,12 @@ const PlanogramProfitTracker = () => {
           setTimeout(() => setFeedback(''), 1500);
         }
       }
+      
+      // Ctrl+S: Quick save to cloud
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        saveToCloud();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -269,10 +275,14 @@ const PlanogramProfitTracker = () => {
     }
 
     try {
+      setSyncStatus('💾 Saving...');
+      
       const planogramData = {
         name: storeName,
         fixtures: fixtures,
         sections: sections,
+        unknownProducts: unknownProducts,
+        badStockProducts: badStockProducts,
         shopifyConfig: {
           storeName: shopifyConfig.storeName,
           connected: shopifyConfig.connected
@@ -281,11 +291,15 @@ const PlanogramProfitTracker = () => {
 
       const id = await window.firebaseService.savePlanogram(planogramData);
       if (id) {
-        alert('✅ Saved to cloud!');
+        const timestamp = new Date().toLocaleTimeString();
+        setSyncStatus(`✅ Saved at ${timestamp}`);
+        setTimeout(() => setSyncStatus(''), 5000);
       }
     } catch (error) {
       console.error('Save failed:', error);
-      alert('❌ Failed to save to cloud.');
+      setSyncStatus('❌ Save failed!');
+      setTimeout(() => setSyncStatus(''), 5000);
+      alert('❌ Failed to save to cloud: ' + error.message);
     }
   };
 
@@ -2974,11 +2988,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
             <button
               onClick={saveToCloud}
-              className="px-3 py-2 bg-green-500 text-white rounded flex items-center gap-2 text-sm hover:bg-green-600"
+              className="px-6 py-3 bg-green-600 text-white rounded-lg font-bold text-lg hover:bg-green-700 shadow-lg border-2 border-green-400 flex items-center gap-2"
             >
-              <Icons.Save />
-              Save to Cloud
+              <Icons.Save className="w-6 h-6" />
+              💾 SAVE NOW
             </button>
+            
+            {syncStatus && (
+              <div className="text-sm text-green-600 font-semibold">
+                {syncStatus}
+              </div>
+            )}
 
             <input type="file" ref={fileInputRef} onChange={handleBackgroundUpload} accept="image/*" className="hidden" />
             
