@@ -13,26 +13,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  
-  <style>
-    /* Weather Mode Animation */
-    @keyframes weather-flow {
-      0% {
-        background-position: 0% 50%;
-      }
-      50% {
-        background-position: 100% 50%;
-      }
-      100% {
-        background-position: 0% 50%;
-      }
-    }
-    
-    .weather-mode-overlay {
-      animation: weather-flow 10s ease infinite;
-      background-size: 200% 200%;
-    }
-  </style>
 </head>
   
 <body>
@@ -424,7 +404,6 @@ const PlanogramProfitTracker = () => {
   
  const [showLibrary, setShowLibrary] = useState(false);
   const [heatMapMode, setHeatMapMode] = useState(true); // Heat map ON by default
-  const [weatherMode, setWeatherMode] = useState(false); // Weather radar mode for beautiful gradient view
   const [dimensionsMasterLock, setDimensionsMasterLock] = useState(() => {
     const saved = localStorage.getItem('planogram_dimensions_locked');
     return saved ? JSON.parse(saved) : false;
@@ -2215,33 +2194,11 @@ const PlanogramProfitTracker = () => {
     });
   };
 
- const DraggableSection = ({ section, fixture, isSelected, onSelect, weatherMode }) => {
+ const DraggableSection = ({ section, fixture, isSelected, onSelect }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
     const metrics = calculateMetrics(section, timePeriod);
-    
-    // Weather mode gradient calculation
-    const getWeatherGradient = () => {
-      if (!weatherMode) return null;
-      
-      const profitIntensity = Math.min(1, metrics.profitPerSqFt / 10); // Normalize to 0-1
-      
-      // Create beautiful gradient based on profit
-      if (profitIntensity > 0.75) {
-        return 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)'; // Dark green
-      } else if (profitIntensity > 0.5) {
-        return 'linear-gradient(135deg, #86efac 0%, #22c55e 50%, #16a34a 100%)'; // Light green
-      } else if (profitIntensity > 0.25) {
-        return 'linear-gradient(135deg, #fde047 0%, #facc15 50%, #eab308 100%)'; // Yellow
-      } else if (profitIntensity > 0.1) {
-        return 'linear-gradient(135deg, #fb923c 0%, #f97316 50%, #ea580c 100%)'; // Orange
-      } else {
-        return 'linear-gradient(135deg, #f87171 0%, #ef4444 50%, #dc2626 100%)'; // Red
-      }
-    };
-    
-    const color = weatherMode ? 'transparent' : (heatMapMode ? getHeatMapColor(metrics) : 'rgba(100, 116, 139, 0.3)');
-    const weatherGradient = getWeatherGradient();
+    const color = heatMapMode ? getHeatMapColor(metrics) : 'rgba(100, 116, 139, 0.3)';
     
     // Use custom layout properties or default to full fixture
     const layoutX = section.layoutX !== undefined ? section.layoutX : 0;
@@ -2250,13 +2207,6 @@ const PlanogramProfitTracker = () => {
     const layoutHeight = section.layoutHeight !== undefined ? section.layoutHeight : 100;
     
  const handleMouseDown = (e) => {
-      // Disable dragging/resizing in weather mode (view only)
-      if (weatherMode) {
-        e.stopPropagation();
-        onSelect();
-        return;
-      }
-      
       if (e.target.classList.contains('section-resize-handle')) {
         e.stopPropagation();
         setIsResizing(true);
@@ -2364,12 +2314,12 @@ const PlanogramProfitTracker = () => {
           top: top,
           width: width,
           height: height,
-          background: weatherMode ? 'transparent' : color,
+          background: color,
           border: isSelected 
             ? '2px solid #3b82f6' 
             : 'none',
-          cursor: weatherMode ? 'pointer' : (isDragging ? 'grabbing' : 'grab'),
-          pointerEvents: weatherMode ? 'auto' : 'auto',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          pointerEvents: 'auto',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -2388,20 +2338,15 @@ const PlanogramProfitTracker = () => {
         {/* Only show label if section is big enough */}
         {width > 40 && height > 30 && (
           <div className="text-center pointer-events-none" style={{ maxWidth: '90%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            <div style={{ fontSize: weatherMode ? '16px' : 'inherit', fontWeight: weatherMode ? 'bold' : 'inherit' }}>
+            <div>
               {section.name}
             </div>
-            {weatherMode && width > 60 && (
-              <div style={{ fontSize: '12px', marginTop: '4px' }}>
-                ${metrics.profitPerSqFt.toFixed(0)}/sqft
-              </div>
-            )}
-            {heatMapMode && !weatherMode && width > 60 && <div>${metrics.profitPerSqFt.toFixed(0)}/sqft</div>}
+            {heatMapMode && width > 60 && <div>${metrics.profitPerSqFt.toFixed(0)}/sqft</div>}
           </div>
         )}
 
        {/* Resize handles - only show when selected */}
-        {isSelected && !weatherMode && ['nw', 'ne', 'se', 'sw', 'n', 's', 'e', 'w'].map(position => (
+        {isSelected && ['nw', 'ne', 'se', 'sw', 'n', 's', 'e', 'w'].map(position => (
           <div
             key={position}
             className="section-resize-handle"
@@ -2499,105 +2444,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       return sum + metrics.totalProfit;
     }, 0);
     
-    // Calculate weather map gradient - ULTRA SMOOTH using ALL row data
-    const getWeatherGradientStops = () => {
-      if (!weatherMode || fixtureSections.length === 0) return null;
-      
-      // Create a 2D profit density map by sampling across both X and Y
-      const numSamplesX = 100; // More samples = smoother gradient
-      const numSamplesY = 20;  // Sample vertically too for row data
-      const gradientStops = [];
-      
-      for (let i = 0; i <= numSamplesX; i++) {
-        const xPosition = (i / numSamplesX) * 100; // 0% to 100%
-        
-        let totalProfit = 0;
-        let sampleCount = 0;
-        
-        // Sample vertically at this X position to incorporate row data
-        for (let j = 0; j <= numSamplesY; j++) {
-          const yPosition = (j / numSamplesY) * 100;
-          
-          // Find which section(s) and row(s) this point overlaps with
-          fixtureSections.forEach(section => {
-            const sectionStartX = section.layoutX || 0;
-            const sectionEndX = sectionStartX + (section.layoutWidth || 25);
-            const sectionStartY = section.layoutY || 0;
-            const sectionEndY = sectionStartY + (section.layoutHeight || 100);
-            
-            // Check if this sample point is within this section
-            if (xPosition >= sectionStartX && xPosition <= sectionEndX &&
-                yPosition >= sectionStartY && yPosition <= sectionEndY) {
-              
-              // If section has rows, sample row-level profit data
-              if (section.rows && section.rows.length > 0) {
-                section.rows.forEach(row => {
-                  if (row.products && row.products.length > 0) {
-                    row.products.forEach(product => {
-                      if (product.sales && product.sales[timePeriod]) {
-                        const sales = product.sales[timePeriod];
-                        const profit = (sales.revenue || 0) - (sales.cost || 0);
-                        const area = ((section.length || 48) * (section.depth || 12)) / 144; // sq ft
-                        totalProfit += profit / area;
-                        sampleCount++;
-                      }
-                    });
-                  }
-                });
-              } else {
-                // Fallback to section-level metrics
-                const metrics = calculateMetrics(section, timePeriod);
-                totalProfit += metrics.profitPerSqFt;
-                sampleCount++;
-              }
-            }
-          });
-        }
-        
-        // Calculate weighted average profit density at this X position
-        const avgProfit = sampleCount > 0 ? totalProfit / sampleCount : 0;
-        const profitIntensity = Math.min(1, Math.max(0, avgProfit / 100));
-        
-        // Ultra-smooth color interpolation with more gradual transitions
-        let r, g, b;
-        if (profitIntensity < 0.2) {
-          // Deep Red to Red (0-20%)
-          const t = profitIntensity / 0.2;
-          r = Math.round(220 + (239 - 220) * t);
-          g = Math.round(38 + (68 - 38) * t);
-          b = Math.round(38 + (68 - 38) * t);
-        } else if (profitIntensity < 0.4) {
-          // Red to Orange (20-40%)
-          const t = (profitIntensity - 0.2) / 0.2;
-          r = Math.round(239 + (249 - 239) * t);
-          g = Math.round(68 + (115 - 68) * t);
-          b = Math.round(68 + (22 - 68) * t);
-        } else if (profitIntensity < 0.6) {
-          // Orange to Yellow (40-60%)
-          const t = (profitIntensity - 0.4) / 0.2;
-          r = Math.round(249 + (250 - 249) * t);
-          g = Math.round(115 + (204 - 115) * t);
-          b = Math.round(22 + (21 - 22) * t);
-        } else if (profitIntensity < 0.8) {
-          // Yellow to Light Green (60-80%)
-          const t = (profitIntensity - 0.6) / 0.2;
-          r = Math.round(250 + (34 - 250) * t);
-          g = Math.round(204 + (197 - 204) * t);
-          b = Math.round(21 + (94 - 21) * t);
-        } else {
-          // Light Green to Dark Green (80-100%)
-          const t = (profitIntensity - 0.8) / 0.2;
-          r = Math.round(34 + (5 - 34) * t);
-          g = Math.round(197 + (150 - 197) * t);
-          b = Math.round(94 + (105 - 94) * t);
-        }
-        
-        gradientStops.push(`rgb(${r}, ${g}, ${b}) ${xPosition.toFixed(1)}%`);
-      }
-      
-      return `linear-gradient(90deg, ${gradientStops.join(', ')})`;
-    };
-    
     return (
       <div
         data-fixture-id={fixture.id}
@@ -2620,33 +2466,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         }}
         onMouseDown={handleMouseDown}
       >
-        {/* Weather Mode Overlay - Smooth blended gradient across entire fixture */}
-        {weatherMode && (
-          <div
-            className="weather-mode-overlay"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: getWeatherGradientStops(),
-              opacity: 0.85,
-              pointerEvents: 'none',
-              zIndex: 5,
-              borderRadius: '8px'
-            }}
-          />
-        )}
-      >
-       {/* Draggable/Resizable Sections - always visible */}
+        {/* Draggable/Resizable Sections - always visible */}
         {fixtureSections.map(section => (
           <DraggableSection
             key={section.id}
             section={section}
             fixture={fixture}
             isSelected={selectedSection === section.id}
-            weatherMode={weatherMode}
             onSelect={() => {
               setSelectedSection(section.id);
               setSelectedFixture(section.fixtureId); // Open the fixture sidebar
@@ -3160,25 +2986,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               Heat Map
             </button>
 
-            <button
-              onClick={() => {
-                setWeatherMode(!weatherMode);
-                if (!weatherMode) {
-                  setHeatMapMode(false);
-                }
-              }}
-              className={`px-3 py-2 rounded flex items-center gap-2 text-sm ${
-                weatherMode 
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg' 
-                  : 'bg-gray-200'
-              }`}
-              title="Weather Mode - Beautiful gradient view"
-            >
-              <Icons.Cloud />
-              Weather Mode
-              {weatherMode && <span className="text-xs ml-1">(View Only)</span>}
-            </button>
-
             {/* Heat Map Type Selector */}
             {heatMapMode && (
               <div className="flex items-center gap-2 bg-gradient-to-r from-red-50 to-orange-50 px-3 py-2 rounded-lg border border-red-200 relative">
@@ -3557,39 +3364,57 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           </div>
 
           {editingFixture === selectedFixture ? (
-            <input
-              type="text"
-              value={editingFixtureName}
-              onChange={(e) => setEditingFixtureName(e.target.value)}
-              onBlur={() => {
-                if (editingFixtureName.trim()) {
-                  updateFixtureName(selectedFixture, editingFixtureName.trim());
-                } else {
-                  setEditingFixture(null);
-                }
-              }}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && editingFixtureName.trim()) {
-                  updateFixtureName(selectedFixture, editingFixtureName.trim());
-                }
-                if (e.key === 'Escape') {
-                  setEditingFixture(null);
-                }
-              }}
-              className="text-xl font-bold mb-4 px-2 py-1 border-2 border-blue-500 rounded w-full"
-              autoFocus
-            />
+            <div className="flex items-center justify-between mb-4">
+              <input
+                type="text"
+                value={editingFixtureName}
+                onChange={(e) => setEditingFixtureName(e.target.value)}
+                onBlur={() => {
+                  if (editingFixtureName.trim()) {
+                    updateFixtureName(selectedFixture, editingFixtureName.trim());
+                  } else {
+                    setEditingFixture(null);
+                  }
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && editingFixtureName.trim()) {
+                    updateFixtureName(selectedFixture, editingFixtureName.trim());
+                  }
+                  if (e.key === 'Escape') {
+                    setEditingFixture(null);
+                  }
+                }}
+                className="text-xl font-bold px-2 py-1 border-2 border-blue-500 rounded flex-1"
+                autoFocus
+              />
+              <button
+                onClick={() => setSelectedFixture(null)}
+                className="ml-2 p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title="Close sidebar"
+              >
+                <Icons.X />
+              </button>
+            </div>
           ) : (
-            <h2 
-              className="text-xl font-bold mb-4 cursor-pointer hover:text-blue-600"
-              onClick={() => {
-                setEditingFixture(selectedFixture);
-                setEditingFixtureName(fixtures.find(f => f.id === selectedFixture)?.name || '');
-              }}
-              title="Click to rename fixture"
-            >
-              {fixtures.find(f => f.id === selectedFixture)?.name}
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 
+                className="text-xl font-bold cursor-pointer hover:text-blue-600 flex-1"
+                onClick={() => {
+                  setEditingFixture(selectedFixture);
+                  setEditingFixtureName(fixtures.find(f => f.id === selectedFixture)?.name || '');
+                }}
+                title="Click to rename fixture"
+              >
+                {fixtures.find(f => f.id === selectedFixture)?.name}
+              </h2>
+              <button
+                onClick={() => setSelectedFixture(null)}
+                className="ml-2 p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title="Close sidebar"
+              >
+                <Icons.X />
+              </button>
+            </div>
           )}
 
         <button
