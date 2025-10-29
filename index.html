@@ -2358,17 +2358,17 @@ const PlanogramProfitTracker = () => {
 
  return (
       <div
-        style={{
+       style={{
           position: 'absolute',
           left: left,
           top: top,
           width: width,
           height: height,
-          background: weatherMode ? weatherGradient : color,
+          background: weatherMode ? 'rgba(255, 255, 255, 0.1)' : color,
           border: isSelected 
             ? '2px solid #3b82f6' 
             : weatherMode
-              ? '1px solid rgba(255,255,255,0.3)'
+              ? '1px solid rgba(255,255,255,0.5)'
               : 'none',
           cursor: weatherMode ? 'pointer' : (isDragging ? 'grabbing' : 'grab'),
           pointerEvents: 'auto',
@@ -2496,12 +2496,41 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       document.addEventListener('mouseup', handleMouseUp);
     };
 
-    const fixtureSections = sections.filter(s => s.fixtureId === fixture.id);
+ const fixtureSections = sections.filter(s => s.fixtureId === fixture.id);
     const totalProfit = fixtureSections.reduce((sum, s) => {
       const metrics = calculateMetrics(s, timePeriod);
       return sum + metrics.totalProfit;
     }, 0);
-
+    
+    // Calculate weather map gradient stops for this fixture
+    const getWeatherGradientStops = () => {
+      if (!weatherMode || fixtureSections.length === 0) return null;
+      
+      const sortedSections = [...fixtureSections].sort((a, b) => (a.layoutX || 0) - (b.layoutX || 0));
+      const gradientStops = sortedSections.map(section => {
+        const metrics = calculateMetrics(section, timePeriod);
+        const profitIntensity = Math.min(1, metrics.profitPerSqFt / 10);
+        const position = (section.layoutX || 0) + ((section.layoutWidth || 25) / 2);
+        
+        let color;
+        if (profitIntensity > 0.75) {
+          color = '#059669'; // Dark green
+        } else if (profitIntensity > 0.5) {
+          color = '#22c55e'; // Green
+        } else if (profitIntensity > 0.25) {
+          color = '#facc15'; // Yellow
+        } else if (profitIntensity > 0.1) {
+          color = '#f97316'; // Orange
+        } else {
+          color = '#ef4444'; // Red
+        }
+        
+        return `${color} ${position}%`;
+      });
+      
+      return `linear-gradient(90deg, ${gradientStops.join(', ')})`;
+    };
+    
     return (
       <div
         data-fixture-id={fixture.id}
@@ -2523,6 +2552,25 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           overflow: 'hidden'
         }}
         onMouseDown={handleMouseDown}
+      >
+        {/* Weather Mode Overlay - Smooth blended gradient across entire fixture */}
+        {weatherMode && (
+          <div
+            className="weather-mode-overlay"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: getWeatherGradientStops(),
+              opacity: 0.85,
+              pointerEvents: 'none',
+              zIndex: 5,
+              borderRadius: '8px'
+            }}
+          />
+        )}
       >
        {/* Draggable/Resizable Sections - always visible */}
         {fixtureSections.map(section => (
