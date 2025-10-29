@@ -185,11 +185,25 @@ const PlanogramProfitTracker = () => {
                   const safeSections = Array.isArray(data.sections) 
                     ? data.sections.map(section => ({
                         ...section,
+                        length: section.length || 48,
+                        depth: section.depth || 30,
+                        height: section.height || 72,
+                        area: section.area || ((section.length || 48) * (section.depth || 30)) / 144,
                         rows: Array.isArray(section.rows) ? section.rows : [],
                         products: Array.isArray(section.products) ? section.products : []
                       }))
                     : [];
                   setSections(safeSections);
+                  
+                  // Load unknown products if they exist
+                  if (data.unknownProducts) {
+                    setUnknownProducts(Array.isArray(data.unknownProducts) ? data.unknownProducts : []);
+                  }
+                  
+                  // Load bad stock products if they exist
+                  if (data.badStockProducts) {
+                    setBadStockProducts(Array.isArray(data.badStockProducts) ? data.badStockProducts : []);
+                  }
                   
                   if (data.shopifyConfig) {
                     setShopifyConfig(prev => ({
@@ -349,11 +363,25 @@ const PlanogramProfitTracker = () => {
             const safeSections = Array.isArray(data.sections) 
               ? data.sections.map(section => ({
                   ...section,
+                  length: section.length || 48,
+                  depth: section.depth || 30,
+                  height: section.height || 72,
+                  area: section.area || ((section.length || 48) * (section.depth || 30)) / 144,
                   rows: Array.isArray(section.rows) ? section.rows : [],
                   products: Array.isArray(section.products) ? section.products : []
                 }))
               : [];
             setSections(safeSections);
+            
+            // Load unknown products if they exist
+            if (data.unknownProducts) {
+              setUnknownProducts(Array.isArray(data.unknownProducts) ? data.unknownProducts : []);
+            }
+            
+            // Load bad stock products if they exist
+            if (data.badStockProducts) {
+              setBadStockProducts(Array.isArray(data.badStockProducts) ? data.badStockProducts : []);
+            }
             
             if (data.shopifyConfig) {
               setShopifyConfig(prev => ({
