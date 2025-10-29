@@ -1775,6 +1775,39 @@ const PlanogramProfitTracker = () => {
     setTimeout(() => setFeedback(''), 2000);
   };
 
+  const moveSectionInList = (sectionId, direction) => {
+    const sectionIndex = sections.findIndex(s => s.id === sectionId);
+    if (sectionIndex === -1) return;
+    
+    const section = sections[sectionIndex];
+    const fixtureSections = sections.filter(s => s.fixtureId === section.fixtureId);
+    const fixtureIndex = fixtureSections.findIndex(s => s.id === sectionId);
+    
+    // Can't move up if first, can't move down if last
+    if ((direction === 'up' && fixtureIndex === 0) || 
+        (direction === 'down' && fixtureIndex === fixtureSections.length - 1)) {
+      return;
+    }
+    
+    // Get the section to swap with
+    const swapSection = direction === 'up' 
+      ? fixtureSections[fixtureIndex - 1]
+      : fixtureSections[fixtureIndex + 1];
+    
+    // Find indices in main sections array
+    const swapIndex = sections.findIndex(s => s.id === swapSection.id);
+    
+    // Swap the sections
+    const updatedSections = [...sections];
+    updatedSections[sectionIndex] = swapSection;
+    updatedSections[swapIndex] = section;
+    
+    setSections(updatedSections);
+    autoSave(updatedSections, 'Auto-saved after reordering sections');
+    setFeedback(`✅ Section moved ${direction}`);
+    setTimeout(() => setFeedback(''), 2000);
+  };
+
   const updateSectionArea = (sectionId, newArea) => {
     const area = parseFloat(newArea);
     if (isNaN(area) || area <= 0) {
@@ -3584,22 +3617,49 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     }}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const newCollapsed = new Set(collapsedSections);
-                          if (isSectionCollapsed) {
-                            newCollapsed.delete(section.id);
-                          } else {
-                            newCollapsed.add(section.id);
-                          }
-                          setCollapsedSections(newCollapsed);
-                        }}
-                        className="text-gray-600 hover:text-gray-800 mr-2 font-bold text-lg"
-                        title={isSectionCollapsed ? "Expand section" : "Collapse section"}
-                      >
-                        {isSectionCollapsed ? '▶' : '▼'}
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newCollapsed = new Set(collapsedSections);
+                            if (isSectionCollapsed) {
+                              newCollapsed.delete(section.id);
+                            } else {
+                              newCollapsed.add(section.id);
+                            }
+                            setCollapsedSections(newCollapsed);
+                          }}
+                          className="text-gray-600 hover:text-gray-800 font-bold text-lg"
+                          title={isSectionCollapsed ? "Expand section" : "Collapse section"}
+                        >
+                          {isSectionCollapsed ? '▶' : '▼'}
+                        </button>
+                        
+                        {/* Reorder buttons */}
+                        <div className="flex flex-col">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveSectionInList(section.id, 'up');
+                            }}
+                            className="text-gray-500 hover:text-blue-600 text-xs leading-none"
+                            title="Move section up in list"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveSectionInList(section.id, 'down');
+                            }}
+                            className="text-gray-500 hover:text-blue-600 text-xs leading-none"
+                            title="Move section down in list"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </div>
+                      
                       {editingSection === section.id ? (
                         <input
                           type="text"
