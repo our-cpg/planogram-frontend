@@ -3572,10 +3572,15 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             onClick={(e) => {
                               e.stopPropagation();
                               setEditingSectionArea(section.id);
+                              
+                              // Check if this section belongs to a gondola
+                              const fixture = fixtures.find(f => f.id === section.fixtureId);
+                              const isGondola = fixture?.type === 'gondola';
+                              
                               setEditingDimensions({
                                 length: (section.length || 48).toString(),
-                                depth: (section.depth || 30).toString(),
-                                height: (section.height || 72).toString()
+                                depth: (section.depth || (isGondola ? 14 : 30)).toString(),
+                                height: (section.height || (isGondola ? 57.5 : 72)).toString()
                               });
                             }}
                             title="Click to edit dimensions"
