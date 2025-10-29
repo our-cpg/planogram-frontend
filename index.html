@@ -402,6 +402,10 @@ const PlanogramProfitTracker = () => {
   
   const [showLibrary, setShowLibrary] = useState(false);
   const [heatMapMode, setHeatMapMode] = useState(true); // Heat map ON by default
+  const [dimensionsMasterLock, setDimensionsMasterLock] = useState(() => {
+    const saved = localStorage.getItem('planogram_dimensions_locked');
+    return saved ? JSON.parse(saved) : false;
+  }); // Master lock for all dimensions
   const [timePeriod, setTimePeriod] = useState('month'); // day, week, month, quarter, custom
   const [customStartDate, setCustomStartDate] = useState(() => {
     const now = new Date();
@@ -3381,6 +3385,21 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             ▲ Collapse All Sections
           </button>
 
+          <button
+            onClick={() => {
+              setDimensionsMasterLock(!dimensionsMasterLock);
+              // Save lock state to localStorage
+              localStorage.setItem('planogram_dimensions_locked', JSON.stringify(!dimensionsMasterLock));
+            }}
+            className={`w-full px-3 py-2 rounded mb-4 flex items-center justify-center gap-2 text-sm font-bold ${
+              dimensionsMasterLock 
+                ? 'bg-red-600 text-white hover:bg-red-700' 
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
+          >
+            {dimensionsMasterLock ? '🔒 DIMENSIONS LOCKED' : '🔓 Lock All Dimensions'}
+          </button>
+
           <div className="space-y-4">
             {sections
               .filter(s => s.fixtureId === selectedFixture)
@@ -3609,9 +3628,15 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           </div>
                         ) : (
                           <div
-                            className="cursor-pointer hover:text-blue-600 hover:bg-blue-50 p-2 rounded -mx-2"
+                            className={`p-2 rounded -mx-2 ${dimensionsMasterLock ? 'cursor-not-allowed bg-red-50' : 'cursor-pointer hover:text-blue-600 hover:bg-blue-50'}`}
                             onClick={(e) => {
                               e.stopPropagation();
+                              
+                              if (dimensionsMasterLock) {
+                                alert('🔒 Dimensions are LOCKED! Click "🔒 DIMENSIONS LOCKED" button above to unlock.');
+                                return;
+                              }
+                              
                               setEditingSectionArea(section.id);
                               
                               // Check if this section belongs to a gondola
@@ -3620,12 +3645,15 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                               
                               setEditingDimensions({
                                 length: (section.length || 48).toString(),
-                                depth: (section.depth || (isGondola ? 14 : 30)).toString(),
-                                height: (section.height || (isGondola ? 57.5 : 72)).toString()
+                                depth: (isGondola ? 14 : (section.depth || 30)).toString(),
+                                height: (isGondola ? 57.5 : (section.height || 72)).toString()
                               });
                             }}
-                            title="Click to edit dimensions"
+                            title={dimensionsMasterLock ? "🔒 LOCKED - Click master lock button to unlock" : "Click to edit dimensions"}
                           >
+                            {dimensionsMasterLock && (
+                              <div className="text-xs text-red-600 font-bold mb-1">🔒 LOCKED</div>
+                            )}
                             <div className="text-xs text-gray-600">Dimensions (L×D×H):</div>
                             <div className="font-semibold">{section.length || 48}" × {section.depth || 30}" × {section.height || 72}"</div>
                             <div className="text-xs text-gray-600">
