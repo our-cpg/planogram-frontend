@@ -1680,9 +1680,9 @@ const PlanogramProfitTracker = () => {
       layoutHeight: defaultHeight,
       // NEW: Rows for height tracking
       rows: [
-        { id: `row-${Date.now()}-1`, name: 'Row 1', products: [] },
-        { id: `row-${Date.now()}-2`, name: 'Row 2', products: [] },
-        { id: `row-${Date.now()}-3`, name: 'Row 3', products: [] }
+        { id: `row-${Date.now()}-1`, name: 'Row 1', products: [], isDeadSpace: false },
+        { id: `row-${Date.now()}-2`, name: 'Row 2', products: [], isDeadSpace: false },
+        { id: `row-${Date.now()}-3`, name: 'Row 3', products: [], isDeadSpace: false }
       ]
     };
 
@@ -1860,7 +1860,8 @@ const PlanogramProfitTracker = () => {
         const newRow = {
           id: `row-${Date.now()}`,
           name: `Row ${rows.length + 1}`,
-          products: []
+          products: [],
+          isDeadSpace: false
         };
         return {
           ...section,
@@ -1872,6 +1873,25 @@ const PlanogramProfitTracker = () => {
     setSections(updatedSections);
     autoSave(updatedSections, 'Auto-saved after adding row');
     setFeedback('✅ Row added');
+    setTimeout(() => setFeedback(''), 2000);
+  };
+
+  const toggleRowDeadSpace = (sectionId, rowId) => {
+    const updatedSections = sections.map(section => {
+      if (section.id === sectionId) {
+        const updatedRows = (section.rows || []).map(row => {
+          if (row.id === rowId) {
+            return { ...row, isDeadSpace: !row.isDeadSpace };
+          }
+          return row;
+        });
+        return { ...section, rows: updatedRows };
+      }
+      return section;
+    });
+    setSections(updatedSections);
+    autoSave(updatedSections, 'Auto-saved after toggling row dead space');
+    setFeedback('✅ Row updated');
     setTimeout(() => setFeedback(''), 2000);
   };
 
@@ -3372,6 +3392,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             if (e.target === e.currentTarget || e.target.closest('.canvas-background')) {
               setSelectedSection(null);
               setSelectedProduct(null);
+              setSelectedFixture(null); // Close right sidebar when clicking empty space
             }
           }}
         >
@@ -4228,11 +4249,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             <div 
                               key={row.id}
                               className={`rounded-lg border-2 transition-all ${
-                                isSelectedRow 
-                                  ? 'border-blue-500 bg-blue-50' 
-                                  : heatMapMode 
-                                    ? `${rowHeatColor} hover:border-blue-300` 
-                                    : 'border-gray-200 bg-white hover:border-blue-300'
+                                row.isDeadSpace
+                                  ? 'border-gray-400 bg-gray-200'
+                                  : isSelectedRow 
+                                    ? 'border-blue-500 bg-blue-50' 
+                                    : heatMapMode 
+                                      ? `${rowHeatColor} hover:border-blue-300` 
+                                      : 'border-gray-200 bg-white hover:border-blue-300'
                               }`}
                             >
                               {/* Row Header - Always Visible */}
@@ -4286,6 +4309,20 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                           >
                                             ✏️
                                           </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleRowDeadSpace(section.id, row.id);
+                                            }}
+                                            className={`text-xs p-1 rounded transition-colors ${
+                                              row.isDeadSpace 
+                                                ? 'bg-gray-500 text-white hover:bg-gray-600' 
+                                                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                                            }`}
+                                            title={row.isDeadSpace ? "Mark as active row" : "Mark as dead space"}
+                                          >
+                                            {row.isDeadSpace ? '❌' : '⬜'}
+                                          </button>
                                         </>
                                       )}
                                       <button
@@ -4319,7 +4356,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                 </div>
                                 
                                 {/* Summary Stats - Compact when collapsed, full grid when expanded */}
-                                {isExpanded ? (
+                                {row.isDeadSpace ? (
+                                  <div className="text-center py-2">
+                                    <span className="text-gray-600 font-semibold text-sm">🚫 Dead Space Row (Empty)</span>
+                                  </div>
+                                ) : isExpanded ? (
                                   <div className="grid grid-cols-4 gap-2 text-xs">
                                     <div className="bg-gray-50 p-2 rounded">
                                       <div className="text-gray-600 text-xs">Products</div>
