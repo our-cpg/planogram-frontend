@@ -1667,6 +1667,7 @@ const PlanogramProfitTracker = () => {
       id: `section-${Date.now()}`,
       fixtureId: fixtureId,
       name: `Section ${existingSections.length + 1}`,
+      type: 'regular', // 'regular' or 'deadspace'
       products: [],
       length: dimLength,
       depth: dimDepth,
@@ -1688,6 +1689,63 @@ const PlanogramProfitTracker = () => {
     const updatedSections = [...sections, newSection];
     setSections(updatedSections);
     autoSave(updatedSections, 'Auto-saved after adding section');
+  };
+
+  const addDeadSpaceSection = (fixtureId) => {
+    const fixture = fixtures.find(f => f.id === fixtureId);
+    if (!fixture) return;
+
+    const existingSections = sections.filter(s => s.fixtureId === fixtureId);
+
+    // Smart default positioning
+    const numExisting = existingSections.length;
+    let defaultX = 0;
+    let defaultY = 0;
+    let defaultWidth = 100;
+    let defaultHeight = 100;
+
+    if (numExisting > 0) {
+      const sectionsPerRow = 2;
+      const row = Math.floor(numExisting / sectionsPerRow);
+      const col = numExisting % sectionsPerRow;
+      
+      defaultWidth = 50;
+      defaultHeight = 50;
+      defaultX = col * 50;
+      defaultY = row * 50;
+    }
+
+    let dimLength = 48;
+    let dimDepth = 30;
+    let dimHeight = 72;
+    
+    if (fixture.type === 'gondola') {
+      dimDepth = 14;
+      dimHeight = 57.5;
+    }
+
+    const deadSpaceSection = {
+      id: `section-${Date.now()}`,
+      fixtureId: fixtureId,
+      name: `Dead Space ${existingSections.filter(s => s.type === 'deadspace').length + 1}`,
+      type: 'deadspace',
+      products: [],
+      length: dimLength,
+      depth: dimDepth,
+      height: dimHeight,
+      area: (dimLength * dimDepth) / 144,
+      layoutX: defaultX,
+      layoutY: defaultY,
+      layoutWidth: defaultWidth,
+      layoutHeight: defaultHeight,
+      rows: [] // Dead space doesn't need rows
+    };
+
+    const updatedSections = [...sections, deadSpaceSection];
+    setSections(updatedSections);
+    autoSave(updatedSections, 'Auto-saved after adding dead space');
+    setFeedback('✅ Dead space section added');
+    setTimeout(() => setFeedback(''), 2000);
   };
 
   const deleteSection = (sectionId) => {
@@ -2198,7 +2256,11 @@ const PlanogramProfitTracker = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
     const metrics = calculateMetrics(section, timePeriod);
-    const color = heatMapMode ? getHeatMapColor(metrics) : 'rgba(100, 116, 139, 0.3)';
+    
+    // Dead space sections are always gray, regular sections use heat map or default
+    const color = section.type === 'deadspace' 
+      ? 'rgba(150, 150, 150, 0.5)' 
+      : (heatMapMode ? getHeatMapColor(metrics) : 'rgba(100, 116, 139, 0.3)');
     
     // Use custom layout properties or default to full fixture
     const layoutX = section.layoutX !== undefined ? section.layoutX : 0;
@@ -3423,6 +3485,15 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           >
             <Icons.Plus />
             Add Section
+          </button>
+
+          <button
+            onClick={() => addDeadSpaceSection(selectedFixture)}
+            className="w-full px-3 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 mb-2 flex items-center justify-center gap-2"
+            title="Add a dead space section to track unutilized areas"
+          >
+            <Icons.Package />
+            Add Dead Space
           </button>
 
           <button
@@ -4912,6 +4983,50 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           {/* Main Analytics Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
+            {/* 📊 Space Utilization */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                📊 Space Utilization
+                <span className="text-sm font-normal text-gray-500">(fixture efficiency)</span>
+              </h2>
+              <div className="space-y-3">
+                {(fixtures || []).map(fixture => {
+                  const fixtureSections = sections.filter(s => s.fixtureId === fixture.id);
+                  const fixtureArea = (fixture.width * fixture.height) / 144; // Convert to sq ft
+                  const usedArea = fixtureSections.reduce((sum, s) => {
+                    return sum + ((s.length || 48) * (s.depth || 12)) / 144;
+                  }, 0);
+                  const utilization = fixtureArea > 0 ? (usedArea / fixtureArea) * 100 : 0;
+                  const deadSpaceCount = fixtureSections.filter(s => s.type === 'deadspace').length;
+                  const regularCount = fixtureSections.filter(s => s.type !== 'deadspace').length;
+                  
+                  return (
+                    <div key={fixture.id} className="p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-semibold">{fixture.name}</div>
+                        <div className={`font-bold text-lg ${utilization > 80 ? 'text-green-600' : utilization > 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                          {utilization.toFixed(1)}%
+                        </div>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                        <div 
+                          className={`h-3 rounded-full ${utilization > 80 ? 'bg-green-500' : utilization > 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                          style={{ width: `${Math.min(100, utilization)}%` }}
+                        ></div>
+                      </div>
+                      <div className="text-xs text-gray-600 flex justify-between">
+                        <span>{regularCount} sections • {deadSpaceCount} dead space</span>
+                        <span>{usedArea.toFixed(1)} / {fixtureArea.toFixed(1)} sq ft</span>
+                      </div>
+                    </div>
+                  );
+                })}
+                {fixtures.length === 0 && (
+                  <div className="text-gray-400 text-center py-8">No fixtures added yet</div>
+                )}
+              </div>
+            </div>
+
             {/* 🏆 Fixture Performance Ranking */}
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
