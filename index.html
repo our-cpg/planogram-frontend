@@ -4042,6 +4042,19 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 {fixtures.find(f => f.id === selectedFixture)?.name}
               </h2>
               <button
+                onClick={() => {
+                  const fixture = fixtures.find(f => f.id === selectedFixture);
+                  if (confirm(`Delete "${fixture?.name}" and all its sections?`)) {
+                    deleteFixture(selectedFixture);
+                    setSelectedFixture(null);
+                  }
+                }}
+                className="ml-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors"
+                title="Delete this fixture"
+              >
+                <Icons.Trash2 />
+              </button>
+              <button
                 onClick={() => setSelectedFixture(null)}
                 className="ml-2 p-2 hover:bg-gray-100 rounded-full transition-colors"
                 title="Close sidebar"
