@@ -2859,15 +2859,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            pointerEvents: 'auto', // Enable clicks on the visible fixture
+            pointerEvents: 'auto',
+            opacity: heatMapMode ? 0.95 : 0.9,
+            overflow: 'hidden',
+            transform: `rotate(${fixture.rotation || 0}deg)`,
+            transformOrigin: 'center center'
           }}
           onMouseDown={handleMouseDown}
         >
-          opacity: heatMapMode ? 0.95 : 0.9,
-          overflow: 'hidden',
-          transform: `rotate(${fixture.rotation || 0}deg)`,
-          transformOrigin: 'center center'
-        }}>
         {/* Inner wrapper to contain overflowing content */}
         <div style={{
           position: 'absolute',
