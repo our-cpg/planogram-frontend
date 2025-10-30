@@ -2406,7 +2406,12 @@ const PlanogramProfitTracker = () => {
         return;
       }
 
-      // Handle dragging
+      // Handle dragging - let Shift+Click pass through to fixture
+      if (shiftPressed) {
+        // Don't stop propagation - let the fixture handle the Shift+Click
+        return;
+      }
+      
       e.stopPropagation();
       setIsDragging(true);
       onSelect();
