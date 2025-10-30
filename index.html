@@ -2990,19 +2990,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         </div>
         {/* End rotated content */}
 
-        {/* Delete button - NOT rotated, stays upright, OUTSIDE rotated content */}
-        {isSelected && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(fixture.id);
-            }}
-            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600"
-            style={{ pointerEvents: 'auto', zIndex: 200 }}
-          >
-            <Icons.X />
-          </button>
-        )}
+        {/* Delete button removed - use sidebar delete button instead */}
 
         {/* Rotation handle - NOT rotated, stays in corner, OUTSIDE rotated content */}
         {isSelected && (
