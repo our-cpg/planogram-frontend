@@ -959,6 +959,7 @@ const PlanogramProfitTracker = () => {
         if (!isFixture) {
           setSelectedSection(null);
           setSelectedProduct(null);
+          setSelectedFixtures([]); // Clear multi-selected fixtures
         }
       }
       
@@ -2593,21 +2594,29 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         const deltaX = e.clientX - startX;
         const deltaY = e.clientY - startY;
         
-        // Move all selected fixtures together
-        startPositions.forEach(startPos => {
-          const fixtureToUpdate = fixtures.find(f => f.id === startPos.id);
-          if (!fixtureToUpdate) return;
-          
-          onUpdate({ 
-            ...fixtureToUpdate, 
-            x: startPos.x + deltaX, 
-            y: startPos.y + deltaY 
-          });
+        // Update ALL selected fixtures at once (batch update)
+        const updatedFixtures = fixtures.map(f => {
+          const startPos = startPositions.find(sp => sp.id === f.id);
+          if (startPos) {
+            // This fixture is selected, move it
+            return {
+              ...f,
+              x: startPos.x + deltaX,
+              y: startPos.y + deltaY
+            };
+          }
+          // Not selected, keep as is
+          return f;
         });
+        
+        setFixtures(updatedFixtures);
       };
 
       const handleMouseUp = () => {
         setDragging(false);
+        // Save to localStorage on mouse up
+        localStorage.setItem('planogram_fixtures', JSON.stringify(fixtures));
+        autoSave(sections, fixtures, 'Auto-saved after moving fixtures');
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
       };
