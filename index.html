@@ -1903,6 +1903,30 @@ const PlanogramProfitTracker = () => {
     setTimeout(() => setFeedback(''), 2000);
   };
 
+  const addDeadRowToSection = (sectionId) => {
+    const updatedSections = sections.map(section => {
+      if (section.id === sectionId) {
+        const rows = section.rows || [];
+        const deadRowCount = rows.filter(r => r.isDeadSpace).length;
+        const newRow = {
+          id: `row-${Date.now()}`,
+          name: `Dead Row ${deadRowCount + 1}`,
+          products: [],
+          isDeadSpace: true
+        };
+        return {
+          ...section,
+          rows: [...rows, newRow]
+        };
+      }
+      return section;
+    });
+    setSections(updatedSections);
+    autoSave(updatedSections, 'Auto-saved after adding dead row');
+    setFeedback('✅ Dead row added');
+    setTimeout(() => setFeedback(''), 2000);
+  };
+
   const toggleRowDeadSpace = (sectionId, rowId) => {
     const updatedSections = sections.map(section => {
       if (section.id === sectionId) {
@@ -1986,10 +2010,17 @@ const PlanogramProfitTracker = () => {
       ? (section.length * section.depth) / 144  // Convert sq inches to sq feet
       : (section.area || 1); // Fallback to stored area or 1
 
-    // Gather all products from all rows
+    // Gather all products from all rows, but EXCLUDE dead rows from metrics
     const allProducts = section.rows ? 
-      section.rows.flatMap(row => row.products || []) : 
+      section.rows
+        .filter(row => !row.isDeadSpace) // Filter out dead rows
+        .flatMap(row => row.products || []) : 
       (section.products || []);
+    
+    // Count dead rows for utilization tracking
+    const totalRows = section.rows ? section.rows.length : 0;
+    const deadRows = section.rows ? section.rows.filter(row => row.isDeadSpace).length : 0;
+    const activeRows = totalRows - deadRows;
 
     const productMetrics = allProducts.map(p => {
       // Use the appropriate sales field based on time period
@@ -2057,7 +2088,20 @@ const PlanogramProfitTracker = () => {
     const totalVelocity = productMetrics.reduce((sum, p) => sum + p.velocity, 0);
     const profitPerSqFt = area > 0 ? totalProfit / area : 0;
 
-    return { area, totalRevenue, totalCost, totalProfit, profitPerSqFt, totalVolume, totalVelocity, productMetrics };
+    return { 
+      area, 
+      totalRevenue, 
+      totalCost, 
+      totalProfit, 
+      profitPerSqFt, 
+      totalVolume, 
+      totalVelocity, 
+      productMetrics,
+      totalRows,
+      deadRows,
+      activeRows,
+      rowUtilization: totalRows > 0 ? (activeRows / totalRows) * 100 : 100
+    };
   };
 
   const getHeatMapColor = (metrics) => {
@@ -4239,16 +4283,29 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             {(collapsedRowsSections.has('all') || collapsedRowsSections.has(section.id)) ? '▶' : '▼'}
                           </span>
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            addRowToSection(section.id);
-                          }}
-                          className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
-                        >
-                          + Add Row
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              addRowToSection(section.id);
+                            }}
+                            className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
+                          >
+                            + Add Row
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              addDeadRowToSection(section.id);
+                            }}
+                            className="px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
+                            title="Add a dead row to track unutilized shelf space"
+                          >
+                            + Add Dead Row
+                          </button>
+                        </div>
                       </div>
                       
                       {!(collapsedRowsSections.has('all') || collapsedRowsSections.has(section.id)) && (
@@ -5236,6 +5293,32 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         <span>{regularCount} sections • {deadSpaceCount} dead space</span>
                         <span>{usedArea.toFixed(1)} / {fixtureArea.toFixed(1)} sq ft</span>
                       </div>
+                      {/* Row Utilization for this fixture */}
+                      {(() => {
+                        const totalRows = fixtureSections.reduce((sum, s) => sum + (s.rows?.length || 0), 0);
+                        const deadRows = fixtureSections.reduce((sum, s) => {
+                          return sum + (s.rows?.filter(r => r.isDeadSpace).length || 0);
+                        }, 0);
+                        const activeRows = totalRows - deadRows;
+                        const rowUtilization = totalRows > 0 ? (activeRows / totalRows) * 100 : 100;
+                        
+                        if (totalRows > 0) {
+                          return (
+                            <div className="mt-2 pt-2 border-t border-gray-300">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-600">Row Utilization:</span>
+                                <span className={`font-semibold ${rowUtilization > 80 ? 'text-green-600' : rowUtilization > 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                  {rowUtilization.toFixed(0)}%
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {activeRows} active • {deadRows} dead ({totalRows} total rows)
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   );
                 })}
