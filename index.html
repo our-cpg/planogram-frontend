@@ -2609,12 +2609,33 @@ const PlanogramProfitTracker = () => {
         onMouseDown={handleMouseDown}
       >
         {/* Only show label if section is big enough */}
-        {width > 40 && height > 30 && (
-          <div className="text-center pointer-events-none" style={{ maxWidth: '90%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            <div>
+        {width > 30 && height > 20 && (
+          <div 
+            className="text-center pointer-events-none px-1" 
+            style={{ 
+              maxWidth: '95%', 
+              overflow: 'hidden',
+              fontSize: width < 50 ? '8px' : (width < 80 ? '10px' : '11px'),
+              lineHeight: width < 50 ? '10px' : '1.2'
+            }}
+          >
+            <div style={{ 
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis', 
+              whiteSpace: 'nowrap' 
+            }}>
               {section.name}
             </div>
-            {heatMapMode && width > 60 && <div>${metrics.profitPerSqFt.toFixed(0)}/sqft</div>}
+            {heatMapMode && width > 60 && height > 35 && (
+              <div style={{ 
+                fontSize: width < 80 ? '8px' : '9px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                ${metrics.profitPerSqFt.toFixed(0)}/sqft
+              </div>
+            )}
           </div>
         )}
 
@@ -2832,10 +2853,39 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         ))}
 
         {/* Fixture label - only show when NOT in heat map mode */}
-        {!heatMapMode && (
-          <div className="text-white text-center p-2 pointer-events-none">
-            <div className="font-bold text-sm">{fixture.name}</div>
-            <div className="text-xs">{fixtureSections.length} sections</div>
+        {!heatMapMode && fixture.width > 40 && fixture.height > 30 && (
+          <div 
+            className="text-white text-center p-1 pointer-events-none" 
+            style={{ 
+              maxWidth: '90%',
+              overflow: 'hidden'
+            }}
+          >
+            <div 
+              className="font-bold" 
+              style={{ 
+                fontSize: fixture.width < 60 ? '9px' : (fixture.width < 100 ? '11px' : '13px'),
+                lineHeight: fixture.width < 60 ? '11px' : '1.2',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                marginBottom: fixture.height < 50 ? '0' : '2px'
+              }}
+            >
+              {fixture.name}
+            </div>
+            {fixture.height > 50 && (
+              <div 
+                style={{ 
+                  fontSize: fixture.width < 60 ? '8px' : '10px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {fixtureSections.length} sections
+              </div>
+            )}
           </div>
         )}
 
