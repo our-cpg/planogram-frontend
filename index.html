@@ -2840,6 +2840,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     return (
       <div
         data-fixture-id={fixture.id}
+        onMouseDown={handleMouseDown}
         style={{
           position: 'absolute',
           left: fixture.x,
@@ -2868,13 +2869,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            pointerEvents: 'auto',
+            pointerEvents: 'none', // Changed to none so buttons above are clickable
             opacity: heatMapMode ? 0.95 : 0.9,
             overflow: 'hidden',
             transform: `rotate(${fixture.rotation || 0}deg)`,
             transformOrigin: 'center center'
           }}
-          onMouseDown={handleMouseDown}
         >
         {/* Inner wrapper to contain overflowing content */}
         <div style={{
