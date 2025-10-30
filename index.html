@@ -2755,6 +2755,16 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         return; // Let it bubble to canvas for panning
       }
       
+      // Check if clicking directly on the fixture background (not on a section)
+      // If so, allow canvas panning
+      const clickedElement = e.target;
+      const isFixtureBackground = clickedElement === e.currentTarget;
+      
+      if (isFixtureBackground && !isSelected) {
+        // Clicking on empty fixture area when not selected - allow canvas pan
+        return;
+      }
+      
       // Now handle fixture interactions
       e.stopPropagation();
       
@@ -2838,7 +2848,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           height: fixture.height,
           cursor: dragging ? 'grabbing' : 'grab',
           zIndex: isSelected ? 100 : 10,
-          pointerEvents: 'none', // Pass through by default
         }}
       >
         {/* Rotated inner content */}
