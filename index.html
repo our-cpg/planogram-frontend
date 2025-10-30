@@ -2843,12 +2843,23 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           justifyContent: 'center',
           opacity: heatMapMode ? 0.95 : 0.9,
           zIndex: isSelected ? 100 : 10,
-          overflow: 'hidden',
+          overflow: 'visible',
           transform: `rotate(${fixture.rotation || 0}deg)`,
           transformOrigin: 'center center'
         }}
         onMouseDown={handleMouseDown}
       >
+        {/* Inner wrapper to contain overflowing content */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          overflow: 'hidden',
+          borderRadius: '8px',
+          pointerEvents: 'none'
+        }}>
         {/* Draggable/Resizable Sections - always visible */}
         {fixtureSections.map(section => (
           <DraggableSection
@@ -2951,6 +2962,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             />
           ))
         )}
+        </div>
+        {/* End inner wrapper */}
 
         {isSelected && (
           <button
