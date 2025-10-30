@@ -2667,6 +2667,46 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     const [dragging, setDragging] = useState(false);
 
     const handleMouseDown = (e) => {
+      // Handle rotation from rotate handle
+      if (e.target.classList.contains('rotate-handle')) {
+        e.stopPropagation();
+        
+        const rect = e.currentTarget.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        const startAngle = Math.atan2(
+          e.clientY - centerY,
+          e.clientX - centerX
+        ) * (180 / Math.PI);
+        
+        const startRotation = fixture.rotation || 0;
+
+        const handleMouseMove = (moveEvent) => {
+          const currentAngle = Math.atan2(
+            moveEvent.clientY - centerY,
+            moveEvent.clientX - centerX
+          ) * (180 / Math.PI);
+          
+          const angleDiff = currentAngle - startAngle;
+          let newRotation = (startRotation + angleDiff) % 360;
+          
+          // Normalize to 0-360
+          if (newRotation < 0) newRotation += 360;
+          
+          onUpdate({ ...fixture, rotation: newRotation });
+        };
+
+        const handleMouseUp = () => {
+          document.removeEventListener('mousemove', handleMouseMove);
+          document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        return;
+      }
+
       if (e.target.classList.contains('resize-handle')) {
         e.stopPropagation();
         const resizePosition = e.target.dataset.position;
@@ -2925,19 +2965,34 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           </button>
         )}
 
+        {/* Rotation handle - top right corner outside the fixture */}
         {isSelected && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              const newRotation = ((fixture.rotation || 0) + 90) % 360;
-              onUpdate({ ...fixture, rotation: newRotation });
+          <div
+            className="rotate-handle"
+            style={{
+              position: 'absolute',
+              top: -20,
+              right: -20,
+              width: '16px',
+              height: '16px',
+              background: '#a855f7',
+              border: '2px solid white',
+              borderRadius: '50%',
+              cursor: 'grab',
+              zIndex: 120,
+              pointerEvents: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '10px',
+              color: 'white',
+              fontWeight: 'bold',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
             }}
-            className="absolute top-1 right-8 bg-purple-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-purple-600"
-            style={{ pointerEvents: 'auto' }}
-            title="Rotate 90°"
+            title={`Rotate (${Math.round(fixture.rotation || 0)}°)`}
           >
             ↻
-          </button>
+          </div>
         )}
 
         {isSelected && ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(position => (
