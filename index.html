@@ -1376,7 +1376,8 @@ const PlanogramProfitTracker = () => {
         
         // Check if processing in background
         if (data.processing) {
-          setFeedback(`🔥 BEAST MODE: Processing 7,314 orders in background... (2-3 minutes)`);
+          const orderCount = data.orderCount || data.totalOrders || '~7,000';
+          setFeedback(`🔥 BEAST MODE: Processing ${orderCount} orders in background... (2-3 minutes)`);
           
           // Poll every 10 seconds to check if done
           const checkStatus = setInterval(async () => {
