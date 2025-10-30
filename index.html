@@ -2616,7 +2616,10 @@ const PlanogramProfitTracker = () => {
               maxWidth: '95%', 
               overflow: 'hidden',
               fontSize: width < 50 ? '8px' : (width < 80 ? '10px' : '11px'),
-              lineHeight: width < 50 ? '10px' : '1.2'
+              lineHeight: width < 50 ? '10px' : '1.2',
+              transform: height > width * 1.5 ? 'rotate(-90deg)' : 'none',
+              transformOrigin: 'center center',
+              whiteSpace: 'nowrap'
             }}
           >
             <div style={{ 
@@ -2800,7 +2803,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           justifyContent: 'center',
           opacity: heatMapMode ? 0.95 : 0.9,
           zIndex: isSelected ? 100 : 10,
-          overflow: 'hidden'
+          overflow: 'hidden',
+          transform: `rotate(${fixture.rotation || 0}deg)`,
+          transformOrigin: 'center center'
         }}
         onMouseDown={handleMouseDown}
       >
@@ -2858,7 +2863,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             className="text-white text-center p-1 pointer-events-none" 
             style={{ 
               maxWidth: '90%',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              transform: fixture.height > fixture.width ? 'rotate(-90deg)' : 'none',
+              transformOrigin: 'center center',
+              whiteSpace: 'nowrap'
             }}
           >
             <div 
@@ -2914,6 +2922,21 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             style={{ pointerEvents: 'auto' }}
           >
             <Icons.X />
+          </button>
+        )}
+
+        {isSelected && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const newRotation = ((fixture.rotation || 0) + 90) % 360;
+              onUpdate({ ...fixture, rotation: newRotation });
+            }}
+            className="absolute top-1 right-8 bg-purple-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-purple-600"
+            style={{ pointerEvents: 'auto' }}
+            title="Rotate 90°"
+          >
+            ↻
           </button>
         )}
 
