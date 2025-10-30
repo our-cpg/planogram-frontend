@@ -2841,7 +2841,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           height: fixture.height,
           cursor: dragging ? 'grabbing' : 'grab',
           zIndex: isSelected ? 100 : 10,
-          pointerEvents: 'none', // Make outer container transparent to clicks
+          pointerEvents: 'auto', // Enable pointer events so buttons work
         }}
       >
         {/* Rotated inner content */}
