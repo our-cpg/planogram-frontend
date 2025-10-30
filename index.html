@@ -922,17 +922,19 @@ const PlanogramProfitTracker = () => {
     // Track where the mouse went down
     setMouseDownPos({ x: e.clientX, y: e.clientY });
     
-    // Pan with middle mouse button (button 1) or Ctrl + left click or Shift + left click
-    if (e.button === 1 || (e.button === 0 && (e.shiftKey || e.ctrlKey))) {
+    // Pan with middle mouse button (button 1) or Ctrl + left click
+    if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
       e.preventDefault();
       setIsPanning(true);
       setPanStart({ 
         x: e.clientX - panOffset.x, 
         y: e.clientY - panOffset.y 
       });
+      return;
     }
-    // Also allow panning on empty canvas
-    else if (e.target === e.currentTarget || e.target.classList.contains('bg-gray-50')) {
+    
+    // Allow panning on normal left click (button 0) - fixtures will stop propagation if needed
+    if (e.button === 0) {
       setIsPanning(true);
       setPanStart({ 
         x: e.clientX - panOffset.x, 
@@ -2750,22 +2752,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         return;
       }
 
-      // If panning (middle mouse or Ctrl key), don't handle fixture interaction
+      // If panning with middle mouse or Ctrl key, don't handle fixture interaction
       if (e.button === 1 || e.ctrlKey) {
         return; // Let it bubble to canvas for panning
       }
       
-      // Check if clicking directly on the fixture background (not on a section)
-      // If so, allow canvas panning
-      const clickedElement = e.target;
-      const isFixtureBackground = clickedElement === e.currentTarget;
-      
-      if (isFixtureBackground && !isSelected) {
-        // Clicking on empty fixture area when not selected - allow canvas pan
-        return;
-      }
-      
-      // Now handle fixture interactions
+      // Stop canvas panning and handle fixture interaction
+      setIsPanning(false);
       e.stopPropagation();
       
       // Multi-select logic for FIXTURES
@@ -2840,7 +2833,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     return (
       <div
         data-fixture-id={fixture.id}
-        onMouseDown={handleMouseDown}
         style={{
           position: 'absolute',
           left: fixture.x,
@@ -2849,10 +2841,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           height: fixture.height,
           cursor: dragging ? 'grabbing' : 'grab',
           zIndex: isSelected ? 100 : 10,
+          pointerEvents: 'none', // Make outer container transparent to clicks
         }}
       >
         {/* Rotated inner content */}
         <div 
+          onMouseDown={handleMouseDown}
           style={{
             position: 'absolute',
             top: 0,
@@ -2869,7 +2863,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            pointerEvents: 'none', // Changed to none so buttons above are clickable
+            pointerEvents: 'auto', // Changed back to auto so it can be clicked and dragged
             opacity: heatMapMode ? 0.95 : 0.9,
             overflow: 'hidden',
             transform: `rotate(${fixture.rotation || 0}deg)`,
