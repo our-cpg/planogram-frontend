@@ -2830,25 +2830,33 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           top: fixture.y,
           width: fixture.width,
           height: fixture.height,
-          backgroundColor: heatMapMode ? '#e5e7eb' : fixture.color, // Gray when heat map active, fixture color otherwise
-          border: selectedFixtures.includes(fixture.id)
-            ? '4px solid #fbbf24'  // Gold/yellow for multi-select
-            : isSelected 
-              ? '3px solid #3b82f6'  // Blue for single select
-              : '2px solid #cbd5e1',   // Default gray
-          borderRadius: '8px',
           cursor: dragging ? 'grabbing' : 'grab',
+          zIndex: isSelected ? 100 : 10,
+        }}
+        onMouseDown={handleMouseDown}
+      >
+        {/* Rotated inner content */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: heatMapMode ? '#e5e7eb' : fixture.color,
+          border: selectedFixtures.includes(fixture.id)
+            ? '4px solid #fbbf24'
+            : isSelected 
+              ? '3px solid #3b82f6'
+              : '2px solid #cbd5e1',
+          borderRadius: '8px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           opacity: heatMapMode ? 0.95 : 0.9,
-          zIndex: isSelected ? 100 : 10,
-          overflow: 'visible',
+          overflow: 'hidden',
           transform: `rotate(${fixture.rotation || 0}deg)`,
           transformOrigin: 'center center'
-        }}
-        onMouseDown={handleMouseDown}
-      >
+        }}>
         {/* Inner wrapper to contain overflowing content */}
         <div style={{
           position: 'absolute',
@@ -2915,7 +2923,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             style={{ 
               maxWidth: '90%',
               overflow: 'hidden',
-              transform: fixture.height > fixture.width ? 'rotate(-90deg)' : 'none',
+              transform: fixture.height > fixture.width 
+                ? `rotate(-90deg) rotate(-${fixture.rotation || 0}deg)` 
+                : `rotate(-${fixture.rotation || 0}deg)`,
               transformOrigin: 'center center',
               whiteSpace: 'nowrap'
             }}
@@ -2964,7 +2974,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         )}
         </div>
         {/* End inner wrapper */}
+        </div>
+        {/* End rotated content */}
 
+        {/* Delete button - NOT rotated, stays upright */}
         {isSelected && (
           <button
             onClick={(e) => {
@@ -2972,13 +2985,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               onDelete(fixture.id);
             }}
             className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-            style={{ pointerEvents: 'auto' }}
+            style={{ pointerEvents: 'auto', zIndex: 130 }}
           >
             <Icons.X />
           </button>
         )}
 
-        {/* Rotation handle - top right corner outside the fixture */}
+        {/* Rotation handle - NOT rotated, stays in corner */}
         {isSelected && (
           <div
             className="rotate-handle"
@@ -2986,8 +2999,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               position: 'absolute',
               top: -20,
               right: -20,
-              width: '16px',
-              height: '16px',
+              width: '20px',
+              height: '20px',
               background: '#a855f7',
               border: '2px solid white',
               borderRadius: '50%',
@@ -2997,10 +3010,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '10px',
+              fontSize: '12px',
               color: 'white',
               fontWeight: 'bold',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
             }}
             title={`Rotate (${Math.round(fixture.rotation || 0)}°)`}
           >
@@ -3008,6 +3021,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           </div>
         )}
 
+        {/* Resize handles - NOT rotated, stay aligned to viewport */}
         {isSelected && ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(position => (
           <div
             key={position}
@@ -3858,18 +3872,18 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 onClick={() => setRotation(prev => (prev - 15) % 360)}
                 className="p-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 active:bg-purple-700 transition-colors text-xl"
                 style={{ touchAction: 'manipulation' }}
-                title="Rotate counter-clockwise"
+                title="Rotate canvas view counter-clockwise"
               >
                 ↶
               </button>
-              <div className="text-center text-xs py-1 font-semibold">
+              <div className="text-center text-xs py-1 font-semibold" title="Canvas rotation">
                 {Math.round(rotation)}°
               </div>
               <button
                 onClick={() => setRotation(prev => (prev + 15) % 360)}
                 className="p-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 active:bg-purple-700 transition-colors text-xl"
                 style={{ touchAction: 'manipulation' }}
-                title="Rotate clockwise"
+                title="Rotate canvas view clockwise"
               >
                 ↷
               </button>
