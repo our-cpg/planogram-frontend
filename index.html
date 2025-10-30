@@ -2776,7 +2776,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       }
       
       setDragging(true);
-      onSelect();
       
       const startX = e.clientX;
       const startY = e.clientY;
@@ -2822,6 +2821,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
       const handleMouseUp = () => {
         setDragging(false);
+        // Call onSelect here instead, after drag is complete
+        onSelect();
         // Save to localStorage on mouse up - use functional form to get latest
         setFixtures(currentFixtures => {
           localStorage.setItem('planogram_fixtures', JSON.stringify(currentFixtures));
