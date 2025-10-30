@@ -504,8 +504,15 @@ const PlanogramProfitTracker = () => {
   const upcInputRef = useRef(null); // Ref for UPC scanning input
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [rotation, setRotation] = useState(0); // Canvas rotation in degrees
   const [mouseDownPos, setMouseDownPos] = useState(null); // Track if this is a click or drag
   const canvasRef = useRef(null);
+  
+  // Touch gesture states
+  const [touchStartDistance, setTouchStartDistance] = useState(null);
+  const [touchStartRotation, setTouchStartRotation] = useState(null);
+  const [initialZoom, setInitialZoom] = useState(1);
+  const [initialRotation, setInitialRotation] = useState(0);
   
   // Auto-pan to selected section (snap to left of sidebar)
   useEffect(() => {
@@ -964,6 +971,81 @@ const PlanogramProfitTracker = () => {
       }
       
       setMouseDownPos(null);
+    }
+  };
+
+  // Touch gesture handlers
+  const getTouchDistance = (touch1, touch2) => {
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const getTouchAngle = (touch1, touch2) => {
+    const dx = touch2.clientX - touch1.clientX;
+    const dy = touch2.clientY - touch1.clientY;
+    return Math.atan2(dy, dx) * (180 / Math.PI);
+  };
+
+  const getTouchCenter = (touch1, touch2) => {
+    return {
+      x: (touch1.clientX + touch2.clientX) / 2,
+      y: (touch1.clientY + touch2.clientY) / 2
+    };
+  };
+
+  const handleCanvasTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches[0], e.touches[1]);
+      const angle = getTouchAngle(e.touches[0], e.touches[1]);
+      setTouchStartDistance(distance);
+      setTouchStartRotation(angle);
+      setInitialZoom(zoom);
+      setInitialRotation(rotation);
+      setIsPanning(false);
+    } else if (e.touches.length === 1) {
+      // Single touch for panning
+      setIsPanning(true);
+      setPanStart({
+        x: e.touches[0].clientX - panOffset.x,
+        y: e.touches[0].clientY - panOffset.y
+      });
+    }
+  };
+
+  const handleCanvasTouchMove = (e) => {
+    if (e.touches.length === 2 && touchStartDistance && touchStartRotation !== null) {
+      e.preventDefault();
+      
+      // Calculate pinch zoom
+      const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
+      const scale = currentDistance / touchStartDistance;
+      const newZoom = Math.max(0.1, Math.min(3, initialZoom * scale));
+      setZoom(newZoom);
+      
+      // Calculate rotation
+      const currentAngle = getTouchAngle(e.touches[0], e.touches[1]);
+      const angleDiff = currentAngle - touchStartRotation;
+      const newRotation = (initialRotation + angleDiff) % 360;
+      setRotation(newRotation);
+      
+    } else if (e.touches.length === 1 && isPanning) {
+      // Pan with single touch
+      setPanOffset({
+        x: e.touches[0].clientX - panStart.x,
+        y: e.touches[0].clientY - panStart.y
+      });
+    }
+  };
+
+  const handleCanvasTouchEnd = (e) => {
+    if (e.touches.length < 2) {
+      setTouchStartDistance(null);
+      setTouchStartRotation(null);
+    }
+    if (e.touches.length === 0) {
+      setIsPanning(false);
     }
   };
 
@@ -3532,7 +3614,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           style={{ 
             cursor: isPanning ? 'grabbing' : (isDraggingBg ? 'grabbing' : 'default'),
             backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
-            backgroundSize: '20px 20px'
+            backgroundSize: '20px 20px',
+            touchAction: 'none' // Prevent default touch behaviors
           }}
           onWheel={handleCanvasWheel}
           onMouseDown={handleCanvasMouseDown}
@@ -3548,6 +3631,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             handleBgMouseUp();
             handleCanvasMouseUp(e);
           }}
+          onTouchStart={handleCanvasTouchStart}
+          onTouchMove={handleCanvasTouchMove}
+          onTouchEnd={handleCanvasTouchEnd}
           onClick={(e) => {
             // Deselect if clicking on empty canvas (not on a fixture)
             if (e.target === e.currentTarget || e.target.closest('.canvas-background')) {
@@ -3557,9 +3643,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             }
           }}
         >
-          {/* Transform wrapper for zoom/pan */}
+          {/* Transform wrapper for zoom/pan/rotate */}
           <div style={{
-            transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`,
+            transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px) rotate(${rotation}deg)`,
             transformOrigin: '0 0',
             width: '100%',
             height: '100%',
@@ -3597,6 +3683,72 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               isSelected={selectedFixture === fixture.id}
             />
           ))}
+          </div>
+          
+          {/* Floating Touch Controls */}
+          <div 
+            className="absolute bottom-4 right-4 flex flex-col gap-2"
+            style={{ pointerEvents: 'auto', zIndex: 1000 }}
+          >
+            {/* Zoom Controls */}
+            <div className="flex flex-col gap-1 bg-white rounded-lg shadow-lg p-2">
+              <button
+                onClick={() => setZoom(prev => Math.min(3, prev * 1.2))}
+                className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-colors text-2xl font-bold"
+                style={{ touchAction: 'manipulation' }}
+              >
+                +
+              </button>
+              <div className="text-center text-xs py-1 font-semibold">
+                {Math.round(zoom * 100)}%
+              </div>
+              <button
+                onClick={() => setZoom(prev => Math.max(0.1, prev / 1.2))}
+                className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-colors text-2xl font-bold"
+                style={{ touchAction: 'manipulation' }}
+              >
+                −
+              </button>
+            </div>
+            
+            {/* Rotation Controls */}
+            <div className="flex flex-col gap-1 bg-white rounded-lg shadow-lg p-2">
+              <button
+                onClick={() => setRotation(prev => (prev - 15) % 360)}
+                className="p-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 active:bg-purple-700 transition-colors text-xl"
+                style={{ touchAction: 'manipulation' }}
+                title="Rotate counter-clockwise"
+              >
+                ↶
+              </button>
+              <div className="text-center text-xs py-1 font-semibold">
+                {Math.round(rotation)}°
+              </div>
+              <button
+                onClick={() => setRotation(prev => (prev + 15) % 360)}
+                className="p-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 active:bg-purple-700 transition-colors text-xl"
+                style={{ touchAction: 'manipulation' }}
+                title="Rotate clockwise"
+              >
+                ↷
+              </button>
+            </div>
+            
+            {/* Reset Controls */}
+            <div className="flex flex-col gap-1 bg-white rounded-lg shadow-lg p-2">
+              <button
+                onClick={() => {
+                  setZoom(1);
+                  setPanOffset({ x: 0, y: 0 });
+                  setRotation(0);
+                }}
+                className="p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 active:bg-gray-800 transition-colors text-sm font-semibold"
+                style={{ touchAction: 'manipulation' }}
+                title="Reset view"
+              >
+                Reset
+              </button>
+            </div>
           </div>
         </div>
       </div>
