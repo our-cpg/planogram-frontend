@@ -2977,43 +2977,80 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         </div>
         {/* End rotated content */}
 
-        {/* Delete button - NOT rotated, stays upright */}
+        {/* Delete button - NOT rotated, stays upright, OUTSIDE rotated content */}
         {isSelected && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDelete(fixture.id);
             }}
-            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-            style={{ pointerEvents: 'auto', zIndex: 130 }}
+            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600"
+            style={{ pointerEvents: 'auto', zIndex: 200 }}
           >
             <Icons.X />
           </button>
         )}
 
-        {/* Rotation handle - NOT rotated, stays in corner */}
+        {/* Rotation handle - NOT rotated, stays in corner, OUTSIDE rotated content */}
         {isSelected && (
           <div
             className="rotate-handle"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              
+              const rect = e.currentTarget.parentElement.getBoundingClientRect();
+              const centerX = rect.left + rect.width / 2;
+              const centerY = rect.top + rect.height / 2;
+              
+              const startAngle = Math.atan2(
+                e.clientY - centerY,
+                e.clientX - centerX
+              ) * (180 / Math.PI);
+              
+              const startRotation = fixture.rotation || 0;
+
+              const handleMouseMove = (moveEvent) => {
+                const currentAngle = Math.atan2(
+                  moveEvent.clientY - centerY,
+                  moveEvent.clientX - centerX
+                ) * (180 / Math.PI);
+                
+                const angleDiff = currentAngle - startAngle;
+                let newRotation = (startRotation + angleDiff) % 360;
+                
+                // Normalize to 0-360
+                if (newRotation < 0) newRotation += 360;
+                
+                onUpdate({ ...fixture, rotation: newRotation });
+              };
+
+              const handleMouseUp = () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+              };
+
+              document.addEventListener('mousemove', handleMouseMove);
+              document.addEventListener('mouseup', handleMouseUp);
+            }}
             style={{
               position: 'absolute',
               top: -20,
               right: -20,
-              width: '20px',
-              height: '20px',
+              width: '24px',
+              height: '24px',
               background: '#a855f7',
-              border: '2px solid white',
+              border: '3px solid white',
               borderRadius: '50%',
               cursor: 'grab',
-              zIndex: 120,
+              zIndex: 200,
               pointerEvents: 'auto',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '12px',
+              fontSize: '14px',
               color: 'white',
               fontWeight: 'bold',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
             }}
             title={`Rotate (${Math.round(fixture.rotation || 0)}°)`}
           >
@@ -3032,7 +3069,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               background: 'white',
               border: '2px solid #3b82f6',
               cursor: getCursor(position),
-              zIndex: 110,
+              zIndex: 200,
               pointerEvents: 'auto',
               ...getHandlePosition(position)
             }}
