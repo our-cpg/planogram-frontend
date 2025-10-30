@@ -2781,10 +2781,15 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       const startX = e.clientX;
       const startY = e.clientY;
       
+      // Capture the current selected fixtures at drag start to avoid stale closure
+      const draggedFixtureIds = selectedFixtures.includes(fixture.id) 
+        ? [...selectedFixtures] 
+        : [fixture.id];
+      
       // Use functional form to get current fixtures at drag start
       let startPositions = [];
       setFixtures(currentFixtures => {
-        const fixturesToMove = currentFixtures.filter(f => selectedFixtures.includes(f.id));
+        const fixturesToMove = currentFixtures.filter(f => draggedFixtureIds.includes(f.id));
         startPositions = fixturesToMove.map(f => ({
           id: f.id,
           x: f.x,
