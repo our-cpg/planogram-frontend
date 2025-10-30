@@ -922,8 +922,8 @@ const PlanogramProfitTracker = () => {
     // Track where the mouse went down
     setMouseDownPos({ x: e.clientX, y: e.clientY });
     
-    // Pan with middle mouse button (button 1) or spacebar + left click
-    if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+    // Pan with middle mouse button (button 1) or Ctrl + left click or Shift + left click
+    if (e.button === 1 || (e.button === 0 && (e.shiftKey || e.ctrlKey))) {
       e.preventDefault();
       setIsPanning(true);
       setPanStart({ 
@@ -2750,6 +2750,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         return;
       }
 
+      // Allow canvas panning with middle mouse button or Ctrl+Click even over fixtures
+      if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
+        // Don't stop propagation - let canvas handle the pan
+        return;
+      }
+      
       e.stopPropagation();
       
       // Multi-select logic for FIXTURES
