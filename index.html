@@ -2750,12 +2750,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         return;
       }
 
-      // Allow canvas panning with middle mouse button or Ctrl+Click even over fixtures
-      if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
-        // Don't stop propagation - let canvas handle the pan
-        return;
+      // If panning (middle mouse or Ctrl key), don't handle fixture interaction
+      if (e.button === 1 || e.ctrlKey) {
+        return; // Let it bubble to canvas for panning
       }
       
+      // Now handle fixture interactions
       e.stopPropagation();
       
       // Multi-select logic for FIXTURES
@@ -2838,26 +2838,31 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           height: fixture.height,
           cursor: dragging ? 'grabbing' : 'grab',
           zIndex: isSelected ? 100 : 10,
+          pointerEvents: 'none', // Pass through by default
         }}
-        onMouseDown={handleMouseDown}
       >
         {/* Rotated inner content */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: heatMapMode ? '#e5e7eb' : fixture.color,
-          border: selectedFixtures.includes(fixture.id)
-            ? '4px solid #fbbf24'
-            : isSelected 
-              ? '3px solid #3b82f6'
-              : '2px solid #cbd5e1',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+        <div 
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: heatMapMode ? '#e5e7eb' : fixture.color,
+            border: selectedFixtures.includes(fixture.id)
+              ? '4px solid #fbbf24'
+              : isSelected 
+                ? '3px solid #3b82f6'
+                : '2px solid #cbd5e1',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'auto', // Enable clicks on the visible fixture
+          }}
+          onMouseDown={handleMouseDown}
+        >
           opacity: heatMapMode ? 0.95 : 0.9,
           overflow: 'hidden',
           transform: `rotate(${fixture.rotation || 0}deg)`,
