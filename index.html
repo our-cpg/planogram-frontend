@@ -5629,6 +5629,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               <div>
                 <label className="block text-sm font-semibold mb-2">Layout Name</label>
                 <input
+                  id="modal-layout-name"
                   type="text"
                   placeholder="e.g., 'Holiday 2025', 'Summer Refresh'"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -5636,7 +5637,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
                       const name = e.target.value.trim();
-                      const desc = e.target.parentElement.nextElementSibling.querySelector('textarea').value.trim();
+                      const desc = document.getElementById('modal-layout-desc')?.value?.trim() || '';
                       if (name) {
                         saveCurrentLayout(name, desc);
                         setShowSaveModal(false);
@@ -5648,6 +5649,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               <div>
                 <label className="block text-sm font-semibold mb-2">Description (optional)</label>
                 <textarea
+                  id="modal-layout-desc"
                   placeholder="Add notes about this layout..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   rows="3"
@@ -5689,8 +5691,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    const name = document.querySelector('input[placeholder*="Holiday"]').value.trim();
-                    const desc = document.querySelector('textarea[placeholder*="notes"]').value.trim();
+                    const name = document.getElementById('modal-layout-name')?.value?.trim() || '';
+                    const desc = document.getElementById('modal-layout-desc')?.value?.trim() || '';
                     if (name) {
                       saveCurrentLayout(name, desc);
                       setShowSaveModal(false);
@@ -7487,6 +7489,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             <h2 className="text-xl font-bold mb-4">Save Current Layout</h2>
             <div className="flex gap-4">
               <input
+                id="layout-name-input"
                 type="text"
                 placeholder="Layout name (e.g., 'Holiday 2025', 'Summer Refresh')"
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -7501,9 +7504,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 }}
               />
               <button
-                onClick={(e) => {
-                  const input = e.target.previousElementSibling;
-                  const name = input.value.trim();
+                onClick={() => {
+                  const input = document.getElementById('layout-name-input');
+                  const name = input?.value?.trim() || '';
                   if (name) {
                     saveCurrentLayout(name);
                     input.value = '';
