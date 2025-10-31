@@ -2566,7 +2566,7 @@ const PlanogramProfitTracker = () => {
 
       const handleMouseUp = () => {
         setIsDragging(false);
-        onSelect(); // Call onSelect AFTER drag completes
+        onSelect();
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
       };
@@ -3895,21 +3895,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           <div 
             className="absolute bottom-4 right-4 flex flex-col gap-2"
             style={{ pointerEvents: 'auto', zIndex: 1000 }}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
           >
             {/* Zoom Controls */}
             <div className="flex flex-col gap-1 bg-white rounded-lg shadow-lg p-2">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log('Zoom in clicked, current zoom:', zoom);
-                  setZoom(prev => {
-                    const newZoom = Math.min(3, prev * 1.2);
-                    console.log('New zoom:', newZoom);
-                    return newZoom;
-                  });
-                }}
+                onClick={() => setZoom(prev => Math.min(3, prev * 1.2))}
                 className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-colors text-xl font-bold"
                 style={{ touchAction: 'manipulation' }}
                 title="Zoom in"
@@ -3920,15 +3910,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 {Math.round(zoom * 100)}%
               </div>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log('Zoom out clicked, current zoom:', zoom);
-                  setZoom(prev => {
-                    const newZoom = Math.max(0.1, prev / 1.2);
-                    console.log('New zoom:', newZoom);
-                    return newZoom;
-                  });
-                }}
+                onClick={() => setZoom(prev => Math.max(0.1, prev / 1.2))}
                 className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-colors text-xl font-bold"
                 style={{ touchAction: 'manipulation' }}
                 title="Zoom out"
@@ -3940,13 +3922,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             {/* Pan Controls */}
             <div className="bg-white rounded-lg shadow-lg p-2">
               <div className="grid grid-cols-3 gap-1">
-                {/* Top row - Up arrow */}
                 <div></div>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPanOffset(prev => ({ ...prev, y: prev.y + 50 }));
-                  }}
+                  onClick={() => setPanOffset(prev => ({ ...prev, y: prev.y + 50 }))}
                   className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 active:bg-green-700 transition-colors text-xl font-bold"
                   style={{ touchAction: 'manipulation' }}
                   title="Pan up"
@@ -3955,12 +3933,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 </button>
                 <div></div>
                 
-                {/* Middle row - Left and Right arrows */}
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPanOffset(prev => ({ ...prev, x: prev.x + 50 }));
-                  }}
+                  onClick={() => setPanOffset(prev => ({ ...prev, x: prev.x + 50 }))}
                   className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 active:bg-green-700 transition-colors text-xl font-bold"
                   style={{ touchAction: 'manipulation' }}
                   title="Pan left"
@@ -3971,10 +3945,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   Pan
                 </div>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPanOffset(prev => ({ ...prev, x: prev.x - 50 }));
-                  }}
+                  onClick={() => setPanOffset(prev => ({ ...prev, x: prev.x - 50 }))}
                   className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 active:bg-green-700 transition-colors text-xl font-bold"
                   style={{ touchAction: 'manipulation' }}
                   title="Pan right"
@@ -3982,13 +3953,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   →
                 </button>
                 
-                {/* Bottom row - Down arrow */}
                 <div></div>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPanOffset(prev => ({ ...prev, y: prev.y - 50 }));
-                  }}
+                  onClick={() => setPanOffset(prev => ({ ...prev, y: prev.y - 50 }))}
                   className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 active:bg-green-700 transition-colors text-xl font-bold"
                   style={{ touchAction: 'manipulation' }}
                   title="Pan down"
@@ -4025,9 +3992,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             {/* Reset Controls */}
             <div className="flex flex-col gap-1 bg-white rounded-lg shadow-lg p-2">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log('Reset view clicked');
+                onClick={() => {
                   setZoom(1);
                   setPanOffset({ x: 0, y: 0 });
                   setRotation(0);
@@ -4036,7 +4001,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 style={{ touchAction: 'manipulation' }}
                 title="Reset view"
               >
-                🔄 Reset
+                Reset
               </button>
             </div>
           </div>
