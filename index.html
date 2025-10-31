@@ -439,7 +439,7 @@ const PlanogramProfitTracker = () => {
   const [lastOrdersRefresh, setLastOrdersRefresh] = useState(null);
   const [orderAnalytics, setOrderAnalytics] = useState(null);
   const [productCorrelations, setProductCorrelations] = useState([]);
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false); // Disabled by default to prevent errors
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true); // Enabled by default
   const [showRefreshPrompt, setShowRefreshPrompt] = useState(false);
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [collapsedSectionLayouts, setCollapsedSectionLayouts] = useState(new Set(['all'])); // Start with all collapsed
