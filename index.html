@@ -533,6 +533,35 @@ const PlanogramProfitTracker = () => {
     }
   }, [selectedSection, zoom]);
   
+  // Auto-pan to selected fixture (keep it visible when sidebar opens)
+  useEffect(() => {
+    if (!selectedFixture || !canvasRef.current) return;
+    
+    // Small delay to let any drag operations complete
+    const timeoutId = setTimeout(() => {
+      const fixture = fixtures.find(f => f.id === selectedFixture);
+      if (fixture) {
+        const canvasRect = canvasRef.current.getBoundingClientRect();
+        const sidebarWidth = rightSidebarWidth || 500;
+        const availableWidth = canvasRect.width - sidebarWidth;
+        
+        // Calculate fixture position in screen coordinates
+        const fixtureScreenX = fixture.x * zoom + panOffset.x;
+        const fixtureScreenWidth = fixture.width * zoom;
+        const fixtureScreenRight = fixtureScreenX + fixtureScreenWidth;
+        
+        // Only pan if fixture is significantly hidden (more than 50px behind sidebar)
+        if (fixtureScreenRight > availableWidth + 50) {
+          const targetX = availableWidth * 0.4;
+          const newPanX = targetX - (fixture.x + fixture.width / 2) * zoom;
+          setPanOffset({ x: newPanX, y: panOffset.y });
+        }
+      }
+    }, 100); // 100ms delay
+    
+    return () => clearTimeout(timeoutId);
+  }, [selectedFixture]); // Only trigger when selection changes
+  
   // Multi-select keyboard shortcuts for FIXTURES
   useEffect(() => {
     const handleKeyDown = (e) => {
