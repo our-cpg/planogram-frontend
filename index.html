@@ -2617,11 +2617,12 @@ const PlanogramProfitTracker = () => {
             style={{ 
               maxWidth: '95%', 
               overflow: 'hidden',
-              fontSize: width < 50 ? '8px' : (width < 80 ? '10px' : '11px'),
-              lineHeight: width < 50 ? '10px' : '1.2',
+              fontSize: Math.max(10, width < 50 ? 10 : (width < 80 ? 11 : 12)) + 'px',
+              lineHeight: '1.3',
               transform: height > width * 1.5 ? 'rotate(-90deg)' : 'none',
               transformOrigin: 'center center',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              fontWeight: '600'
             }}
           >
             <div style={{ 
@@ -2631,12 +2632,18 @@ const PlanogramProfitTracker = () => {
             }}>
               {section.name}
             </div>
-            {heatMapMode && width > 60 && height > 35 && (
+            {heatMapMode && width > 40 && height > 30 && (
               <div style={{ 
-                fontSize: width < 80 ? '8px' : '9px',
+                fontSize: Math.max(10, width < 80 ? 10 : 11) + 'px',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                fontWeight: '700',
+                marginTop: '2px',
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                padding: '2px 4px',
+                borderRadius: '3px',
+                display: 'inline-block'
               }}>
                 ${metrics.profitPerSqFt.toFixed(0)}/sqft
               </div>
@@ -3899,21 +3906,39 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             {/* Zoom Controls */}
             <div className="flex flex-col gap-1 bg-white rounded-lg shadow-lg p-2">
               <button
-                onClick={() => setZoom(prev => Math.min(3, prev * 1.2))}
-                className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-colors text-2xl font-bold"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Zoom in clicked, current zoom:', zoom);
+                  setZoom(prev => {
+                    const newZoom = Math.min(3, prev * 1.2);
+                    console.log('New zoom:', newZoom);
+                    return newZoom;
+                  });
+                }}
+                className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-colors text-xl font-bold"
                 style={{ touchAction: 'manipulation' }}
+                title="Zoom in"
               >
-                +
+                ↑ +
               </button>
               <div className="text-center text-xs py-1 font-semibold">
                 {Math.round(zoom * 100)}%
               </div>
               <button
-                onClick={() => setZoom(prev => Math.max(0.1, prev / 1.2))}
-                className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-colors text-2xl font-bold"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Zoom out clicked, current zoom:', zoom);
+                  setZoom(prev => {
+                    const newZoom = Math.max(0.1, prev / 1.2);
+                    console.log('New zoom:', newZoom);
+                    return newZoom;
+                  });
+                }}
+                className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-colors text-xl font-bold"
                 style={{ touchAction: 'manipulation' }}
+                title="Zoom out"
               >
-                −
+                ↓ −
               </button>
             </div>
             
@@ -3943,7 +3968,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             {/* Reset Controls */}
             <div className="flex flex-col gap-1 bg-white rounded-lg shadow-lg p-2">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Reset view clicked');
                   setZoom(1);
                   setPanOffset({ x: 0, y: 0 });
                   setRotation(0);
@@ -3952,7 +3979,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 style={{ touchAction: 'manipulation' }}
                 title="Reset view"
               >
-                Reset
+                🔄 Reset
               </button>
             </div>
           </div>
