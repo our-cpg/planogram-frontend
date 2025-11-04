@@ -167,6 +167,9 @@ window.firebaseService = {
       }
 
       const planograms = [];
+      
+      // Use a promise array to load metadata only for each planogram
+      const promises = [];
       snapshot.forEach((child) => {
         const planogramId = child.key;
         
@@ -181,18 +184,40 @@ window.firebaseService = {
             fixturesCount: metadata.fixturesCount || 0
           });
         } else {
-          // Old structure - just get basic info
-          const data = child.val();
-          planograms.push({
-            id: planogramId,
-            name: data.name || 'Untitled',
-            lastModified: data.lastModified || Date.now()
+          // Old structure - only get id, name, and lastModified (no full data)
+          const metadataPromise = this.db.ref(`planograms/${planogramId}`).once('value').then(snap => {
+            if (snap.exists()) {
+              const data = snap.val();
+              // Only extract the small fields, don't load sections/fixtures
+              planograms.push({
+                id: planogramId,
+                name: data.name || 'Untitled',
+                lastModified: data.lastModified || Date.now()
+              });
+            }
+          }).catch(error => {
+            console.warn(`Skipping planogram ${planogramId} due to error:`, error.message);
+            // If it fails (too large), just add a placeholder
+            planograms.push({
+              id: planogramId,
+              name: 'Large Planogram (needs migration)',
+              lastModified: 0,
+              error: true
+            });
           });
+          promises.push(metadataPromise);
         }
       });
 
-      // Sort by most recent first
-      planograms.sort((a, b) => b.lastModified - a.lastModified);
+      // Wait for any old-format planogram metadata loads
+      await Promise.all(promises);
+
+      // Sort by most recent first, but put error planograms last
+      planograms.sort((a, b) => {
+        if (a.error && !b.error) return 1;
+        if (!a.error && b.error) return -1;
+        return b.lastModified - a.lastModified;
+      });
       
       return planograms;
     } catch (error) {
