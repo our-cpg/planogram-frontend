@@ -3570,6 +3570,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         console.warn(`⚠️ ${productsWithoutPrices.length} products excluded (no price):`, productsWithoutPrices);
       }
 
+      // Check if we have actual cost data
+      const productsWithCosts = productsWithPrices.filter(p => 
+        p.cost !== null && p.cost !== undefined && p.cost > 0
+      );
+      const hasCostData = productsWithCosts.length > 0;
+
+      console.log(`💰 Cost Data Check: ${productsWithCosts.length}/${productsWithPrices.length} products have cost data`);
+      if (!hasCostData) {
+        console.log('⚠️ No cost data available - using revenue-only forecasting');
+      }
+
       // Calculate new prices and impact using only products with prices
       const productsWithDiscounts = productsWithPrices.map(product => {
         const currentPrice = product.price;
@@ -3582,9 +3593,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         }
 
         const savings = currentPrice - newPrice;
-        const cost = product.cost || (currentPrice * 0.6); // Estimate if no cost
-        const currentMargin = ((currentPrice - cost) / currentPrice) * 100;
-        const newMargin = ((newPrice - cost) / newPrice) * 100;
+        
+        // Only calculate margins if we have actual cost data
+        let cost = null;
+        let currentMargin = null;
+        let newMargin = null;
+        
+        if (product.cost !== null && product.cost !== undefined && product.cost > 0) {
+          cost = product.cost;
+          currentMargin = ((currentPrice - cost) / currentPrice) * 100;
+          newMargin = ((newPrice - cost) / newPrice) * 100;
+        }
 
         return {
           name: product.name,
@@ -3617,34 +3636,56 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
       const revenueChange = ((projectedRevenue - currentRevenue) / currentRevenue) * 100;
 
-      const currentProfit = productsWithDiscounts.reduce((sum, p) => 
-        sum + ((p.currentPrice - p.cost) * p.monthlySales), 0
-      );
-
-      const projectedProfit = productsWithDiscounts.reduce((sum, p) => 
-        sum + ((p.newPrice - p.cost) * p.monthlySales * (1 + assumedUplift / 100)), 0
-      );
-
-      const currentMargin = currentRevenue > 0 ? (currentProfit / currentRevenue) * 100 : 0;
-      const newMargin = projectedRevenue > 0 ? (projectedProfit / projectedRevenue) * 100 : 0;
-
-      // Calculate break-even units
+      // Calculate units regardless of cost data availability
       const totalUnitsSold = productsWithDiscounts.reduce((sum, p) => sum + p.monthlySales, 0);
       const projectedUnitsSold = totalUnitsSold * (1 + assumedUplift / 100);
-      const avgCurrentMargin = totalUnitsSold > 0 ? currentProfit / totalUnitsSold : 0;
-      const avgNewMargin = projectedUnitsSold > 0 ? projectedProfit / projectedUnitsSold : 0;
-      const profitLoss = currentProfit - projectedProfit;
-      const profitChange = currentProfit > 0 ? ((projectedProfit - currentProfit) / currentProfit) * 100 : 0;
-      const breakEvenUnits = profitLoss > 0 && avgNewMargin > 0 ? Math.ceil(profitLoss / avgNewMargin) : 0;
+
+      // Only calculate profit metrics if we have cost data
+      let currentProfit = null;
+      let projectedProfit = null;
+      let currentMargin = null;
+      let newMargin = null;
+      let profitChange = null;
+      let breakEvenUnits = null;
+
+      if (hasCostData) {
+        currentProfit = productsWithDiscounts.reduce((sum, p) => {
+          if (p.cost !== null) {
+            return sum + ((p.currentPrice - p.cost) * p.monthlySales);
+          }
+          return sum;
+        }, 0);
+
+        projectedProfit = productsWithDiscounts.reduce((sum, p) => {
+          if (p.cost !== null) {
+            return sum + ((p.newPrice - p.cost) * p.monthlySales * (1 + assumedUplift / 100));
+          }
+          return sum;
+        }, 0);
+
+        currentMargin = currentRevenue > 0 ? (currentProfit / currentRevenue) * 100 : 0;
+        newMargin = projectedRevenue > 0 ? (projectedProfit / projectedRevenue) * 100 : 0;
+        profitChange = currentProfit > 0 ? ((projectedProfit - currentProfit) / currentProfit) * 100 : 0;
+
+        // Calculate break-even units
+        const avgNewMargin = projectedUnitsSold > 0 ? projectedProfit / projectedUnitsSold : 0;
+        const profitLoss = currentProfit - projectedProfit;
+        breakEvenUnits = profitLoss > 0 && avgNewMargin > 0 ? Math.ceil(profitLoss / avgNewMargin) : 0;
+      }
 
       console.log('💰 Financial Summary:');
       console.log(`  Current Revenue: $${currentRevenue.toFixed(2)}`);
       console.log(`  Projected Revenue: $${projectedRevenue.toFixed(2)} (${revenueChange.toFixed(1)}%)`);
-      console.log(`  Current Profit: $${currentProfit.toFixed(2)}`);
-      console.log(`  Projected Profit: $${projectedProfit.toFixed(2)} (${profitChange.toFixed(1)}%)`);
       console.log(`  Units: ${totalUnitsSold} → ${projectedUnitsSold.toFixed(0)} (+${assumedUplift}%)`);
+      if (hasCostData) {
+        console.log(`  Current Profit: $${currentProfit.toFixed(2)}`);
+        console.log(`  Projected Profit: $${projectedProfit.toFixed(2)} (${profitChange.toFixed(1)}%)`);
+      } else {
+        console.log(`  ⚠️ Profit metrics unavailable (no cost data)`);
+      }
 
       setDiscountImpact({
+        hasCostData,
         productsAffected: productsWithDiscounts.length,
         currentRevenue,
         projectedRevenue,
@@ -8960,7 +9001,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     <div className="text-sm opacity-90 mb-1">Current Revenue</div>
                     <div className="text-3xl font-bold">${discountImpact.currentRevenue.toFixed(0)}</div>
                     <div className="text-xs opacity-80 mt-1">
-                      Profit: ${discountImpact.currentProfit.toFixed(0)} ({discountImpact.currentMargin.toFixed(1)}%)
+                      {discountImpact.hasCostData ? (
+                        <>Profit: ${discountImpact.currentProfit.toFixed(0)} ({discountImpact.currentMargin.toFixed(1)}%)</>
+                      ) : (
+                        <>Per month (revenue only)</>
+                      )}
                     </div>
                   </div>
 
@@ -8968,20 +9013,39 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     <div className="text-sm opacity-90 mb-1">Projected Revenue</div>
                     <div className="text-3xl font-bold">${discountImpact.projectedRevenue.toFixed(0)}</div>
                     <div className="text-xs opacity-80 mt-1">
-                      Profit: ${discountImpact.projectedProfit.toFixed(0)} ({discountImpact.newMargin.toFixed(1)}%)
+                      {discountImpact.hasCostData ? (
+                        <>Profit: ${discountImpact.projectedProfit.toFixed(0)} ({discountImpact.newMargin.toFixed(1)}%)</>
+                      ) : (
+                        <>With +{discountImpact.assumedUplift}% sales lift</>
+                      )}
                     </div>
                   </div>
 
                   <div className={`bg-gradient-to-br ${
-                    discountImpact.profitChange >= 0 ? 'from-emerald-500 to-emerald-600' : 'from-red-500 to-red-600'
+                    discountImpact.hasCostData && discountImpact.profitChange >= 0 ? 'from-emerald-500 to-emerald-600' : 
+                    discountImpact.hasCostData && discountImpact.profitChange < 0 ? 'from-red-500 to-red-600' :
+                    discountImpact.revenueChange >= 0 ? 'from-emerald-500 to-emerald-600' : 'from-red-500 to-red-600'
                   } text-white rounded-xl p-6`}>
-                    <div className="text-sm opacity-90 mb-1">Profit Impact</div>
+                    <div className="text-sm opacity-90 mb-1">{discountImpact.hasCostData ? 'Profit Impact' : 'Revenue Impact'}</div>
                     <div className="text-3xl font-bold">
-                      {discountImpact.profitChange >= 0 ? '+' : ''}{discountImpact.profitChange.toFixed(1)}%
+                      {discountImpact.hasCostData ? (
+                        <>{discountImpact.profitChange >= 0 ? '+' : ''}{discountImpact.profitChange.toFixed(1)}%</>
+                      ) : (
+                        <>{discountImpact.revenueChange >= 0 ? '+' : ''}{discountImpact.revenueChange.toFixed(1)}%</>
+                      )}
                     </div>
                     <div className="text-xs opacity-80 mt-1">
-                      {discountImpact.profitChange >= 0 ? '📈 ' : '📉 '}
-                      ${Math.abs(discountImpact.projectedProfit - discountImpact.currentProfit).toFixed(0)}
+                      {discountImpact.hasCostData ? (
+                        <>
+                          {discountImpact.profitChange >= 0 ? '📈 ' : '📉 '}
+                          ${Math.abs(discountImpact.projectedProfit - discountImpact.currentProfit).toFixed(0)}
+                        </>
+                      ) : (
+                        <>
+                          {discountImpact.revenueChange >= 0 ? '📈 ' : '📉 '}
+                          ${Math.abs(discountImpact.projectedRevenue - discountImpact.currentRevenue).toFixed(0)}
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -9032,93 +9096,115 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   </div>
                 )}
 
-                {/* Profit Analysis */}
-                <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-                  <h3 className="text-xl font-bold mb-4">💰 Detailed Profit Analysis</h3>
-                  
-                  <div className="grid md:grid-cols-4 gap-6 mb-6">
-                    <div className="border-l-4 border-blue-500 pl-4">
-                      <div className="text-sm text-gray-600 mb-1">Current Monthly Profit</div>
-                      <div className="text-2xl font-bold text-blue-600">
-                        ${discountImpact.currentProfit.toFixed(0)}
+                {/* Warning for missing cost data */}
+                {!discountImpact.hasCostData && (
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Margin: {discountImpact.currentMargin.toFixed(1)}%
+                      <div className="ml-3">
+                        <p className="text-sm text-yellow-700">
+                          <strong>Revenue-Only Forecast:</strong> No cost data available for these products. 
+                          Showing revenue impact only. Add product costs to your system to see profit margins, 
+                          profit impact, and break-even analysis.
+                        </p>
                       </div>
-                    </div>
-
-                    <div className="border-l-4 border-purple-500 pl-4">
-                      <div className="text-sm text-gray-600 mb-1">Projected Monthly Profit</div>
-                      <div className="text-2xl font-bold text-purple-600">
-                        ${discountImpact.projectedProfit.toFixed(0)}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Margin: {discountImpact.newMargin.toFixed(1)}%
-                      </div>
-                    </div>
-
-                    <div className={`border-l-4 ${
-                      discountImpact.profitChange >= 0 ? 'border-emerald-500' : 'border-red-500'
-                    } pl-4`}>
-                      <div className="text-sm text-gray-600 mb-1">Profit Change</div>
-                      <div className={`text-2xl font-bold ${
-                        discountImpact.profitChange >= 0 ? 'text-emerald-600' : 'text-red-600'
-                      }`}>
-                        {discountImpact.profitChange >= 0 ? '+' : ''}{discountImpact.profitChange.toFixed(1)}%
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        ${discountImpact.profitChange >= 0 ? '+' : '-'}
-                        {Math.abs(discountImpact.projectedProfit - discountImpact.currentProfit).toFixed(0)}
-                      </div>
-                    </div>
-
-                    <div className="border-l-4 border-emerald-500 pl-4">
-                      <div className="text-sm text-gray-600 mb-1">Break-Even Units</div>
-                      <div className="text-2xl font-bold text-emerald-600">
-                        {discountImpact.breakEvenUnits}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">Additional sales needed</div>
                     </div>
                   </div>
+                )}
 
-                  {/* Yearly Projections */}
-                  <div className="border-t pt-4">
-                    <h4 className="font-semibold mb-3 text-gray-700">📊 Annual Projections</h4>
-                    <div className="grid md:grid-cols-3 gap-4">
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <div className="text-sm text-gray-600 mb-1">Current Annual Revenue</div>
-                        <div className="text-xl font-bold text-blue-700">
-                          ${(discountImpact.currentRevenue * 12).toFixed(0)}
+                {/* Profit Analysis (only shown when cost data exists) */}
+                {discountImpact.hasCostData && (
+                  <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                    <h3 className="text-xl font-bold mb-4">💰 Detailed Profit Analysis</h3>
+                    
+                    <div className="grid md:grid-cols-4 gap-6 mb-6">
+                      <div className="border-l-4 border-blue-500 pl-4">
+                        <div className="text-sm text-gray-600 mb-1">Current Monthly Profit</div>
+                        <div className="text-2xl font-bold text-blue-600">
+                          ${discountImpact.currentProfit.toFixed(0)}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Margin: {discountImpact.currentMargin.toFixed(1)}%
                         </div>
                       </div>
-                      <div className="bg-purple-50 p-4 rounded-lg">
-                        <div className="text-sm text-gray-600 mb-1">Projected Annual Revenue</div>
-                        <div className="text-xl font-bold text-purple-700">
-                          ${(discountImpact.projectedRevenue * 12).toFixed(0)}
+
+                      <div className="border-l-4 border-purple-500 pl-4">
+                        <div className="text-sm text-gray-600 mb-1">Projected Monthly Profit</div>
+                        <div className="text-2xl font-bold text-purple-600">
+                          ${discountImpact.projectedProfit.toFixed(0)}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Margin: {discountImpact.newMargin.toFixed(1)}%
                         </div>
                       </div>
-                      <div className={`${
-                        discountImpact.profitChange >= 0 ? 'bg-emerald-50' : 'bg-red-50'
-                      } p-4 rounded-lg`}>
-                        <div className="text-sm text-gray-600 mb-1">Annual Profit Impact</div>
-                        <div className={`text-xl font-bold ${
-                          discountImpact.profitChange >= 0 ? 'text-emerald-700' : 'text-red-700'
+
+                      <div className={`border-l-4 ${
+                        discountImpact.profitChange >= 0 ? 'border-emerald-500' : 'border-red-500'
+                      } pl-4`}>
+                        <div className="text-sm text-gray-600 mb-1">Profit Change</div>
+                        <div className={`text-2xl font-bold ${
+                          discountImpact.profitChange >= 0 ? 'text-emerald-600' : 'text-red-600'
                         }`}>
-                          {discountImpact.profitChange >= 0 ? '+' : ''}
-                          ${((discountImpact.projectedProfit - discountImpact.currentProfit) * 12).toFixed(0)}
+                          {discountImpact.profitChange >= 0 ? '+' : ''}{discountImpact.profitChange.toFixed(1)}%
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          ${discountImpact.profitChange >= 0 ? '+' : '-'}
+                          {Math.abs(discountImpact.projectedProfit - discountImpact.currentProfit).toFixed(0)}
+                        </div>
+                      </div>
+
+                      <div className="border-l-4 border-emerald-500 pl-4">
+                        <div className="text-sm text-gray-600 mb-1">Break-Even Units</div>
+                        <div className="text-2xl font-bold text-emerald-600">
+                          {discountImpact.breakEvenUnits}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">Additional sales needed</div>
+                      </div>
+                    </div>
+
+                    {/* Yearly Projections */}
+                    <div className="border-t pt-4">
+                      <h4 className="font-semibold mb-3 text-gray-700">📊 Annual Projections</h4>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <div className="text-sm text-gray-600 mb-1">Current Annual Revenue</div>
+                          <div className="text-xl font-bold text-blue-700">
+                            ${(discountImpact.currentRevenue * 12).toFixed(0)}
+                          </div>
+                        </div>
+                        <div className="bg-purple-50 p-4 rounded-lg">
+                          <div className="text-sm text-gray-600 mb-1">Projected Annual Revenue</div>
+                          <div className="text-xl font-bold text-purple-700">
+                            ${(discountImpact.projectedRevenue * 12).toFixed(0)}
+                          </div>
+                        </div>
+                        <div className={`${
+                          discountImpact.profitChange >= 0 ? 'bg-emerald-50' : 'bg-red-50'
+                        } p-4 rounded-lg`}>
+                          <div className="text-sm text-gray-600 mb-1">Annual Profit Impact</div>
+                          <div className={`text-xl font-bold ${
+                            discountImpact.profitChange >= 0 ? 'text-emerald-700' : 'text-red-700'
+                          }`}>
+                            {discountImpact.profitChange >= 0 ? '+' : ''}
+                            ${((discountImpact.projectedProfit - discountImpact.currentProfit) * 12).toFixed(0)}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Assumptions Note */}
-                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-gray-700">
-                      <strong>Assumptions:</strong> Projected revenue assumes a {discountImpact.assumedUplift}% increase in 
-                      sales volume due to the discount. Actual results may vary based on market conditions and promotion effectiveness.
-                    </p>
+                    {/* Assumptions Note */}
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-gray-700">
+                        <strong>Assumptions:</strong> Projected revenue assumes a {discountImpact.assumedUplift}% increase in 
+                        sales volume due to the discount. Actual results may vary based on market conditions and promotion effectiveness.
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Affected Products List */}
                 <div className="bg-white rounded-xl shadow-lg p-6">
@@ -9134,14 +9220,18 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           <th className="px-4 py-2 text-left text-sm font-semibold">Savings</th>
                           <th className="px-4 py-2 text-left text-sm font-semibold">Monthly Sales</th>
                           <th className="px-4 py-2 text-left text-sm font-semibold">Current Revenue</th>
-                          <th className="px-4 py-2 text-left text-sm font-semibold">Current Profit</th>
+                          {discountImpact.hasCostData && (
+                            <th className="px-4 py-2 text-left text-sm font-semibold">Current Profit</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y">
                         {discountImpact.affectedProducts.slice(0, 20).map((product, idx) => {
                           const currentRevenue = product.currentPrice * product.monthlySales;
-                          const currentProfit = (product.currentPrice - product.cost) * product.monthlySales;
-                          const currentMargin = product.currentPrice > 0 ? ((product.currentPrice - product.cost) / product.currentPrice * 100) : 0;
+                          const currentProfit = product.cost !== null ? (product.currentPrice - product.cost) * product.monthlySales : null;
+                          const currentMargin = product.cost !== null && product.currentPrice > 0 
+                            ? ((product.currentPrice - product.cost) / product.currentPrice * 100) 
+                            : null;
                           
                           return (
                             <tr key={idx} className="hover:bg-gray-50">
@@ -9168,10 +9258,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                 <div className="font-semibold">${currentRevenue.toFixed(0)}</div>
                                 <div className="text-xs text-gray-500">monthly</div>
                               </td>
-                              <td className="px-4 py-3">
-                                <div className="font-semibold text-blue-600">${currentProfit.toFixed(0)}</div>
-                                <div className="text-xs text-gray-500">{currentMargin.toFixed(1)}% margin</div>
-                              </td>
+                              {discountImpact.hasCostData && currentProfit !== null && (
+                                <td className="px-4 py-3">
+                                  <div className="font-semibold text-blue-600">${currentProfit.toFixed(0)}</div>
+                                  <div className="text-xs text-gray-500">{currentMargin.toFixed(1)}% margin</div>
+                                </td>
+                              )}
+                              {discountImpact.hasCostData && currentProfit === null && (
+                                <td className="px-4 py-3">
+                                  <div className="text-xs text-gray-400">No cost data</div>
+                                </td>
+                              )}
                             </tr>
                           );
                         })}
