@@ -133,6 +133,9 @@ const getHandlePosition = (position) => {
 };
 
 const PlanogramProfitTracker = () => {
+  console.log('🚀 Store Planner Pro - Component Loaded');
+  console.log('📅 Timestamp:', new Date().toISOString());
+  
   const [fixtures, setFixtures] = useState([]);
   const [selectedFixture, setSelectedFixture] = useState(null);
   const [sections, setSections] = useState([]);
@@ -179,6 +182,42 @@ const PlanogramProfitTracker = () => {
   const [discountImpact, setDiscountImpact] = useState(null);
   const [showProductSelector, setShowProductSelector] = useState(false);
 
+  // Debug helper - expose data to window for debugging
+  useEffect(() => {
+    window.debugStorePlanner = {
+      sections,
+      fixtures,
+      discountConfig,
+      discountImpact,
+      logData: () => {
+        console.log('═══════════════════════════════════════');
+        console.log('🐛 DEBUG DATA DUMP');
+        console.log('═══════════════════════════════════════');
+        console.log('Fixtures:', fixtures);
+        console.log('Sections:', sections);
+        console.log('Discount Config:', discountConfig);
+        console.log('Discount Impact:', discountImpact);
+        console.log('═══════════════════════════════════════');
+        
+        // Log sample products
+        if (sections.length > 0) {
+          sections.forEach((section, idx) => {
+            console.log(`\nSection ${idx}: ${section.name}`);
+            if (section.rows && section.rows.length > 0) {
+              section.rows.forEach((row, rIdx) => {
+                if (row.products && row.products.length > 0) {
+                  console.log(`  Row ${rIdx}: ${row.products.length} products`);
+                  console.log('  Sample product:', row.products[0]);
+                }
+              });
+            }
+          });
+        }
+      }
+    };
+    
+    console.log('🔧 Debug helper installed. Type "window.debugStorePlanner.logData()" in console to see all data');
+  }, [sections, fixtures, discountConfig, discountImpact]);
 
   // Initialize Firebase on mount
   useEffect(() => {
@@ -3398,28 +3437,46 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
   // Calculate discount impact
   const calculateDiscountImpact = () => {
+    console.log('🚀 FUNCTION CALLED - calculateDiscountImpact');
+    alert('Discount calculation starting! Check console (F12)');
     console.log('════════════════════════════════════════════');
     console.log('🔍 STARTING DISCOUNT CALCULATION');
     console.log('════════════════════════════════════════════');
+    console.log('Discount Config:', discountConfig);
+    console.log('Sections available:', sections.length);
+    console.log('Fixtures available:', fixtures.length);
     
     try {
       // Validate selections
       if (discountConfig.target === 'sections' && discountConfig.selectedSections.length === 0) {
+        console.log('❌ VALIDATION FAILED: No sections selected');
         setFeedback('⚠️ Please select at least one section');
         setTimeout(() => setFeedback(''), 3000);
         return;
       }
 
       if (discountConfig.target === 'fixture' && !discountConfig.targetId) {
+        console.log('❌ VALIDATION FAILED: No fixture selected');
         setFeedback('⚠️ Please select a fixture');
         setTimeout(() => setFeedback(''), 3000);
         return;
       }
 
+      console.log('✅ Validation passed');
       console.log('Target:', discountConfig.target);
       console.log('Selected sections:', discountConfig.selectedSections);
       console.log('Total sections available:', sections.length);
       console.log('Total fixtures available:', fixtures.length);
+      
+      // Log first section structure to debug
+      if (sections.length > 0) {
+        console.log('First section structure:', sections[0]);
+        console.log('First section rows:', sections[0].rows);
+        if (sections[0].rows && sections[0].rows.length > 0) {
+          console.log('First section first row:', sections[0].rows[0]);
+          console.log('First section first row products:', sections[0].rows[0].products);
+        }
+      }
       
       // Get affected products based on target
       let affectedProducts = [];
@@ -3742,9 +3799,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       setTimeout(() => setFeedback(''), 5000);
 
     } catch (error) {
-      console.error('Error calculating discount impact:', error);
-      setFeedback('❌ Error calculating impact');
-      setTimeout(() => setFeedback(''), 3000);
+      console.error('❌❌❌ ERROR CALCULATING DISCOUNT IMPACT ❌❌❌');
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('Full error:', error);
+      setFeedback('❌ Error calculating impact - check console (F12)');
+      setTimeout(() => setFeedback(''), 5000);
     }
   };
 
