@@ -106,9 +106,30 @@ window.firebaseService = {
     }
   },
 
-  // Load specific planogram from user-specific location (chunked loading)
+  // Load specific planogram from user-specific location or root (temporary fix)
   async loadPlanogram(planogramId) {
     try {
+      // If it's the special root planogram, load from root
+      if (planogramId === 'root_planogram') {
+        const rootSnapshot = await this.db.ref('/').once('value');
+        if (rootSnapshot.exists()) {
+          const data = rootSnapshot.val();
+          // Clean up the data structure to match expected format
+          return {
+            id: 'root_planogram',
+            name: data.storeName || 'My Store Layout',
+            storeName: data.storeName || 'My Store Layout', 
+            fixtures: data.fixtures || [],
+            sections: data.sections || [],
+            shopifyConfig: data.shopifyConfig || null,
+            unknownProducts: data.unknownProducts || [],
+            lastModified: Date.now()
+          };
+        }
+        return null;
+      }
+
+      // Original per-user loading logic
       if (!this.isAuthenticated()) {
         throw new Error('User not authenticated');
       }
@@ -166,11 +187,30 @@ window.firebaseService = {
     }
   },
 
-  // List all planograms from user-specific location
+  // List all planograms from root level (temporary fix)
   async listPlanograms() {
     try {
+      // Check if there's a planogram directly at root level
+      const rootSnapshot = await this.db.ref('/').once('value');
+      
+      if (rootSnapshot.exists()) {
+        const rootData = rootSnapshot.val();
+        
+        // Check if this looks like a planogram (has fixtures, sections, etc.)
+        if (rootData.fixtures && rootData.sections) {
+          return [{
+            id: 'root_planogram',
+            name: rootData.storeName || 'My Store Layout',
+            lastModified: Date.now(),
+            sectionsCount: rootData.sections ? rootData.sections.length : 0,
+            fixturesCount: rootData.fixtures ? rootData.fixtures.length : 0
+          }];
+        }
+      }
+      
+      // Fallback to user-specific location
       if (!this.isAuthenticated()) {
-        throw new Error('User not authenticated');
+        return [];
       }
 
       const userId = this.currentUser.uid;
