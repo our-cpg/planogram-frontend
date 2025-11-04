@@ -3473,7 +3473,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               }
               
               products.forEach((product, pIdx) => {
-                console.log(`    Product ${pIdx}: ${product.name || product.upc || 'Unknown'} | Price: ${product.price}`);
+                console.log(`    Product ${pIdx}: ${product.name || product.upc || 'Unknown'}`);
+                console.log(`      - price: ${product.price}, retail_price: ${product.retail_price}, variant_price: ${product.variant_price}`);
                 affectedProducts.push({
                   ...product,
                   sectionName: section.name,
@@ -3520,9 +3521,36 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         });
       }
 
+      // Get actual price from various possible fields and formats
+      const getProductPrice = (product) => {
+        // Check multiple possible price fields
+        const priceFields = [
+          product.price,
+          product.retail_price,
+          product.variant_price,
+          product.selling_price
+        ];
+        
+        for (const field of priceFields) {
+          if (field !== null && field !== undefined) {
+            const price = typeof field === 'string' ? parseFloat(field) : field;
+            if (!isNaN(price) && price > 0) {
+              return price;
+            }
+          }
+        }
+        return null;
+      };
+
+      // Normalize products with actual prices
+      const normalizedProducts = affectedProducts.map(p => ({
+        ...p,
+        price: getProductPrice(p)
+      }));
+
       // Filter products that have prices and separate those without
-      const productsWithPrices = affectedProducts.filter(p => p.price && p.price > 0);
-      const productsWithoutPrices = affectedProducts.filter(p => !p.price || p.price <= 0);
+      const productsWithPrices = normalizedProducts.filter(p => p.price && p.price > 0);
+      const productsWithoutPrices = normalizedProducts.filter(p => !p.price || p.price <= 0);
 
       console.log('═══════════════════════════════════════════════════════');
       console.log('🔍 DISCOUNT CALCULATION RESULTS');
@@ -3537,10 +3565,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         productsWithoutPrices.slice(0, 5).forEach((p, idx) => {
           console.log(`  ${idx + 1}. ${p.name || 'Unnamed'}`);
           console.log(`     UPC: ${p.upc || 'N/A'}`);
-          console.log(`     Price: ${p.price === undefined ? 'undefined' : p.price === null ? 'null' : p.price}`);
+          console.log(`     Price field: ${p.price === undefined ? 'undefined' : p.price === null ? 'null' : p.price}`);
+          console.log(`     Retail_price: ${p.retail_price || 'N/A'}`);
+          console.log(`     Variant_price: ${p.variant_price || 'N/A'}`);
           console.log(`     Cost: ${p.cost || 'N/A'}`);
           console.log(`     Vendor: ${p.vendor || 'N/A'}`);
           console.log(`     Section: ${p.sectionName || 'N/A'}`);
+          console.log(`     Available fields:`, Object.keys(p).join(', '));
           console.log(`     Full product object:`, p);
           console.log('     ─────');
         });
@@ -3557,11 +3588,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
       if (productsWithPrices.length === 0) {
         if (productsWithoutPrices.length > 0) {
-          setFeedback(`⚠️ Found ${productsWithoutPrices.length} products but none have prices set. Add prices to products first. Press F12 to see details in console.`);
+          setFeedback(`⚠️ Found ${productsWithoutPrices.length} products but none have prices. Check console (F12) to see available price fields. Products may need 'price', 'retail_price', or 'variant_price' field.`);
         } else {
           setFeedback('⚠️ No products found for the selected target');
         }
-        setTimeout(() => setFeedback(''), 8000);
+        setTimeout(() => setFeedback(''), 10000);
         return;
       }
 
