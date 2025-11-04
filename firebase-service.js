@@ -45,25 +45,53 @@ window.firebaseService = {
     return this.currentUser !== null;
   },
 
-  // Save planogram to GLOBAL shared location (not per-user)
+  // Save planogram to GLOBAL shared location (optimized for large datasets)
   async savePlanogram(data) {
     try {
       if (!this.isAuthenticated()) {
         throw new Error('User not authenticated');
       }
 
-      const planogramId = `planogram_${Date.now()}`;
-      const planogramData = {
-        ...data,
+      const planogramId = data.id || `planogram_${Date.now()}`;
+      
+      // Split data into metadata and sections
+      const metadata = {
         id: planogramId,
+        name: data.name || 'Untitled Planogram',
+        storeName: data.storeName,
         lastModified: Date.now(),
-        version: 1
+        version: 1,
+        fixturesCount: data.fixtures ? data.fixtures.length : 0,
+        sectionsCount: data.sections ? data.sections.length : 0
       };
 
-      // Save to global shared location: /planograms/{planogramId}
-      await this.db.ref(`planograms/${planogramId}`).set(planogramData);
+      // Save metadata first
+      await this.db.ref(`planograms/${planogramId}/metadata`).set(metadata);
+
+      // Save fixtures separately
+      if (data.fixtures && data.fixtures.length > 0) {
+        await this.db.ref(`planograms/${planogramId}/fixtures`).set(data.fixtures);
+      }
+
+      // Save sections in smaller chunks to avoid payload limit
+      if (data.sections && data.sections.length > 0) {
+        // Save each section individually
+        for (let i = 0; i < data.sections.length; i++) {
+          const section = data.sections[i];
+          await this.db.ref(`planograms/${planogramId}/sections/${i}`).set(section);
+        }
+      }
+
+      // Save other configuration data
+      if (data.shopifyConfig) {
+        await this.db.ref(`planograms/${planogramId}/shopifyConfig`).set(data.shopifyConfig);
+      }
+
+      if (data.unknownProducts) {
+        await this.db.ref(`planograms/${planogramId}/unknownProducts`).set(data.unknownProducts);
+      }
       
-      console.log('Planogram saved:', planogramId);
+      console.log('Planogram saved successfully:', planogramId);
       return planogramId;
     } catch (error) {
       console.error('Save planogram error:', error);
@@ -71,18 +99,60 @@ window.firebaseService = {
     }
   },
 
-  // Load specific planogram from GLOBAL shared location
+  // Load specific planogram from GLOBAL shared location (chunked loading)
   async loadPlanogram(planogramId) {
     try {
-      const snapshot = await this.db.ref(`planograms/${planogramId}`).once('value');
+      // Load metadata first
+      const metadataSnapshot = await this.db.ref(`planograms/${planogramId}/metadata`).once('value');
       
-      if (snapshot.exists()) {
-        return snapshot.val();
+      if (!metadataSnapshot.exists()) {
+        // Fallback: try old structure for backwards compatibility
+        const oldSnapshot = await this.db.ref(`planograms/${planogramId}`).once('value');
+        if (oldSnapshot.exists()) {
+          console.warn('Loading planogram using old structure - consider re-saving');
+          return oldSnapshot.val();
+        }
+        return null;
       }
       
-      return null;
+      const metadata = metadataSnapshot.val();
+      
+      // Load fixtures
+      const fixturesSnapshot = await this.db.ref(`planograms/${planogramId}/fixtures`).once('value');
+      const fixtures = fixturesSnapshot.exists() ? fixturesSnapshot.val() : [];
+      
+      // Load sections individually to avoid payload limit
+      const sectionsSnapshot = await this.db.ref(`planograms/${planogramId}/sections`).once('value');
+      const sections = [];
+      
+      if (sectionsSnapshot.exists()) {
+        sectionsSnapshot.forEach((child) => {
+          sections.push(child.val());
+        });
+      }
+      
+      // Load other config
+      const shopifyConfigSnapshot = await this.db.ref(`planograms/${planogramId}/shopifyConfig`).once('value');
+      const shopifyConfig = shopifyConfigSnapshot.exists() ? shopifyConfigSnapshot.val() : null;
+      
+      const unknownProductsSnapshot = await this.db.ref(`planograms/${planogramId}/unknownProducts`).once('value');
+      const unknownProducts = unknownProductsSnapshot.exists() ? unknownProductsSnapshot.val() : [];
+      
+      return {
+        ...metadata,
+        fixtures,
+        sections,
+        shopifyConfig,
+        unknownProducts
+      };
     } catch (error) {
       console.error('Load planogram error:', error);
+      
+      if (error.message && error.message.includes('payload')) {
+        console.error('Payload too large! Data structure needs optimization.');
+        alert('Your planogram data is too large. Please contact support or reduce the number of products.');
+      }
+      
       throw error;
     }
   },
@@ -98,12 +168,27 @@ window.firebaseService = {
 
       const planograms = [];
       snapshot.forEach((child) => {
-        const data = child.val();
-        planograms.push({
-          id: child.key,
-          name: data.name || 'Untitled',
-          lastModified: data.lastModified || Date.now()
-        });
+        const planogramId = child.key;
+        
+        // Check if using new structure (has metadata child)
+        if (child.hasChild('metadata')) {
+          const metadata = child.child('metadata').val();
+          planograms.push({
+            id: planogramId,
+            name: metadata.name || 'Untitled',
+            lastModified: metadata.lastModified || Date.now(),
+            sectionsCount: metadata.sectionsCount || 0,
+            fixturesCount: metadata.fixturesCount || 0
+          });
+        } else {
+          // Old structure - just get basic info
+          const data = child.val();
+          planograms.push({
+            id: planogramId,
+            name: data.name || 'Untitled',
+            lastModified: data.lastModified || Date.now()
+          });
+        }
       });
 
       // Sort by most recent first
