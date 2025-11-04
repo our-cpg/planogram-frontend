@@ -173,14 +173,19 @@ const PlanogramProfitTracker = () => {
           console.log('Firebase ready');
           
           // Auto-load the most recent planogram from cloud
-          setTimeout(async () => {
-            try {
-              const planograms = await window.firebaseService.listPlanograms();
-              
-              if (planograms.length > 0) {
-                // Load the most recent one (first in list)
-                const mostRecent = planograms[0];
-                const data = await window.firebaseService.loadPlanogram(mostRecent.id);
+          // EMERGENCY FIX: Skip auto-load if URL has ?skipload=true
+          const urlParams = new URLSearchParams(window.location.search);
+          const skipAutoLoad = urlParams.get('skipload') === 'true';
+          
+          if (!skipAutoLoad) {
+            setTimeout(async () => {
+              try {
+                const planograms = await window.firebaseService.listPlanograms();
+                
+                if (planograms.length > 0) {
+                  // Load the most recent one (first in list)
+                  const mostRecent = planograms[0];
+                  const data = await window.firebaseService.loadPlanogram(mostRecent.id);
                 
                 if (data) {
                   setStoreName(data.name || 'Loaded Layout');
@@ -222,8 +227,12 @@ const PlanogramProfitTracker = () => {
               }
             } catch (error) {
               console.log('Auto-load skipped:', error.message);
+              alert('Could not auto-load planogram due to large data size. Use ?skipload=true in URL to skip auto-load and delete old data.');
             }
           }, 1000); // Wait 1 second for Firebase to fully initialize
+        } else {
+          console.log('🚫 Auto-load disabled via URL parameter');
+          alert('Auto-load disabled. You can now manually manage your planograms without hitting the size limit.');
         }
       } catch (error) {
         console.error('Firebase init failed:', error);
