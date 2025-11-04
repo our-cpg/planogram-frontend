@@ -3398,6 +3398,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
   // Calculate discount impact
   const calculateDiscountImpact = () => {
+    console.log('════════════════════════════════════════════');
+    console.log('🔍 STARTING DISCOUNT CALCULATION');
+    console.log('════════════════════════════════════════════');
+    
     try {
       // Validate selections
       if (discountConfig.target === 'sections' && discountConfig.selectedSections.length === 0) {
@@ -3412,10 +3416,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         return;
       }
 
-      console.log('🔍 Starting discount calculation...');
       console.log('Target:', discountConfig.target);
       console.log('Selected sections:', discountConfig.selectedSections);
       console.log('Total sections available:', sections.length);
+      console.log('Total fixtures available:', fixtures.length);
       
       // Get affected products based on target
       let affectedProducts = [];
@@ -3442,21 +3446,34 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         });
       } else if (discountConfig.target === 'sections' && discountConfig.selectedSections.length > 0) {
         // Get products from selected sections
-        console.log('📦 Getting products from SELECTED sections');
+        console.log('═══════════════════════════════════════════════════════');
+        console.log('📦 GATHERING PRODUCTS FROM SELECTED SECTIONS');
+        console.log('═══════════════════════════════════════════════════════');
+        console.log('Selected section IDs:', discountConfig.selectedSections);
         
         sections.forEach(section => {
           if (discountConfig.selectedSections.includes(section.id)) {
             const fixture = fixtures.find(f => f.id === section.fixtureId);
-            console.log(`  ✓ Section: ${section.name} (${section.id})`);
-            console.log(`    Fixture: ${fixture?.name || 'Unknown'}`);
-            console.log(`    Rows: ${section.rows?.length || 0}`);
+            console.log(`\n✓ Section: ${section.name} (ID: ${section.id})`);
+            console.log(`  Fixture: ${fixture?.name || 'Unknown'}`);
+            console.log(`  Rows: ${section.rows?.length || 0}`);
+            
+            if (!section.rows || section.rows.length === 0) {
+              console.log('  ⚠️ NO ROWS in this section!');
+            }
             
             section.rows?.forEach((row, rowIdx) => {
               const products = row.products || [];
-              console.log(`      Row ${rowIdx}: ${products.length} products`);
+              console.log(`  Row ${rowIdx}: ${products.length} products`);
+              
+              if (products.length === 0) {
+                console.log('    ⚠️ Empty row');
+              } else {
+                console.log(`    First product in row:`, products[0]);
+              }
               
               products.forEach((product, pIdx) => {
-                console.log(`        Product ${pIdx}:`, product.name || product.upc, 'Price:', product.price);
+                console.log(`    Product ${pIdx}: ${product.name || product.upc || 'Unknown'} | Price: ${product.price}`);
                 affectedProducts.push({
                   ...product,
                   sectionName: section.name,
@@ -3467,7 +3484,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           }
         });
         
-        console.log(`📊 Total products gathered: ${affectedProducts.length}`);
+        console.log(`\n📊 Total products gathered: ${affectedProducts.length}`);
+        console.log('═══════════════════════════════════════════════════════\n');
       } else if (discountConfig.target === 'fixture' && discountConfig.targetId) {
         // Get products from all sections in specific fixture
         const fixtureSections = sections.filter(s => s.fixtureId === discountConfig.targetId);
@@ -3506,13 +3524,44 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       const productsWithPrices = affectedProducts.filter(p => p.price && p.price > 0);
       const productsWithoutPrices = affectedProducts.filter(p => !p.price || p.price <= 0);
 
+      console.log('═══════════════════════════════════════════════════════');
+      console.log('🔍 DISCOUNT CALCULATION RESULTS');
+      console.log('═══════════════════════════════════════════════════════');
+      console.log(`📦 Total products found: ${affectedProducts.length}`);
+      console.log(`✅ Products WITH prices: ${productsWithPrices.length}`);
+      console.log(`❌ Products WITHOUT prices: ${productsWithoutPrices.length}`);
+      console.log('───────────────────────────────────────────────────────');
+      
+      if (productsWithoutPrices.length > 0) {
+        console.log('❌ PRODUCTS WITHOUT PRICES (sample):');
+        productsWithoutPrices.slice(0, 5).forEach((p, idx) => {
+          console.log(`  ${idx + 1}. ${p.name || 'Unnamed'}`);
+          console.log(`     UPC: ${p.upc || 'N/A'}`);
+          console.log(`     Price: ${p.price === undefined ? 'undefined' : p.price === null ? 'null' : p.price}`);
+          console.log(`     Cost: ${p.cost || 'N/A'}`);
+          console.log(`     Vendor: ${p.vendor || 'N/A'}`);
+          console.log(`     Section: ${p.sectionName || 'N/A'}`);
+          console.log(`     Full product object:`, p);
+          console.log('     ─────');
+        });
+        console.log('\n⚠️ OPEN BROWSER CONSOLE (F12) TO SEE DETAILED PRODUCT INFO! ⚠️\n');
+      }
+      
+      if (productsWithPrices.length > 0) {
+        console.log('✅ PRODUCTS WITH PRICES (sample):');
+        productsWithPrices.slice(0, 3).forEach((p, idx) => {
+          console.log(`  ${idx + 1}. ${p.name} - $${p.price}`);
+        });
+      }
+      console.log('═══════════════════════════════════════════════════════');
+
       if (productsWithPrices.length === 0) {
         if (productsWithoutPrices.length > 0) {
-          setFeedback(`⚠️ Found ${productsWithoutPrices.length} products but none have prices set. Add prices to products first.`);
+          setFeedback(`⚠️ Found ${productsWithoutPrices.length} products but none have prices set. Add prices to products first. Press F12 to see details in console.`);
         } else {
           setFeedback('⚠️ No products found for the selected target');
         }
-        setTimeout(() => setFeedback(''), 5000);
+        setTimeout(() => setFeedback(''), 8000);
         return;
       }
 
