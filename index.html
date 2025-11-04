@@ -3417,72 +3417,69 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
       if (discountConfig.target === 'all') {
         // Get all products from all sections
-        fixtures.forEach(fixture => {
-          fixture.sections?.forEach(section => {
-            section.rows?.forEach(row => {
-              row.products?.forEach(product => {
-                if (product.price) {
-                  affectedProducts.push({
-                    ...product,
-                    sectionName: section.name,
-                    fixtureName: fixture.name
-                  });
-                }
-              });
+        sections.forEach(section => {
+          section.rows?.forEach(row => {
+            row.products?.forEach(product => {
+              if (product.price) {
+                const fixture = fixtures.find(f => f.id === section.fixtureId);
+                affectedProducts.push({
+                  ...product,
+                  sectionName: section.name,
+                  fixtureName: fixture?.name || 'Unknown Fixture'
+                });
+              }
             });
           });
         });
       } else if (discountConfig.target === 'sections' && discountConfig.selectedSections.length > 0) {
         // Get products from selected sections
-        fixtures.forEach(fixture => {
-          fixture.sections?.forEach(section => {
-            if (discountConfig.selectedSections.includes(section.id)) {
-              section.rows?.forEach(row => {
-                row.products?.forEach(product => {
-                  if (product.price) {
-                    affectedProducts.push({
-                      ...product,
-                      sectionName: section.name,
-                      fixtureName: fixture.name
-                    });
-                  }
-                });
-              });
-            }
-          });
-        });
-      } else if (discountConfig.target === 'fixture' && discountConfig.targetId) {
-        // Get products from specific fixture
-        const fixture = fixtures.find(f => f.id === discountConfig.targetId);
-        if (fixture) {
-          fixture.sections?.forEach(section => {
+        sections.forEach(section => {
+          if (discountConfig.selectedSections.includes(section.id)) {
             section.rows?.forEach(row => {
               row.products?.forEach(product => {
                 if (product.price) {
+                  const fixture = fixtures.find(f => f.id === section.fixtureId);
                   affectedProducts.push({
                     ...product,
                     sectionName: section.name,
-                    fixtureName: fixture.name
+                    fixtureName: fixture?.name || 'Unknown Fixture'
                   });
                 }
               });
             });
+          }
+        });
+      } else if (discountConfig.target === 'fixture' && discountConfig.targetId) {
+        // Get products from all sections in specific fixture
+        const fixtureSections = sections.filter(s => s.fixtureId === discountConfig.targetId);
+        const fixture = fixtures.find(f => f.id === discountConfig.targetId);
+        
+        fixtureSections.forEach(section => {
+          section.rows?.forEach(row => {
+            row.products?.forEach(product => {
+              if (product.price) {
+                affectedProducts.push({
+                  ...product,
+                  sectionName: section.name,
+                  fixtureName: fixture?.name || 'Unknown Fixture'
+                });
+              }
+            });
           });
-        }
+        });
       } else if (discountConfig.target === 'selected_products' && discountConfig.selectedProducts.length > 0) {
         // Get only selected products by UPC
-        fixtures.forEach(fixture => {
-          fixture.sections?.forEach(section => {
-            section.rows?.forEach(row => {
-              row.products?.forEach(product => {
-                if (product.price && discountConfig.selectedProducts.includes(product.upc)) {
-                  affectedProducts.push({
-                    ...product,
-                    sectionName: section.name,
-                    fixtureName: fixture.name
-                  });
-                }
-              });
+        sections.forEach(section => {
+          const fixture = fixtures.find(f => f.id === section.fixtureId);
+          section.rows?.forEach(row => {
+            row.products?.forEach(product => {
+              if (product.price && discountConfig.selectedProducts.includes(product.upc)) {
+                affectedProducts.push({
+                  ...product,
+                  sectionName: section.name,
+                  fixtureName: fixture?.name || 'Unknown Fixture'
+                });
+              }
             });
           });
         });
@@ -8352,9 +8349,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
-                            const allSectionIds = fixtures.flatMap(f => 
-                              (f.sections || []).map(s => s.id)
-                            );
+                            const allSectionIds = sections.map(s => s.id);
                             setDiscountConfig({
                               ...discountConfig,
                               selectedSections: allSectionIds
@@ -8378,11 +8373,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       </div>
                     </div>
                     <div className="border rounded-lg p-4 max-h-64 overflow-y-auto bg-gray-50">
-                      {fixtures.length === 0 ? (
-                        <p className="text-sm text-gray-500">No fixtures available</p>
+                      {sections.length === 0 ? (
+                        <p className="text-sm text-gray-500">No sections available. Add sections to your planogram first.</p>
                       ) : (
                         fixtures.map(fixture => {
-                          const fixtureSections = fixture.sections || [];
+                          const fixtureSections = sections.filter(s => s.fixtureId === fixture.id);
                           if (fixtureSections.length === 0) return null;
                           
                           return (
@@ -8424,35 +8419,41 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                 </button>
                               </div>
                               <div className="space-y-1 ml-4">
-                                {fixtureSections.map(section => (
-                                  <label
-                                    key={section.id}
-                                    className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={discountConfig.selectedSections.includes(section.id)}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setDiscountConfig({
-                                            ...discountConfig,
-                                            selectedSections: [...discountConfig.selectedSections, section.id]
-                                          });
-                                        } else {
-                                          setDiscountConfig({
-                                            ...discountConfig,
-                                            selectedSections: discountConfig.selectedSections.filter(id => id !== section.id)
-                                          });
-                                        }
-                                      }}
-                                      className="w-4 h-4"
-                                    />
-                                    <span className="text-sm">{section.name}</span>
-                                    <span className="text-xs text-gray-500 ml-auto">
-                                      {section.rows?.reduce((sum, row) => sum + (row.products?.length || 0), 0) || 0} products
-                                    </span>
-                                  </label>
-                                ))}
+                                {fixtureSections.map(section => {
+                                  const productCount = section.rows?.reduce((sum, row) => 
+                                    sum + (row.products?.length || 0), 0
+                                  ) || 0;
+                                  
+                                  return (
+                                    <label
+                                      key={section.id}
+                                      className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={discountConfig.selectedSections.includes(section.id)}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setDiscountConfig({
+                                              ...discountConfig,
+                                              selectedSections: [...discountConfig.selectedSections, section.id]
+                                            });
+                                          } else {
+                                            setDiscountConfig({
+                                              ...discountConfig,
+                                              selectedSections: discountConfig.selectedSections.filter(id => id !== section.id)
+                                            });
+                                          }
+                                        }}
+                                        className="w-4 h-4"
+                                      />
+                                      <span className="text-sm">{section.name}</span>
+                                      <span className="text-xs text-gray-500 ml-auto">
+                                        {productCount} products
+                                      </span>
+                                    </label>
+                                  );
+                                })}
                               </div>
                             </div>
                           );
