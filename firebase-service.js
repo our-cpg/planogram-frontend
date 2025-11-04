@@ -45,50 +45,57 @@ window.firebaseService = {
     return this.currentUser !== null;
   },
 
-  // Save planogram to GLOBAL shared location (optimized for large datasets)
+  // Save planogram to user-specific location
   async savePlanogram(data) {
     try {
       if (!this.isAuthenticated()) {
         throw new Error('User not authenticated');
       }
 
+      const userId = this.currentUser.uid;
       const planogramId = data.id || `planogram_${Date.now()}`;
       
       // Split data into metadata and sections
       const metadata = {
         id: planogramId,
         name: data.name || 'Untitled Planogram',
-        storeName: data.storeName,
+        storeName: data.storeName || 'My Store',
         lastModified: Date.now(),
-        version: 1,
+        version: 2,
         fixturesCount: data.fixtures ? data.fixtures.length : 0,
         sectionsCount: data.sections ? data.sections.length : 0
       };
 
+      // Save to user-specific path: /users/{userId}/planograms/{planogramId}
+      const basePath = `users/${userId}/planograms/${planogramId}`;
+
       // Save metadata first
-      await this.db.ref(`planograms/${planogramId}/metadata`).set(metadata);
+      await this.db.ref(`${basePath}/metadata`).set(metadata);
 
       // Save fixtures separately
       if (data.fixtures && data.fixtures.length > 0) {
-        await this.db.ref(`planograms/${planogramId}/fixtures`).set(data.fixtures);
+        await this.db.ref(`${basePath}/fixtures`).set(data.fixtures);
       }
 
       // Save sections in smaller chunks to avoid payload limit
       if (data.sections && data.sections.length > 0) {
         // Save each section individually
         for (let i = 0; i < data.sections.length; i++) {
-          const section = data.sections[i];
-          await this.db.ref(`planograms/${planogramId}/sections/${i}`).set(section);
+          // Clean undefined values
+          const cleanSection = JSON.parse(JSON.stringify(data.sections[i], (key, value) => {
+            return value === undefined ? null : value;
+          }));
+          await this.db.ref(`${basePath}/sections/${i}`).set(cleanSection);
         }
       }
 
       // Save other configuration data
       if (data.shopifyConfig) {
-        await this.db.ref(`planograms/${planogramId}/shopifyConfig`).set(data.shopifyConfig);
+        await this.db.ref(`${basePath}/shopifyConfig`).set(data.shopifyConfig);
       }
 
       if (data.unknownProducts) {
-        await this.db.ref(`planograms/${planogramId}/unknownProducts`).set(data.unknownProducts);
+        await this.db.ref(`${basePath}/unknownProducts`).set(data.unknownProducts);
       }
       
       console.log('Planogram saved successfully:', planogramId);
@@ -99,30 +106,32 @@ window.firebaseService = {
     }
   },
 
-  // Load specific planogram from GLOBAL shared location (chunked loading)
+  // Load specific planogram from user-specific location (chunked loading)
   async loadPlanogram(planogramId) {
     try {
+      if (!this.isAuthenticated()) {
+        throw new Error('User not authenticated');
+      }
+
+      const userId = this.currentUser.uid;
+      const basePath = `users/${userId}/planograms/${planogramId}`;
+
       // Load metadata first
-      const metadataSnapshot = await this.db.ref(`planograms/${planogramId}/metadata`).once('value');
+      const metadataSnapshot = await this.db.ref(`${basePath}/metadata`).once('value');
       
       if (!metadataSnapshot.exists()) {
-        // Fallback: try old structure for backwards compatibility
-        const oldSnapshot = await this.db.ref(`planograms/${planogramId}`).once('value');
-        if (oldSnapshot.exists()) {
-          console.warn('Loading planogram using old structure - consider re-saving');
-          return oldSnapshot.val();
-        }
+        console.warn('Planogram not found at user-specific path');
         return null;
       }
       
       const metadata = metadataSnapshot.val();
       
       // Load fixtures
-      const fixturesSnapshot = await this.db.ref(`planograms/${planogramId}/fixtures`).once('value');
+      const fixturesSnapshot = await this.db.ref(`${basePath}/fixtures`).once('value');
       const fixtures = fixturesSnapshot.exists() ? fixturesSnapshot.val() : [];
       
       // Load sections individually to avoid payload limit
-      const sectionsSnapshot = await this.db.ref(`planograms/${planogramId}/sections`).once('value');
+      const sectionsSnapshot = await this.db.ref(`${basePath}/sections`).once('value');
       const sections = [];
       
       if (sectionsSnapshot.exists()) {
@@ -132,10 +141,10 @@ window.firebaseService = {
       }
       
       // Load other config
-      const shopifyConfigSnapshot = await this.db.ref(`planograms/${planogramId}/shopifyConfig`).once('value');
+      const shopifyConfigSnapshot = await this.db.ref(`${basePath}/shopifyConfig`).once('value');
       const shopifyConfig = shopifyConfigSnapshot.exists() ? shopifyConfigSnapshot.val() : null;
       
-      const unknownProductsSnapshot = await this.db.ref(`planograms/${planogramId}/unknownProducts`).once('value');
+      const unknownProductsSnapshot = await this.db.ref(`${basePath}/unknownProducts`).once('value');
       const unknownProducts = unknownProductsSnapshot.exists() ? unknownProductsSnapshot.val() : [];
       
       return {
@@ -157,10 +166,15 @@ window.firebaseService = {
     }
   },
 
-  // List all planograms from GLOBAL shared location
+  // List all planograms from user-specific location
   async listPlanograms() {
     try {
-      const snapshot = await this.db.ref('planograms').once('value');
+      if (!this.isAuthenticated()) {
+        throw new Error('User not authenticated');
+      }
+
+      const userId = this.currentUser.uid;
+      const snapshot = await this.db.ref(`users/${userId}/planograms`).once('value');
       
       if (!snapshot.exists()) {
         return [];
@@ -168,8 +182,6 @@ window.firebaseService = {
 
       const planograms = [];
       
-      // Use a promise array to load metadata only for each planogram
-      const promises = [];
       snapshot.forEach((child) => {
         const planogramId = child.key;
         
@@ -183,41 +195,11 @@ window.firebaseService = {
             sectionsCount: metadata.sectionsCount || 0,
             fixturesCount: metadata.fixturesCount || 0
           });
-        } else {
-          // Old structure - only get id, name, and lastModified (no full data)
-          const metadataPromise = this.db.ref(`planograms/${planogramId}`).once('value').then(snap => {
-            if (snap.exists()) {
-              const data = snap.val();
-              // Only extract the small fields, don't load sections/fixtures
-              planograms.push({
-                id: planogramId,
-                name: data.name || 'Untitled',
-                lastModified: data.lastModified || Date.now()
-              });
-            }
-          }).catch(error => {
-            console.warn(`Skipping planogram ${planogramId} due to error:`, error.message);
-            // If it fails (too large), just add a placeholder
-            planograms.push({
-              id: planogramId,
-              name: 'Large Planogram (needs migration)',
-              lastModified: 0,
-              error: true
-            });
-          });
-          promises.push(metadataPromise);
         }
       });
 
-      // Wait for any old-format planogram metadata loads
-      await Promise.all(promises);
-
-      // Sort by most recent first, but put error planograms last
-      planograms.sort((a, b) => {
-        if (a.error && !b.error) return 1;
-        if (!a.error && b.error) return -1;
-        return b.lastModified - a.lastModified;
-      });
+      // Sort by most recent first
+      planograms.sort((a, b) => b.lastModified - a.lastModified);
       
       return planograms;
     } catch (error) {
@@ -226,10 +208,15 @@ window.firebaseService = {
     }
   },
 
-  // Delete planogram from GLOBAL shared location
+  // Delete planogram from user-specific location
   async deletePlanogram(planogramId) {
     try {
-      await this.db.ref(`planograms/${planogramId}`).remove();
+      if (!this.isAuthenticated()) {
+        throw new Error('User not authenticated');
+      }
+
+      const userId = this.currentUser.uid;
+      await this.db.ref(`users/${userId}/planograms/${planogramId}`).remove();
       console.log('Planogram deleted:', planogramId);
       return true;
     } catch (error) {
