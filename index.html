@@ -230,9 +230,10 @@ const PlanogramProfitTracker = () => {
               alert('Could not auto-load planogram due to large data size. Use ?skipload=true in URL to skip auto-load and delete old data.');
             }
           }, 1000); // Wait 1 second for Firebase to fully initialize
-        } else {
-          console.log('🚫 Auto-load disabled via URL parameter');
-          alert('Auto-load disabled. You can now manually manage your planograms without hitting the size limit.');
+          } else {
+            console.log('🚫 Auto-load disabled via URL parameter');
+            alert('Auto-load disabled. You can now manually manage your planograms without hitting the size limit.');
+          }
         }
       } catch (error) {
         console.error('Firebase init failed:', error);
