@@ -167,14 +167,17 @@ const PlanogramProfitTracker = () => {
     method: 'compare_at_price', // 'compare_at_price' or 'discount_code'
     type: 'percentage', // 'percentage' or 'fixed'
     value: 20,
-    target: 'all', // 'all', 'section', 'fixture', 'product'
+    target: 'all', // 'all', 'sections', 'fixture', 'product', 'selected_products'
     targetId: '',
+    selectedSections: [], // Array of section IDs for multi-select
+    selectedProducts: [], // Array of UPCs for selected products
     codeName: 'SAVE20',
     autoApply: true, // Auto-apply at cart (automatic discount) or require code entry
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   });
   const [discountImpact, setDiscountImpact] = useState(null);
+  const [showProductSelector, setShowProductSelector] = useState(false);
 
 
   // Initialize Firebase on mount
@@ -3396,6 +3399,19 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
   // Calculate discount impact
   const calculateDiscountImpact = () => {
     try {
+      // Validate selections
+      if (discountConfig.target === 'sections' && discountConfig.selectedSections.length === 0) {
+        setFeedback('⚠️ Please select at least one section');
+        setTimeout(() => setFeedback(''), 3000);
+        return;
+      }
+
+      if (discountConfig.target === 'fixture' && !discountConfig.targetId) {
+        setFeedback('⚠️ Please select a fixture');
+        setTimeout(() => setFeedback(''), 3000);
+        return;
+      }
+
       // Get affected products based on target
       let affectedProducts = [];
 
@@ -3416,23 +3432,24 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             });
           });
         });
-      } else if (discountConfig.target === 'section' && discountConfig.targetId) {
-        // Get products from specific section
+      } else if (discountConfig.target === 'sections' && discountConfig.selectedSections.length > 0) {
+        // Get products from selected sections
         fixtures.forEach(fixture => {
-          const section = fixture.sections?.find(s => s.id === discountConfig.targetId);
-          if (section) {
-            section.rows?.forEach(row => {
-              row.products?.forEach(product => {
-                if (product.price) {
-                  affectedProducts.push({
-                    ...product,
-                    sectionName: section.name,
-                    fixtureName: fixture.name
-                  });
-                }
+          fixture.sections?.forEach(section => {
+            if (discountConfig.selectedSections.includes(section.id)) {
+              section.rows?.forEach(row => {
+                row.products?.forEach(product => {
+                  if (product.price) {
+                    affectedProducts.push({
+                      ...product,
+                      sectionName: section.name,
+                      fixtureName: fixture.name
+                    });
+                  }
+                });
               });
-            });
-          }
+            }
+          });
         });
       } else if (discountConfig.target === 'fixture' && discountConfig.targetId) {
         // Get products from specific fixture
@@ -3452,6 +3469,23 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             });
           });
         }
+      } else if (discountConfig.target === 'selected_products' && discountConfig.selectedProducts.length > 0) {
+        // Get only selected products by UPC
+        fixtures.forEach(fixture => {
+          fixture.sections?.forEach(section => {
+            section.rows?.forEach(row => {
+              row.products?.forEach(product => {
+                if (product.price && discountConfig.selectedProducts.includes(product.upc)) {
+                  affectedProducts.push({
+                    ...product,
+                    sectionName: section.name,
+                    fixtureName: fixture.name
+                  });
+                }
+              });
+            });
+          });
+        });
       }
 
       if (affectedProducts.length === 0) {
@@ -8294,29 +8328,140 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   <select
                     className="w-full px-4 py-2 border rounded-lg"
                     value={discountConfig.target}
-                    onChange={(e) => setDiscountConfig({...discountConfig, target: e.target.value})}
+                    onChange={(e) => {
+                      setDiscountConfig({...discountConfig, target: e.target.value, targetId: '', selectedProducts: [], selectedSections: []});
+                      if (e.target.value === 'selected_products') {
+                        setShowProductSelector(true);
+                      }
+                    }}
                   >
                     <option value="all">All Products</option>
-                    <option value="section">Specific Section</option>
+                    <option value="sections">Specific Sections (Multi-Select)</option>
                     <option value="fixture">Specific Fixture</option>
-                    <option value="product">Specific Product</option>
+                    <option value="selected_products">Select Specific Products</option>
                   </select>
                 </div>
 
-                {/* Section/Fixture/Product Selector */}
-                {discountConfig.target === 'section' && (
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Select Section</label>
-                    <select
-                      className="w-full px-4 py-2 border rounded-lg"
-                      value={discountConfig.targetId}
-                      onChange={(e) => setDiscountConfig({...discountConfig, targetId: e.target.value})}
-                    >
-                      <option value="">Choose Section...</option>
-                      {fixtures.flatMap(f => f.sections || []).map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
+                {/* Multi-Select Sections - Grouped by Fixture */}
+                {discountConfig.target === 'sections' && (
+                  <div className="md:col-span-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-semibold">
+                        Select Sections ({discountConfig.selectedSections.length} selected)
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            const allSectionIds = fixtures.flatMap(f => 
+                              (f.sections || []).map(s => s.id)
+                            );
+                            setDiscountConfig({
+                              ...discountConfig,
+                              selectedSections: allSectionIds
+                            });
+                          }}
+                          className="text-xs text-blue-600 hover:text-blue-800 font-semibold"
+                        >
+                          Select All
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDiscountConfig({
+                              ...discountConfig,
+                              selectedSections: []
+                            });
+                          }}
+                          className="text-xs text-red-600 hover:text-red-800 font-semibold"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                    </div>
+                    <div className="border rounded-lg p-4 max-h-64 overflow-y-auto bg-gray-50">
+                      {fixtures.length === 0 ? (
+                        <p className="text-sm text-gray-500">No fixtures available</p>
+                      ) : (
+                        fixtures.map(fixture => {
+                          const fixtureSections = fixture.sections || [];
+                          if (fixtureSections.length === 0) return null;
+                          
+                          return (
+                            <div key={fixture.id} className="mb-4 last:mb-0">
+                              <div className="font-semibold text-sm text-gray-700 mb-2 flex items-center gap-2">
+                                <span>{fixture.name}</span>
+                                <button
+                                  onClick={() => {
+                                    const fixtureSectionIds = fixtureSections.map(s => s.id);
+                                    const allSelected = fixtureSectionIds.every(id => 
+                                      discountConfig.selectedSections.includes(id)
+                                    );
+                                    
+                                    if (allSelected) {
+                                      // Deselect all from this fixture
+                                      setDiscountConfig({
+                                        ...discountConfig,
+                                        selectedSections: discountConfig.selectedSections.filter(
+                                          id => !fixtureSectionIds.includes(id)
+                                        )
+                                      });
+                                    } else {
+                                      // Select all from this fixture
+                                      const newSelection = [...new Set([
+                                        ...discountConfig.selectedSections,
+                                        ...fixtureSectionIds
+                                      ])];
+                                      setDiscountConfig({
+                                        ...discountConfig,
+                                        selectedSections: newSelection
+                                      });
+                                    }
+                                  }}
+                                  className="text-xs text-blue-600 hover:text-blue-800"
+                                >
+                                  {fixtureSections.every(s => discountConfig.selectedSections.includes(s.id))
+                                    ? 'Deselect All'
+                                    : 'Select All'}
+                                </button>
+                              </div>
+                              <div className="space-y-1 ml-4">
+                                {fixtureSections.map(section => (
+                                  <label
+                                    key={section.id}
+                                    className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={discountConfig.selectedSections.includes(section.id)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setDiscountConfig({
+                                            ...discountConfig,
+                                            selectedSections: [...discountConfig.selectedSections, section.id]
+                                          });
+                                        } else {
+                                          setDiscountConfig({
+                                            ...discountConfig,
+                                            selectedSections: discountConfig.selectedSections.filter(id => id !== section.id)
+                                          });
+                                        }
+                                      }}
+                                      className="w-4 h-4"
+                                    />
+                                    <span className="text-sm">{section.name}</span>
+                                    <span className="text-xs text-gray-500 ml-auto">
+                                      {section.rows?.reduce((sum, row) => sum + (row.products?.length || 0), 0) || 0} products
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                    {discountConfig.selectedSections.length === 0 && (
+                      <p className="text-sm text-orange-600 mt-2">⚠️ Select at least one section</p>
+                    )}
                   </div>
                 )}
 
@@ -8333,6 +8478,26 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         <option key={f.id} value={f.id}>{f.name}</option>
                       ))}
                     </select>
+                  </div>
+                )}
+
+                {/* Selected Products Display */}
+                {discountConfig.target === 'selected_products' && (
+                  <div className="md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="block text-sm font-semibold mb-2">Selected Products</label>
+                        <p className="text-sm text-gray-600">
+                          {discountConfig.selectedProducts.length} products selected
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowProductSelector(true)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+                      >
+                        {discountConfig.selectedProducts.length > 0 ? 'Edit Selection' : 'Select Products'}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -8482,6 +8647,201 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 </p>
               </div>
             </div>
+
+            {/* Product Selector Modal */}
+            {showProductSelector && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+                  {/* Modal Header */}
+                  <div className="flex items-center justify-between p-6 border-b">
+                    <h3 className="text-2xl font-bold">Select Products for Discount</h3>
+                    <button
+                      onClick={() => setShowProductSelector(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <Icons.X />
+                    </button>
+                  </div>
+
+                  {/* Modal Content */}
+                  <div className="flex-1 overflow-auto p-6">
+                    {fixtures.length === 0 ? (
+                      <p className="text-gray-500 text-center py-8">No products found. Add products to your planogram first.</p>
+                    ) : (
+                      <>
+                        {/* Select All / Deselect All */}
+                        <div className="mb-4 flex gap-3">
+                          <button
+                            onClick={() => {
+                              const allProductUPCs = [];
+                              fixtures.forEach(fixture => {
+                                fixture.sections?.forEach(section => {
+                                  section.rows?.forEach(row => {
+                                    row.products?.forEach(product => {
+                                      if (product.upc && !allProductUPCs.includes(product.upc)) {
+                                        allProductUPCs.push(product.upc);
+                                      }
+                                    });
+                                  });
+                                });
+                              });
+                              setDiscountConfig({...discountConfig, selectedProducts: allProductUPCs});
+                            }}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+                          >
+                            Select All
+                          </button>
+                          <button
+                            onClick={() => setDiscountConfig({...discountConfig, selectedProducts: []})}
+                            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold"
+                          >
+                            Deselect All
+                          </button>
+                          <div className="ml-auto text-sm font-semibold text-gray-600 flex items-center">
+                            {discountConfig.selectedProducts.length} selected
+                          </div>
+                        </div>
+
+                        {/* Products by Fixture and Section */}
+                        {fixtures.map(fixture => {
+                          const fixtureHasProducts = fixture.sections?.some(section => 
+                            section.rows?.some(row => row.products?.length > 0)
+                          );
+
+                          if (!fixtureHasProducts) return null;
+
+                          return (
+                            <div key={fixture.id} className="mb-6">
+                              <h4 className="text-lg font-bold text-gray-800 mb-3">
+                                {fixture.name}
+                              </h4>
+
+                              {fixture.sections?.map(section => {
+                                const sectionProducts = [];
+                                section.rows?.forEach(row => {
+                                  row.products?.forEach(product => {
+                                    if (product.upc && !sectionProducts.find(p => p.upc === product.upc)) {
+                                      sectionProducts.push(product);
+                                    }
+                                  });
+                                });
+
+                                if (sectionProducts.length === 0) return null;
+
+                                return (
+                                  <div key={section.id} className="mb-4 border rounded-lg p-4 bg-gray-50">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h5 className="font-semibold text-gray-700">{section.name}</h5>
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => {
+                                            const sectionUPCs = sectionProducts.map(p => p.upc);
+                                            const newSelected = [...discountConfig.selectedProducts];
+                                            sectionUPCs.forEach(upc => {
+                                              if (!newSelected.includes(upc)) {
+                                                newSelected.push(upc);
+                                              }
+                                            });
+                                            setDiscountConfig({...discountConfig, selectedProducts: newSelected});
+                                          }}
+                                          className="text-sm px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                                        >
+                                          Select All
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            const sectionUPCs = sectionProducts.map(p => p.upc);
+                                            const newSelected = discountConfig.selectedProducts.filter(
+                                              upc => !sectionUPCs.includes(upc)
+                                            );
+                                            setDiscountConfig({...discountConfig, selectedProducts: newSelected});
+                                          }}
+                                          className="text-sm px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+                                        >
+                                          Deselect All
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      {sectionProducts.map((product, idx) => {
+                                        const isSelected = discountConfig.selectedProducts.includes(product.upc);
+                                        return (
+                                          <div
+                                            key={idx}
+                                            onClick={() => {
+                                              const newSelected = isSelected
+                                                ? discountConfig.selectedProducts.filter(upc => upc !== product.upc)
+                                                : [...discountConfig.selectedProducts, product.upc];
+                                              setDiscountConfig({...discountConfig, selectedProducts: newSelected});
+                                            }}
+                                            className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${
+                                              isSelected
+                                                ? 'bg-blue-100 border-2 border-blue-500'
+                                                : 'bg-white border border-gray-200 hover:bg-gray-50'
+                                            }`}
+                                          >
+                                            <div className="flex items-center gap-3 flex-1">
+                                              <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                onChange={() => {}}
+                                                className="w-5 h-5"
+                                              />
+                                              <div className="flex-1">
+                                                <div className="font-medium text-gray-800">{product.name}</div>
+                                                <div className="text-sm text-gray-500">
+                                                  {product.vendor} • UPC: {product.upc}
+                                                </div>
+                                              </div>
+                                              <div className="text-right">
+                                                <div className="font-bold text-gray-800">${product.price?.toFixed(2)}</div>
+                                                <div className="text-xs text-gray-500">
+                                                  {product.monthlySales || 0} sales/mo
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="flex items-center justify-between p-6 border-t bg-gray-50">
+                    <div className="text-sm text-gray-600">
+                      <strong>{discountConfig.selectedProducts.length}</strong> products selected
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowProductSelector(false)}
+                        className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowProductSelector(false);
+                          setFeedback(`✅ ${discountConfig.selectedProducts.length} products selected`);
+                          setTimeout(() => setFeedback(''), 3000);
+                        }}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Impact Analysis Results */}
             {discountImpact && (
