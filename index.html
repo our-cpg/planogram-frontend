@@ -3420,14 +3420,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         sections.forEach(section => {
           section.rows?.forEach(row => {
             row.products?.forEach(product => {
-              if (product.price) {
-                const fixture = fixtures.find(f => f.id === section.fixtureId);
-                affectedProducts.push({
-                  ...product,
-                  sectionName: section.name,
-                  fixtureName: fixture?.name || 'Unknown Fixture'
-                });
-              }
+              const fixture = fixtures.find(f => f.id === section.fixtureId);
+              affectedProducts.push({
+                ...product,
+                sectionName: section.name,
+                fixtureName: fixture?.name || 'Unknown Fixture'
+              });
             });
           });
         });
@@ -3437,14 +3435,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           if (discountConfig.selectedSections.includes(section.id)) {
             section.rows?.forEach(row => {
               row.products?.forEach(product => {
-                if (product.price) {
-                  const fixture = fixtures.find(f => f.id === section.fixtureId);
-                  affectedProducts.push({
-                    ...product,
-                    sectionName: section.name,
-                    fixtureName: fixture?.name || 'Unknown Fixture'
-                  });
-                }
+                const fixture = fixtures.find(f => f.id === section.fixtureId);
+                affectedProducts.push({
+                  ...product,
+                  sectionName: section.name,
+                  fixtureName: fixture?.name || 'Unknown Fixture'
+                });
               });
             });
           }
@@ -3457,13 +3453,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         fixtureSections.forEach(section => {
           section.rows?.forEach(row => {
             row.products?.forEach(product => {
-              if (product.price) {
-                affectedProducts.push({
-                  ...product,
-                  sectionName: section.name,
-                  fixtureName: fixture?.name || 'Unknown Fixture'
-                });
-              }
+              affectedProducts.push({
+                ...product,
+                sectionName: section.name,
+                fixtureName: fixture?.name || 'Unknown Fixture'
+              });
             });
           });
         });
@@ -3473,7 +3467,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           const fixture = fixtures.find(f => f.id === section.fixtureId);
           section.rows?.forEach(row => {
             row.products?.forEach(product => {
-              if (product.price && discountConfig.selectedProducts.includes(product.upc)) {
+              if (discountConfig.selectedProducts.includes(product.upc)) {
                 affectedProducts.push({
                   ...product,
                   sectionName: section.name,
@@ -3485,14 +3479,27 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         });
       }
 
-      if (affectedProducts.length === 0) {
-        setFeedback('⚠️ No products found for the selected target');
-        setTimeout(() => setFeedback(''), 3000);
+      // Filter products that have prices and separate those without
+      const productsWithPrices = affectedProducts.filter(p => p.price && p.price > 0);
+      const productsWithoutPrices = affectedProducts.filter(p => !p.price || p.price <= 0);
+
+      if (productsWithPrices.length === 0) {
+        if (productsWithoutPrices.length > 0) {
+          setFeedback(`⚠️ Found ${productsWithoutPrices.length} products but none have prices set. Add prices to products first.`);
+        } else {
+          setFeedback('⚠️ No products found for the selected target');
+        }
+        setTimeout(() => setFeedback(''), 5000);
         return;
       }
 
-      // Calculate new prices and impact
-      const productsWithDiscounts = affectedProducts.map(product => {
+      // Show warning if some products don't have prices
+      if (productsWithoutPrices.length > 0) {
+        console.warn(`⚠️ ${productsWithoutPrices.length} products excluded (no price):`, productsWithoutPrices);
+      }
+
+      // Calculate new prices and impact using only products with prices
+      const productsWithDiscounts = productsWithPrices.map(product => {
         const currentPrice = product.price;
         let newPrice;
 
@@ -3564,11 +3571,16 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         newMargin,
         breakEvenUnits,
         assumedUplift,
-        affectedProducts: productsWithDiscounts
+        affectedProducts: productsWithDiscounts,
+        productsWithoutPrices: productsWithoutPrices.length
       });
 
-      setFeedback('✅ Impact calculated successfully');
-      setTimeout(() => setFeedback(''), 3000);
+      if (productsWithoutPrices.length > 0) {
+        setFeedback(`✅ Impact calculated (${productsWithoutPrices.length} products excluded - no price set)`);
+      } else {
+        setFeedback('✅ Impact calculated successfully');
+      }
+      setTimeout(() => setFeedback(''), 5000);
 
     } catch (error) {
       console.error('Error calculating discount impact:', error);
@@ -8878,6 +8890,25 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     </div>
                   </div>
                 </div>
+
+                {/* Warning for products without prices */}
+                {discountImpact.productsWithoutPrices > 0 && (
+                  <div className="bg-orange-50 border-l-4 border-orange-400 p-4 mb-6">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-orange-700">
+                          <strong>Note:</strong> {discountImpact.productsWithoutPrices} product{discountImpact.productsWithoutPrices > 1 ? 's' : ''} excluded from analysis because {discountImpact.productsWithoutPrices > 1 ? 'they have' : 'it has'} no price set. 
+                          Add prices to these products in Shopify to include them in discount calculations.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Profit Analysis */}
                 <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
