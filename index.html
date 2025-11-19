@@ -1386,16 +1386,20 @@ const PlanogramProfitTracker = () => {
       for (let i = 0; i < upcArray.length; i++) {
         const upc = upcArray[i];
         try {
-          // Fetch directly from backend - no need for auth params
-          const url = `${BACKEND_URL}/api/product/${upc}`;
+          // 🔴 FETCH LIVE INVENTORY FROM SHOPIFY
+          const url = new URL(`${BACKEND_URL}/api/shopify/live-inventory/${upc}`);
+          if (shopifyConfig.connected) {
+            url.searchParams.append('storeName', shopifyConfig.storeName);
+            url.searchParams.append('accessToken', shopifyConfig.accessToken);
+          }
           
           const response = await fetch(url);
           if (response.ok) {
             const data = await response.json();
-            console.log('Product data received:', { 
+            console.log('🔴 LIVE product data received:', { 
               name: data.title, 
-              vendor: data.vendor, 
-              distributor: data.distributor 
+              stock: data.inventoryQuantity,
+              source: data.source
             });
             freshProductData[upc] = {
               name: data.variantTitle ? `${data.title} - ${data.variantTitle}` : data.title,
@@ -1408,7 +1412,9 @@ const PlanogramProfitTracker = () => {
               quarterlySales: data.quarterlySales || 0,
               yearlySales: data.yearlySales || 0,
               allTimeSales: data.allTimeSales || 0,
-              inventoryQuantity: data.inventoryQuantity || 0,
+              inventoryQuantity: data.inventoryQuantity !== null && data.inventoryQuantity !== undefined 
+                ? data.inventoryQuantity 
+                : 0,
               sku: data.sku,
               vendor: data.vendor,
               distributor: data.distributor,
@@ -1661,11 +1667,12 @@ const PlanogramProfitTracker = () => {
     
     if (shopifyConfig.connected) {
       try {
-        const url = new URL(`${BACKEND_URL}/api/product/${newProduct.upc}`);
+        // 🔴 FETCH LIVE INVENTORY FROM SHOPIFY (not database!)
+        const url = new URL(`${BACKEND_URL}/api/shopify/live-inventory/${newProduct.upc}`);
         url.searchParams.append('storeName', shopifyConfig.storeName);
         url.searchParams.append('accessToken', shopifyConfig.accessToken);
-        url.searchParams.append('fetchMetafields', 'true');
         
+        console.log('🔴 Fetching LIVE inventory from Shopify...');
         const response = await fetch(url);
         const data = await response.json();
 
@@ -5704,16 +5711,19 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                       default: sales = product.monthlySales || 0;
                                     }
                                     
-                                    // Calculate metrics
-                                    const stock = product.inventoryQuantity || 0;
+                                    // Calculate metrics - handle negative stock properly
+                                    const stock = product.inventoryQuantity !== null && product.inventoryQuantity !== undefined 
+                                      ? product.inventoryQuantity 
+                                      : 0;
                                     const margin = product.price > 0 ? ((product.price - product.cost) / product.price * 100) : 0;
                                     const daysRemaining = sales > 0 ? Math.floor(stock / (sales / 30)) : Infinity;
                                     const isDeadStock = stock > 0 && sales === 0;
                                     const turnoverRate = stock > 0 ? (sales / stock).toFixed(2) : 0;
                                     
-                                    // Stock status
-                                    const stockStatus = stock === 0 ? 'OUT' : stock < 10 ? 'LOW' : 'OK';
-                                    const stockColor = stock === 0 ? 'text-red-600 bg-red-50' : 
+                                    // Stock status - handle negative inventory
+                                    const stockStatus = stock < 0 ? 'NEGATIVE' : stock === 0 ? 'OUT' : stock < 10 ? 'LOW' : 'OK';
+                                    const stockColor = stock < 0 ? 'text-red-600 bg-red-50 font-bold' :
+                                                      stock === 0 ? 'text-red-600 bg-red-50' : 
                                                       stock < 10 ? 'text-orange-600 bg-orange-50' : 
                                                       'text-green-600 bg-green-50';
                                     
@@ -7147,7 +7157,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               }
 
               const dailyVelocity = daysInPeriod > 0 ? salesVolume / daysInPeriod : 0;
-              const currentStock = product.inventoryQuantity || product.quantity || 0;
+              const currentStock = product.inventoryQuantity !== null && product.inventoryQuantity !== undefined 
+                ? product.inventoryQuantity 
+                : (product.quantity || 0);
               const daysUntilOut = dailyVelocity > 0 ? currentStock / dailyVelocity : 999;
               
               // Stock out risk (high risk if < 7 days)
