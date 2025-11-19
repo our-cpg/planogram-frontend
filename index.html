@@ -1473,7 +1473,10 @@ const PlanogramProfitTracker = () => {
       autoSave(updatedSections, 'Refreshed all product data');
       
       setFeedback(`✅ Success! Updated ${successCount} products with fresh data (${errorCount} failed)`);
-      setTimeout(() => setFeedback(''), 5000);
+      setTimeout(() => {
+        setFeedback('');
+        window.location.reload(); // Reload page to show updated inventory
+      }, 2000); // Wait 2 seconds so user sees the success message
 
     } catch (error) {
       console.error('Error refreshing product data:', error);
