@@ -1386,10 +1386,8 @@ const PlanogramProfitTracker = () => {
       for (let i = 0; i < upcArray.length; i++) {
         const upc = upcArray[i];
         try {
-          const url = new URL(`${BACKEND_URL}/api/product/${upc}`);
-          url.searchParams.append('storeName', shopifyConfig.storeName);
-          url.searchParams.append('accessToken', shopifyConfig.accessToken);
-          url.searchParams.append('fetchMetafields', 'true');
+          // Fetch directly from backend - no need for auth params
+          const url = `${BACKEND_URL}/api/product/${upc}`;
           
           const response = await fetch(url);
           if (response.ok) {
