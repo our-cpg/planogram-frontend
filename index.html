@@ -1354,7 +1354,7 @@ const PlanogramProfitTracker = () => {
     }
   };
 
-  // NEW: Load all products from database for forecasting view
+  // UPDATED: Load all products with LIVE INVENTORY from Shopify (not database!)
   const loadAllProductsFromDatabase = async () => {
     if (!shopifyConfig.connected) {
       setFeedback('⚠️ Connect to Shopify first');
@@ -1363,10 +1363,14 @@ const PlanogramProfitTracker = () => {
     }
 
     setLoadingAllProducts(true);
-    setFeedback('🔄 Loading all products from database...');
+    setFeedback('🔴 Loading ALL products with LIVE inventory from Shopify...');
 
     try {
-      const url = new URL(`${BACKEND_URL}/api/products/all`);
+      // Use LIVE Shopify endpoint, not database!
+      const url = new URL(`${BACKEND_URL}/api/shopify/live-products-all`);
+      url.searchParams.append('storeName', shopifyConfig.storeName);
+      url.searchParams.append('accessToken', shopifyConfig.accessToken);
+      
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -1374,12 +1378,13 @@ const PlanogramProfitTracker = () => {
       }
 
       const data = await response.json();
-      const products = data.products || []; // API returns { products: [...], summary: {...} }
+      const products = data.products || [];
       
-      console.log(`✅ Loaded ${products.length} products from database`);
+      console.log(`✅ Loaded ${products.length} products with LIVE inventory from Shopify`);
       console.log(`📊 Summary:`, data.summary);
+      console.log(`🔴 Source: ${data.summary?.source}`);
       setAllDatabaseProducts(products);
-      setFeedback(`✅ Loaded ${products.length} products for forecasting (${data.summary?.criticalAlerts || 0} critical alerts)`);
+      setFeedback(`✅ Loaded ${products.length} products with LIVE Shopify inventory (${data.summary?.criticalAlerts || 0} critical alerts)`);
       setTimeout(() => setFeedback(''), 3000);
 
     } catch (error) {
