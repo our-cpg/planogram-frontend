@@ -7047,6 +7047,31 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   </button>
                 </div>
               )}
+
+              {/* Refresh Inventory Button */}
+              <div className="pt-5">
+                <button
+                  onClick={refreshAllProductData}
+                  disabled={isRefreshing}
+                  className={`px-3 py-2 rounded text-sm flex items-center gap-1 ${
+                    isRefreshing 
+                      ? 'bg-gray-300 text-gray-600 cursor-not-allowed' 
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  }`}
+                >
+                  {isRefreshing ? (
+                    <>
+                      <Icons.RefreshCw className="animate-spin" />
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      <Icons.RefreshCw />
+                      Refresh Inventory
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
