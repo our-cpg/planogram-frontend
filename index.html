@@ -161,6 +161,8 @@ const PlanogramProfitTracker = () => {
   const [stickyRowMode, setStickyRowMode] = useState(true); // NEW: Sticky row scanning mode
   const [unknownProducts, setUnknownProducts] = useState([]);
   const [badStockProducts, setBadStockProducts] = useState([]); // NEW: Separate list for negative stock items
+  const [allDatabaseProducts, setAllDatabaseProducts] = useState([]); // NEW: All products from database for forecasting
+  const [loadingAllProducts, setLoadingAllProducts] = useState(false); // NEW: Loading state
   const [showUnknownProducts, setShowUnknownProducts] = useState(true);
   const [selectedFixtures, setSelectedFixtures] = useState([]); // Multi-select fixtures
   const [shiftPressed, setShiftPressed] = useState(false); // Track shift key for multi-select
@@ -1349,6 +1351,43 @@ const PlanogramProfitTracker = () => {
       if (!isAutoRefresh) {
         setIsRefreshing(false);
       }
+    }
+  };
+
+  // NEW: Load all products from database for forecasting view
+  const loadAllProductsFromDatabase = async () => {
+    if (!shopifyConfig.connected) {
+      setFeedback('⚠️ Connect to Shopify first');
+      setTimeout(() => setFeedback(''), 3000);
+      return;
+    }
+
+    setLoadingAllProducts(true);
+    setFeedback('🔄 Loading all products from database...');
+
+    try {
+      const url = new URL(`${BACKEND_URL}/api/products/all`);
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Failed to load products: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const products = data.products || []; // API returns { products: [...], summary: {...} }
+      
+      console.log(`✅ Loaded ${products.length} products from database`);
+      console.log(`📊 Summary:`, data.summary);
+      setAllDatabaseProducts(products);
+      setFeedback(`✅ Loaded ${products.length} products for forecasting (${data.summary?.criticalAlerts || 0} critical alerts)`);
+      setTimeout(() => setFeedback(''), 3000);
+
+    } catch (error) {
+      console.error('❌ Error loading all products:', error);
+      setFeedback(`❌ Failed to load products: ${error.message}`);
+      setTimeout(() => setFeedback(''), 5000);
+    } finally {
+      setLoadingAllProducts(false);
     }
   };
 
@@ -6924,9 +6963,28 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       {/* 📈 FORECASTING PAGE */}
       {currentPage === 'forecasting' && (
         <div className="flex-1 overflow-auto p-8">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">📈 Demand Forecasting & Inventory Intelligence</h1>
-            <p className="text-gray-600">AI-powered predictions to prevent stockouts and optimize inventory</p>
+          <div className="mb-6 flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">📈 Demand Forecasting & Inventory Intelligence</h1>
+              <p className="text-gray-600">AI-powered predictions to prevent stockouts and optimize inventory</p>
+            </div>
+            <button
+              onClick={loadAllProductsFromDatabase}
+              disabled={loadingAllProducts || !shopifyConfig.connected}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {loadingAllProducts ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Icons.Download />
+                  Load All Products ({allDatabaseProducts.length > 0 ? `${allDatabaseProducts.length} loaded` : 'from DB'})
+                </>
+              )}
+            </button>
           </div>
 
           {/* Filters */}
@@ -7088,20 +7146,40 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
           {/* Forecasting Content */}
           {(() => {
-            // Gather all products from all sections
-            let allProducts = sections.flatMap(section => {
-              const products = section.rows ? 
-                section.rows.flatMap(row => row.products || []) : 
-                (section.products || []);
-              
-              return products.map(p => ({
-                ...p,
-                sectionId: section.id,
-                sectionName: section.name,
-                fixtureId: section.fixtureId,
-                fixtureName: fixtures.find(f => f.id === section.fixtureId)?.name || 'Unknown'
-              }));
-            });
+            // Use database products if loaded, otherwise use products from sections
+            let allProducts = allDatabaseProducts.length > 0 
+              ? allDatabaseProducts.map(p => ({
+                  upc: p.barcode,
+                  name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
+                  price: p.price,
+                  cost: p.cost,
+                  inventoryQuantity: p.stock, // API returns 'stock' not 'inventoryQuantity'
+                  dailySales: p.dailySales,
+                  weeklySales: p.weeklySales,
+                  monthlySales: p.monthlySales,
+                  quarterlySales: 0, // Not in API response yet
+                  yearlySales: 0, // Not in API response yet
+                  allTimeSales: p.allTimeSales,
+                  sku: p.sku,
+                  vendor: p.vendor,
+                  tags: p.tags,
+                  sectionName: 'All Products',
+                  fixtureName: 'Database',
+                  source: 'database'
+                }))
+              : sections.flatMap(section => {
+                  const products = section.rows ? 
+                    section.rows.flatMap(row => row.products || []) : 
+                    (section.products || []);
+                  
+                  return products.map(p => ({
+                    ...p,
+                    sectionId: section.id,
+                    sectionName: section.name,
+                    fixtureId: section.fixtureId,
+                    fixtureName: fixtures.find(f => f.id === section.fixtureId)?.name || 'Unknown'
+                  }));
+                });
 
             // Apply filters BEFORE calculating forecasts
             if (forecastFilterFixture !== 'all') {
