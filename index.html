@@ -7283,12 +7283,27 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               const currentStock = product.inventoryQuantity !== null && product.inventoryQuantity !== undefined 
                 ? product.inventoryQuantity 
                 : (product.quantity || 0);
-              const daysUntilOut = dailyVelocity > 0 ? currentStock / dailyVelocity : 999;
               
-              // Stock out risk (high risk if < 7 days)
+              // Calculate days until out of stock (handle negative inventory properly)
+              let daysUntilOut;
+              if (dailyVelocity > 0) {
+                // Has sales velocity - calculate days of supply
+                daysUntilOut = currentStock / dailyVelocity;
+              } else {
+                // No sales velocity
+                if (currentStock > 0) {
+                  daysUntilOut = 999; // Infinite supply (no sales)
+                } else if (currentStock < 0) {
+                  daysUntilOut = currentStock; // Show negative as-is (oversold)
+                } else {
+                  daysUntilOut = 0; // Zero stock, zero sales
+                }
+              }
+              
+              // Stock out risk (high risk if < 7 days OR negative stock)
               let stockoutRisk = 'Low';
               let riskColor = 'green';
-              if (daysUntilOut < 3) {
+              if (currentStock < 0 || daysUntilOut < 3) {
                 stockoutRisk = 'CRITICAL';
                 riskColor = 'red';
               } else if (daysUntilOut < 7) {
@@ -7299,8 +7314,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 riskColor = 'yellow';
               }
 
-              // Recommended reorder quantity (2 weeks of sales + safety stock of 25%)
-              const reorderQty = Math.ceil((dailyVelocity * 14) * 1.25);
+              // Recommended reorder quantity for 30 days of supply + 25% safety stock
+              // Formula: (30 days × daily velocity + safety stock) - current stock
+              const targetSupply = dailyVelocity * 30;
+              const safetyStock = targetSupply * 0.25;
+              const reorderQty = Math.max(0, Math.ceil(targetSupply + safetyStock - currentStock));
 
               // Seasonal pattern (simplified - compare to average)
               const avgSales = (product.monthlySales || 0);
