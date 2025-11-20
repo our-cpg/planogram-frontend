@@ -1396,6 +1396,32 @@ const PlanogramProfitTracker = () => {
     }
   };
 
+  // Auto-refresh live inventory once per day
+  useEffect(() => {
+    if (!shopifyConfig.connected) return;
+    
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    
+    // Check if we should load on initial mount
+    const lastLoadTime = localStorage.getItem('lastInventoryLoadTime');
+    const now = Date.now();
+    
+    if (!lastLoadTime || (now - parseInt(lastLoadTime)) > TWENTY_FOUR_HOURS) {
+      console.log('🔄 Auto-loading inventory (daily refresh)...');
+      loadAllProductsFromDatabase();
+      localStorage.setItem('lastInventoryLoadTime', now.toString());
+    }
+    
+    // Set up daily refresh interval
+    const intervalId = setInterval(() => {
+      console.log('🔄 Daily auto-refresh triggered...');
+      loadAllProductsFromDatabase();
+      localStorage.setItem('lastInventoryLoadTime', Date.now().toString());
+    }, TWENTY_FOUR_HOURS);
+    
+    return () => clearInterval(intervalId);
+  }, [shopifyConfig.connected]);
+
   const refreshAllProductData = async () => {
     if (!shopifyConfig.connected) {
       setFeedback('⚠️ Connect to Shopify first');
@@ -6972,6 +6998,20 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             <div>
               <h1 className="text-3xl font-bold mb-2">📈 Demand Forecasting & Inventory Intelligence</h1>
               <p className="text-gray-600">AI-powered predictions to prevent stockouts and optimize inventory</p>
+              {(() => {
+                const lastLoad = localStorage.getItem('lastInventoryLoadTime');
+                if (lastLoad) {
+                  const loadDate = new Date(parseInt(lastLoad));
+                  const now = new Date();
+                  const hoursSince = Math.floor((now - loadDate) / (1000 * 60 * 60));
+                  return (
+                    <p className="text-xs text-gray-500 mt-1">
+                      🔴 Live Shopify data • Last updated: {loadDate.toLocaleString()} ({hoursSince}h ago) • Auto-refreshes daily
+                    </p>
+                  );
+                }
+                return null;
+              })()}
             </div>
             <button
               onClick={loadAllProductsFromDatabase}
@@ -6986,7 +7026,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               ) : (
                 <>
                   <Icons.Download />
-                  Load All Products ({allDatabaseProducts.length > 0 ? `${allDatabaseProducts.length} loaded` : 'from DB'})
+                  Load All Products ({allDatabaseProducts.length > 0 ? `${allDatabaseProducts.length} loaded` : 'from Shopify'})
                 </>
               )}
             </button>
