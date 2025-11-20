@@ -481,7 +481,12 @@ const PlanogramProfitTracker = () => {
     const saved = localStorage.getItem('planogram_dimensions_locked');
     return saved ? JSON.parse(saved) : false;
   }); // Master lock for all dimensions
-  const [timePeriod, setTimePeriod] = useState('month'); // day, week, month, quarter, custom
+  const [timePeriod, setTimePeriod] = useState('month'); // day, week, month, quarter, year, dateRange
+  const [useCustomDateRange, setUseCustomDateRange] = useState(false);
+  const [dateRangeStart, setDateRangeStart] = useState('');
+  const [dateRangeEnd, setDateRangeEnd] = useState('');
+  const [dateRangeSalesData, setDateRangeSalesData] = useState(null);
+  const [loadingDateRangeSales, setLoadingDateRangeSales] = useState(false);
   const [customStartDate, setCustomStartDate] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -1435,22 +1440,30 @@ const PlanogramProfitTracker = () => {
         let salesVolume = 0;
         let daysInPeriod = 30;
         
-        switch(timePeriod) {
-          case 'day':
-            salesVolume = product.dailySales || 0;
-            daysInPeriod = 1;
-            break;
-          case 'week':
-            salesVolume = product.weeklySales || 0;
-            daysInPeriod = 7;
-            break;
-          case 'month':
-            salesVolume = product.monthlySales || 0;
-            daysInPeriod = 30;
-            break;
-          default:
-            salesVolume = product.monthlySales || 0;
-            daysInPeriod = 30;
+        if (timePeriod === 'dateRange' && dateRangeSalesData) {
+          const variantSales = dateRangeSalesData.salesData.find(
+            s => s.variantId.toString() === product.variantId?.toString()
+          );
+          salesVolume = variantSales ? variantSales.totalSales : 0;
+          daysInPeriod = dateRangeSalesData.daysInPeriod;
+        } else {
+          switch(timePeriod) {
+            case 'day':
+              salesVolume = product.dailySales || 0;
+              daysInPeriod = 1;
+              break;
+            case 'week':
+              salesVolume = product.weeklySales || 0;
+              daysInPeriod = 7;
+              break;
+            case 'month':
+              salesVolume = product.monthlySales || 0;
+              daysInPeriod = 30;
+              break;
+            default:
+              salesVolume = product.monthlySales || 0;
+              daysInPeriod = 30;
+          }
         }
 
         const dailyVelocity = daysInPeriod > 0 ? salesVolume / daysInPeriod : 0;
@@ -1606,6 +1619,72 @@ const PlanogramProfitTracker = () => {
       console.error('Error generating PO:', error);
       setFeedback(`❌ Error generating PO: ${error.message}`);
       setTimeout(() => setFeedback(''), 5000);
+    }
+  };
+
+  // Fetch sales data for custom date range
+  const fetchDateRangeSales = async () => {
+    if (!dateRangeStart || !dateRangeEnd) {
+      setFeedback('⚠️ Please select both start and end dates');
+      setTimeout(() => setFeedback(''), 3000);
+      return;
+    }
+
+    const start = new Date(dateRangeStart);
+    const end = new Date(dateRangeEnd);
+    
+    if (start > end) {
+      setFeedback('⚠️ Start date must be before end date');
+      setTimeout(() => setFeedback(''), 3000);
+      return;
+    }
+
+    setLoadingDateRangeSales(true);
+    
+    try {
+      const config = JSON.parse(localStorage.getItem('shopifyConfig') || '{}');
+      
+      if (!config.storeName || !config.accessToken) {
+        setFeedback('❌ Not connected to Shopify');
+        setTimeout(() => setFeedback(''), 3000);
+        return;
+      }
+
+      // Format dates for Shopify API (ISO 8601)
+      const startISO = `${dateRangeStart}T00:00:00Z`;
+      const endISO = `${dateRangeEnd}T23:59:59Z`;
+
+      console.log('📊 Fetching sales for date range:', startISO, 'to', endISO);
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/sales/date-range?` + 
+        `storeName=${encodeURIComponent(config.storeName)}&` +
+        `accessToken=${encodeURIComponent(config.accessToken)}&` +
+        `startDate=${encodeURIComponent(startISO)}&` +
+        `endDate=${encodeURIComponent(endISO)}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      console.log('✅ Date range sales loaded:', data.variantsWithSales, 'variants');
+      
+      setDateRangeSalesData(data);
+      setUseCustomDateRange(true);
+      setTimePeriod('dateRange');
+      
+      setFeedback(`✅ Loaded sales for ${data.daysInPeriod} days (${data.totalOrders} orders)`);
+      setTimeout(() => setFeedback(''), 3000);
+      
+    } catch (error) {
+      console.error('❌ Error fetching date range sales:', error);
+      setFeedback(`❌ Failed to fetch date range sales: ${error.message}`);
+      setTimeout(() => setFeedback(''), 5000);
+    } finally {
+      setLoadingDateRangeSales(false);
     }
   };
 
@@ -7334,15 +7413,72 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 <label className="block text-xs font-medium text-gray-700 mb-1">Time Period</label>
                 <select
                   value={timePeriod}
-                  onChange={(e) => setTimePeriod(e.target.value)}
+                  onChange={(e) => {
+                    setTimePeriod(e.target.value);
+                    if (e.target.value !== 'dateRange') {
+                      setUseCustomDateRange(false);
+                      setDateRangeSalesData(null);
+                    }
+                  }}
                   className="px-3 py-2 border rounded text-sm"
                 >
+                  <option value="day">Last Day</option>
                   <option value="week">Last Week</option>
                   <option value="month">Last Month</option>
                   <option value="quarter">Last Quarter</option>
                   <option value="year">Last Year</option>
+                  <option value="dateRange">📅 Custom Date Range</option>
                 </select>
               </div>
+
+              {/* Date Range Picker */}
+              {timePeriod === 'dateRange' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={dateRangeStart}
+                      onChange={(e) => setDateRangeStart(e.target.value)}
+                      className="px-3 py-2 border rounded text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={dateRangeEnd}
+                      onChange={(e) => setDateRangeEnd(e.target.value)}
+                      className="px-3 py-2 border rounded text-sm"
+                    />
+                  </div>
+
+                  <div className="pt-5">
+                    <button
+                      onClick={fetchDateRangeSales}
+                      disabled={loadingDateRangeSales || !dateRangeStart || !dateRangeEnd}
+                      className={`px-3 py-2 rounded text-sm flex items-center gap-1 whitespace-nowrap ${
+                        loadingDateRangeSales || !dateRangeStart || !dateRangeEnd
+                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed' 
+                          : 'bg-purple-600 text-white hover:bg-purple-700'
+                      }`}
+                    >
+                      {loadingDateRangeSales ? (
+                        <>
+                          <Icons.RefreshCw className="animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Icons.BarChart3 />
+                          Load Range
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Sort By</label>
@@ -7482,30 +7618,40 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               let salesVolume = 0;
               let daysInPeriod = 30;
               
-              switch(timePeriod) {
-                case 'day':
-                  salesVolume = product.dailySales || 0;
-                  daysInPeriod = 1;
-                  break;
-                case 'week':
-                  salesVolume = product.weeklySales || 0;
-                  daysInPeriod = 7;
-                  break;
-                case 'month':
-                  salesVolume = product.monthlySales || 0;
-                  daysInPeriod = 30;
-                  break;
-                case 'quarter':
-                  salesVolume = product.quarterlySales || 0;
-                  daysInPeriod = 90;
-                  break;
-                case 'year':
-                  salesVolume = product.yearlySales || 0;
-                  daysInPeriod = 365;
-                  break;
-                default:
-                  salesVolume = product.monthlySales || 0;
-                  daysInPeriod = 30;
+              if (timePeriod === 'dateRange' && dateRangeSalesData) {
+                // Use custom date range sales data
+                const variantSales = dateRangeSalesData.salesData.find(
+                  s => s.variantId.toString() === product.variantId?.toString()
+                );
+                salesVolume = variantSales ? variantSales.totalSales : 0;
+                daysInPeriod = dateRangeSalesData.daysInPeriod;
+              } else {
+                // Use pre-calculated sales data from database
+                switch(timePeriod) {
+                  case 'day':
+                    salesVolume = product.dailySales || 0;
+                    daysInPeriod = 1;
+                    break;
+                  case 'week':
+                    salesVolume = product.weeklySales || 0;
+                    daysInPeriod = 7;
+                    break;
+                  case 'month':
+                    salesVolume = product.monthlySales || 0;
+                    daysInPeriod = 30;
+                    break;
+                  case 'quarter':
+                    salesVolume = product.quarterlySales || 0;
+                    daysInPeriod = 90;
+                    break;
+                  case 'year':
+                    salesVolume = product.yearlySales || 0;
+                    daysInPeriod = 365;
+                    break;
+                  default:
+                    salesVolume = product.monthlySales || 0;
+                    daysInPeriod = 30;
+                }
               }
 
               const dailyVelocity = daysInPeriod > 0 ? salesVolume / daysInPeriod : 0;
