@@ -1657,7 +1657,7 @@ const PlanogramProfitTracker = () => {
       console.log('📊 Fetching sales for date range:', startISO, 'to', endISO);
 
       const response = await fetch(
-        `${API_BASE_URL}/api/sales/date-range?` + 
+        `${BACKEND_URL}/api/sales/date-range?` + 
         `storeName=${encodeURIComponent(config.storeName)}&` +
         `accessToken=${encodeURIComponent(config.accessToken)}&` +
         `startDate=${encodeURIComponent(startISO)}&` +
