@@ -13,6 +13,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
   
 <body>
@@ -1393,6 +1394,217 @@ const PlanogramProfitTracker = () => {
       setTimeout(() => setFeedback(''), 5000);
     } finally {
       setLoadingAllProducts(false);
+    }
+  };
+
+  // Generate Purchase Orders by Distributor
+  const generatePurchaseOrders = () => {
+    if (allDatabaseProducts.length === 0) {
+      setFeedback('⚠️ Load products first');
+      setTimeout(() => setFeedback(''), 3000);
+      return;
+    }
+
+    try {
+      // Get filtered and calculated products (same as display logic)
+      let allProducts = allDatabaseProducts.map(p => ({
+        upc: p.barcode,
+        name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
+        sku: p.sku,
+        vendor: p.vendor,
+        distributor: p.distributor,
+        inventoryQuantity: p.stock,
+        dailySales: p.dailySales,
+        weeklySales: p.weeklySales,
+        monthlySales: p.monthlySales
+      }));
+
+      // Apply current filters
+      if (forecastFilterDistributor !== 'all') {
+        const dist = forecastFilterDistributor;
+        allProducts = allProducts.filter(p => {
+          const productDist = p.distributor?.trim();
+          const distributor = productDist && productDist !== '' ? productDist : 'Unknown Distributor';
+          return distributor === dist;
+        });
+      }
+
+      // Calculate forecasting metrics
+      const productsWithForecasts = allProducts.map(product => {
+        let salesVolume = 0;
+        let daysInPeriod = 30;
+        
+        switch(timePeriod) {
+          case 'day':
+            salesVolume = product.dailySales || 0;
+            daysInPeriod = 1;
+            break;
+          case 'week':
+            salesVolume = product.weeklySales || 0;
+            daysInPeriod = 7;
+            break;
+          case 'month':
+            salesVolume = product.monthlySales || 0;
+            daysInPeriod = 30;
+            break;
+          default:
+            salesVolume = product.monthlySales || 0;
+            daysInPeriod = 30;
+        }
+
+        const dailyVelocity = daysInPeriod > 0 ? salesVolume / daysInPeriod : 0;
+        const currentStock = product.inventoryQuantity !== null && product.inventoryQuantity !== undefined 
+          ? product.inventoryQuantity 
+          : 0;
+        
+        const targetSupply = dailyVelocity * 30;
+        const safetyStock = targetSupply * 0.25;
+        const reorderQty = Math.max(0, Math.ceil(targetSupply + safetyStock - currentStock));
+
+        return {
+          ...product,
+          currentStock,
+          dailyVelocity,
+          reorderQty
+        };
+      });
+
+      // Filter to only products that need reordering
+      const productsNeedingReorder = productsWithForecasts.filter(p => p.reorderQty > 0);
+
+      if (productsNeedingReorder.length === 0) {
+        setFeedback('✅ No products need reordering!');
+        setTimeout(() => setFeedback(''), 3000);
+        return;
+      }
+
+      // Group by distributor
+      const byDistributor = {};
+      productsNeedingReorder.forEach(product => {
+        const dist = product.distributor?.trim() || 'Unknown Distributor';
+        if (!byDistributor[dist]) {
+          byDistributor[dist] = [];
+        }
+        byDistributor[dist].push(product);
+      });
+
+      // Generate PDF for each distributor
+      const { jsPDF } = window.jspdf;
+      const distributorNames = Object.keys(byDistributor).sort();
+
+      distributorNames.forEach((distributor) => {
+        const products = byDistributor[distributor];
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bold');
+        doc.text('PURCHASE ORDER', 105, 20, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        const today = new Date().toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+        doc.text(`Date: ${today}`, 20, 35);
+        
+        // Distributor info
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Vendor:', 20, 45);
+        doc.setFont(undefined, 'normal');
+        doc.text(distributor, 45, 45);
+        
+        // Store info
+        doc.setFontSize(10);
+        doc.text('From:', 20, 55);
+        doc.text('A1 Beauty Supply', 20, 60);
+        doc.text('Denver, Colorado', 20, 65);
+        
+        // Table header
+        const startY = 80;
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'bold');
+        doc.text('SKU', 20, startY);
+        doc.text('Product', 50, startY);
+        doc.text('Current Stock', 140, startY);
+        doc.text('Order Qty', 175, startY);
+        
+        // Draw header line
+        doc.setLineWidth(0.5);
+        doc.line(20, startY + 2, 200, startY + 2);
+        
+        // Table rows
+        doc.setFont(undefined, 'normal');
+        let yPos = startY + 8;
+        let totalQty = 0;
+        
+        products.forEach((product) => {
+          // Check if we need a new page
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+            
+            // Repeat header on new page
+            doc.setFont(undefined, 'bold');
+            doc.text('SKU', 20, yPos);
+            doc.text('Product', 50, yPos);
+            doc.text('Current Stock', 140, yPos);
+            doc.text('Order Qty', 175, yPos);
+            doc.line(20, yPos + 2, 200, yPos + 2);
+            doc.setFont(undefined, 'normal');
+            yPos += 8;
+          }
+          
+          const sku = product.sku || 'N/A';
+          const name = product.name.length > 45 ? product.name.substring(0, 45) + '...' : product.name;
+          const stock = product.currentStock.toString();
+          const qty = product.reorderQty.toString();
+          
+          doc.text(sku, 20, yPos);
+          doc.text(name, 50, yPos);
+          doc.text(stock, 145, yPos, { align: 'right' });
+          doc.text(qty, 180, yPos, { align: 'right' });
+          
+          totalQty += product.reorderQty;
+          yPos += 6;
+        });
+        
+        // Summary
+        yPos += 5;
+        doc.setLineWidth(0.5);
+        doc.line(20, yPos, 200, yPos);
+        yPos += 8;
+        
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(10);
+        doc.text('TOTAL ITEMS:', 140, yPos);
+        doc.text(products.length.toString(), 175, yPos);
+        
+        yPos += 6;
+        doc.text('TOTAL UNITS:', 140, yPos);
+        doc.text(totalQty.toString(), 180, yPos, { align: 'right' });
+        
+        // Footer
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'italic');
+        doc.text('This purchase order is based on 30-day supply forecast with 25% safety stock.', 105, 285, { align: 'center' });
+        doc.text('Please confirm pricing and availability before processing.', 105, 290, { align: 'center' });
+        
+        // Save PDF
+        const fileName = `PO_${distributor.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(fileName);
+      });
+
+      setFeedback(`✅ Generated ${distributorNames.length} purchase order(s)`);
+      setTimeout(() => setFeedback(''), 3000);
+
+    } catch (error) {
+      console.error('Error generating PO:', error);
+      setFeedback(`❌ Error generating PO: ${error.message}`);
+      setTimeout(() => setFeedback(''), 5000);
     }
   };
 
@@ -7184,6 +7396,22 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       Refresh Inventory
                     </>
                   )}
+                </button>
+              </div>
+
+              {/* Download PO Button */}
+              <div className="pt-5">
+                <button
+                  onClick={generatePurchaseOrders}
+                  disabled={allDatabaseProducts.length === 0}
+                  className={`px-3 py-2 rounded text-sm flex items-center gap-1 ${
+                    allDatabaseProducts.length === 0
+                      ? 'bg-gray-300 text-gray-600 cursor-not-allowed' 
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+                >
+                  <Icons.FileText />
+                  Download PO
                 </button>
               </div>
             </div>
