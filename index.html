@@ -1448,6 +1448,65 @@ const PlanogramProfitTracker = () => {
     }
   };
 
+  // Sync distributor values from database to planogram products
+  const syncDistributorsFromDatabase = () => {
+    if (allDatabaseProducts.length === 0) {
+      setFeedback('⚠️ Load products from database first');
+      setTimeout(() => setFeedback(''), 3000);
+      return;
+    }
+
+    setFeedback('🔄 Syncing distributor values from database...');
+
+    // Create a lookup map: UPC -> distributor
+    const distributorMap = new Map();
+    allDatabaseProducts.forEach(p => {
+      if (p.barcode && p.distributor) {
+        distributorMap.set(p.barcode, p.distributor);
+      }
+    });
+
+    let updatedCount = 0;
+
+    // Update all products in all sections
+    const updatedSections = sections.map(section => {
+      if (section.rows) {
+        // Grid wall with rows
+        const updatedRows = section.rows.map(row => {
+          const updatedProducts = (row.products || []).map(product => {
+            if (product.upc && distributorMap.has(product.upc)) {
+              const newDistributor = distributorMap.get(product.upc);
+              if (product.distributor !== newDistributor) {
+                updatedCount++;
+                return { ...product, distributor: newDistributor };
+              }
+            }
+            return product;
+          });
+          return { ...row, products: updatedProducts };
+        });
+        return { ...section, rows: updatedRows };
+      } else {
+        // Regular section with products
+        const updatedProducts = (section.products || []).map(product => {
+          if (product.upc && distributorMap.has(product.upc)) {
+            const newDistributor = distributorMap.get(product.upc);
+            if (product.distributor !== newDistributor) {
+              updatedCount++;
+              return { ...product, distributor: newDistributor };
+            }
+          }
+          return product;
+        });
+        return { ...section, products: updatedProducts };
+      }
+    });
+
+    setSections(updatedSections);
+    setFeedback(`✅ Updated ${updatedCount} product distributor values from database`);
+    setTimeout(() => setFeedback(''), 3000);
+  };
+
   // Generate Purchase Orders by Distributor
   const generatePurchaseOrders = () => {
     if (allDatabaseProducts.length === 0) {
@@ -7582,7 +7641,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </div>
 
               {/* Download PO Button */}
-              <div className="pt-5 flex gap-2">
+              <div className="pt-5 flex gap-2 flex-wrap">
                 <button
                   onClick={generatePurchaseOrders}
                   disabled={allDatabaseProducts.length === 0}
@@ -7608,6 +7667,20 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 >
                   <Icons.AlertCircle />
                   Sync to Bad Stock
+                </button>
+
+                <button
+                  onClick={syncDistributorsFromDatabase}
+                  disabled={allDatabaseProducts.length === 0}
+                  className={`px-3 py-2 rounded text-sm flex items-center gap-1 ${
+                    allDatabaseProducts.length === 0
+                      ? 'bg-gray-300 text-gray-600 cursor-not-allowed' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                  title="Update distributor values on all planogram products from database"
+                >
+                  <Icons.RefreshCw />
+                  Sync Distributors
                 </button>
               </div>
             </div>
