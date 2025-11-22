@@ -1485,35 +1485,45 @@ const PlanogramProfitTracker = () => {
 
   // AUTO-SYNC: Check for negative stock and add to Bad Stock list (with notification)
   const autoSyncBadStock = (products) => {
-    if (!products || products.length === 0) return;
-
     console.log('🔍 Checking for negative stock products...');
-    console.log(`Total products to check: ${products.length}`);
     
-    // Sample first 5 products to see their inventory structure
-    const sample = products.slice(0, 5);
+    // Build the SAME product list that forecasting uses
+    let allProducts = allDatabaseProducts.length > 0 
+      ? allDatabaseProducts.map(p => ({
+          upc: p.barcode,
+          name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
+          inventoryQuantity: p.stock, // API returns 'stock'
+          shopifyId: p.id,
+          title: p.title,
+          sku: p.sku
+        }))
+      : sections.flatMap(section => {
+          const products = section.rows ? 
+            section.rows.flatMap(row => row.products || []) : 
+            (section.products || []);
+          return products;
+        });
+
+    console.log(`Total products to check: ${allProducts.length}`);
+    
+    // Sample first 5 products
+    const sample = allProducts.slice(0, 5);
     console.log('Sample product inventory data:', sample.map(p => ({
-      title: p.title?.substring(0, 30),
-      inventory_quantity: p.inventory_quantity,
+      title: p.name || p.title,
       inventoryQuantity: p.inventoryQuantity,
-      quantity: p.quantity,
-      type_inventory_quantity: typeof p.inventory_quantity,
-      type_inventoryQuantity: typeof p.inventoryQuantity,
-      type_quantity: typeof p.quantity
+      quantity: p.quantity
     })));
 
-    const negativeStockProducts = products.filter(p => {
-      // Check all possible inventory field names
-      const qty = p.inventoryQuantity !== null && p.inventoryQuantity !== undefined 
+    const negativeStockProducts = allProducts.filter(p => {
+      // Check inventory using same logic as forecasting display
+      const currentStock = p.inventoryQuantity !== null && p.inventoryQuantity !== undefined 
         ? p.inventoryQuantity 
-        : (p.inventory_quantity !== null && p.inventory_quantity !== undefined
-          ? parseInt(p.inventory_quantity)
-          : (p.quantity || 0));
+        : (p.quantity || 0);
       
-      if (qty < 0) {
-        console.log(`❌ NEGATIVE: ${p.title} = ${qty}`);
+      if (currentStock < 0) {
+        console.log(`❌ NEGATIVE: ${p.name || p.title} = ${currentStock}`);
       }
-      return qty < 0;
+      return currentStock < 0;
     });
 
     console.log(`Found ${negativeStockProducts.length} products with negative stock`);
@@ -1526,18 +1536,19 @@ const PlanogramProfitTracker = () => {
     // Add to bad stock list (avoid duplicates)
     const existingIds = new Set(badStockProducts.map(b => b.shopifyId));
     const newBadStockProducts = negativeStockProducts
-      .filter(p => !existingIds.has(p.id))
+      .filter(p => {
+        const id = p.shopifyId || p.id;
+        return id && !existingIds.has(id);
+      })
       .map(p => {
         const currentStock = p.inventoryQuantity !== null && p.inventoryQuantity !== undefined 
           ? p.inventoryQuantity 
-          : (p.inventory_quantity !== null && p.inventory_quantity !== undefined
-            ? parseInt(p.inventory_quantity)
-            : (p.quantity || 0));
+          : (p.quantity || 0);
             
         return {
           id: Date.now() + Math.random(),
-          shopifyId: p.id,
-          title: p.title,
+          shopifyId: p.shopifyId || p.id,
+          title: p.name || p.title,
           sku: p.sku,
           upc: p.upc || '',
           currentStock: currentStock,
