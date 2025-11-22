@@ -1602,7 +1602,7 @@ const PlanogramProfitTracker = () => {
   // Expose fix function to window for console access
   React.useEffect(() => {
     window.fixAllDistributors = fixAllDistributors;
-  }, [sections, firebaseUser, storeName, fixtures, unknownProducts, badStockProducts, shopifyConfig]);
+  }, []);
 
   // Sync negative stock products to Bad Stock list
   const syncNegativeStockToBadStock = () => {
