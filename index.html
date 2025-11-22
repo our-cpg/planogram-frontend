@@ -4116,12 +4116,19 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
   // Manual trigger for bad stock scan
   const manualBadStockScan = () => {
+    console.log('🔍 MANUAL BAD STOCK SCAN TRIGGERED');
+    console.log('Products loaded:', allDatabaseProducts.length);
+    
     if (allDatabaseProducts.length === 0) {
+      console.log('❌ No products loaded - stopping');
       setFeedback('⚠️ Load products first - go to Forecasting tab and click "Load All Products"');
       setTimeout(() => setFeedback(''), 5000);
       return;
     }
+    
+    console.log('✅ Calling autoSyncBadStock...');
     autoSyncBadStock(allDatabaseProducts);
+    console.log('✅ autoSyncBadStock called');
   };
 
   const checkUnknownAgainstShopify = async () => {
