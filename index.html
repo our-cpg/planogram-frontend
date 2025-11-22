@@ -1796,6 +1796,7 @@ const PlanogramProfitTracker = () => {
         sku: p.sku,
         vendor: p.vendor,
         distributor: p.distributor,
+        cost: p.cost,
         inventoryQuantity: p.stock,
         dailySales: p.dailySales,
         weeklySales: p.weeklySales,
@@ -1920,8 +1921,10 @@ const PlanogramProfitTracker = () => {
         doc.setFont(undefined, 'bold');
         doc.text('SKU', 20, startY);
         doc.text('Product', 50, startY);
-        doc.text('Current Stock', 140, startY);
-        doc.text('Order Qty', 175, startY);
+        doc.text('Velocity', 120, startY);
+        doc.text('Stock', 145, startY);
+        doc.text('Cost', 165, startY);
+        doc.text('Order Qty', 182, startY);
         
         // Draw header line
         doc.setLineWidth(0.5);
@@ -1931,6 +1934,7 @@ const PlanogramProfitTracker = () => {
         doc.setFont(undefined, 'normal');
         let yPos = startY + 8;
         let totalQty = 0;
+        let totalCost = 0;
         
         products.forEach((product) => {
           // Check if we need a new page
@@ -1942,24 +1946,33 @@ const PlanogramProfitTracker = () => {
             doc.setFont(undefined, 'bold');
             doc.text('SKU', 20, yPos);
             doc.text('Product', 50, yPos);
-            doc.text('Current Stock', 140, yPos);
-            doc.text('Order Qty', 175, yPos);
+            doc.text('Velocity', 120, yPos);
+            doc.text('Stock', 145, yPos);
+            doc.text('Cost', 165, yPos);
+            doc.text('Order Qty', 182, yPos);
             doc.line(20, yPos + 2, 200, yPos + 2);
             doc.setFont(undefined, 'normal');
             yPos += 8;
           }
           
           const sku = product.sku || 'N/A';
-          const name = product.name.length > 45 ? product.name.substring(0, 45) + '...' : product.name;
+          const name = product.name.length > 35 ? product.name.substring(0, 35) + '...' : product.name;
+          const velocity = product.dailyVelocity.toFixed(1);
           const stock = product.currentStock.toString();
+          const cost = product.cost ? `$${product.cost.toFixed(2)}` : 'N/A';
           const qty = product.reorderQty.toString();
           
           doc.text(sku, 20, yPos);
           doc.text(name, 50, yPos);
-          doc.text(stock, 145, yPos, { align: 'right' });
-          doc.text(qty, 180, yPos, { align: 'right' });
+          doc.text(velocity, 127, yPos, { align: 'right' });
+          doc.text(stock, 152, yPos, { align: 'right' });
+          doc.text(cost, 177, yPos, { align: 'right' });
+          doc.text(qty, 195, yPos, { align: 'right' });
           
           totalQty += product.reorderQty;
+          if (product.cost) {
+            totalCost += product.cost * product.reorderQty;
+          }
           yPos += 6;
         });
         
@@ -1972,11 +1985,15 @@ const PlanogramProfitTracker = () => {
         doc.setFont(undefined, 'bold');
         doc.setFontSize(10);
         doc.text('TOTAL ITEMS:', 140, yPos);
-        doc.text(products.length.toString(), 175, yPos);
+        doc.text(products.length.toString(), 190, yPos, { align: 'right' });
         
         yPos += 6;
         doc.text('TOTAL UNITS:', 140, yPos);
-        doc.text(totalQty.toString(), 180, yPos, { align: 'right' });
+        doc.text(totalQty.toString(), 190, yPos, { align: 'right' });
+        
+        yPos += 6;
+        doc.text('ESTIMATED COST:', 140, yPos);
+        doc.text(`$${totalCost.toFixed(2)}`, 190, yPos, { align: 'right' });
         
         // Footer
         doc.setFontSize(8);
