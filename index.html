@@ -1602,6 +1602,7 @@ const PlanogramProfitTracker = () => {
   // Expose fix function to window for console access
   React.useEffect(() => {
     window.fixAllDistributors = fixAllDistributors;
+    window.scanForBadStock = manualBadStockScan;
   }, []);
 
   // Sync negative stock products to Bad Stock list
@@ -4111,6 +4112,16 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       prev.map(b => b.id === id ? { ...b, resolved: true } : b)
     );
     setFeedback('✅ Marked as resolved');
+  };
+
+  // Manual trigger for bad stock scan
+  const manualBadStockScan = () => {
+    if (allDatabaseProducts.length === 0) {
+      setFeedback('⚠️ Load products first - go to Forecasting tab and click "Load All Products"');
+      setTimeout(() => setFeedback(''), 5000);
+      return;
+    }
+    autoSyncBadStock(allDatabaseProducts);
   };
 
   const checkUnknownAgainstShopify = async () => {
@@ -7877,7 +7888,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   ) : (
                     <>
                       <Icons.RefreshCw />
-                      Update Planogram Products
+                      Refresh Inventory
                     </>
                   )}
                 </button>
