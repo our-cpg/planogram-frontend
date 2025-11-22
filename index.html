@@ -1495,13 +1495,23 @@ const PlanogramProfitTracker = () => {
     console.log('Sample product inventory data:', sample.map(p => ({
       title: p.title?.substring(0, 30),
       inventory_quantity: p.inventory_quantity,
-      type: typeof p.inventory_quantity
+      inventoryQuantity: p.inventoryQuantity,
+      quantity: p.quantity,
+      type_inventory_quantity: typeof p.inventory_quantity,
+      type_inventoryQuantity: typeof p.inventoryQuantity,
+      type_quantity: typeof p.quantity
     })));
 
     const negativeStockProducts = products.filter(p => {
-      const qty = parseInt(p.inventory_quantity) || 0;
+      // Check all possible inventory field names
+      const qty = p.inventoryQuantity !== null && p.inventoryQuantity !== undefined 
+        ? p.inventoryQuantity 
+        : (p.inventory_quantity !== null && p.inventory_quantity !== undefined
+          ? parseInt(p.inventory_quantity)
+          : (p.quantity || 0));
+      
       if (qty < 0) {
-        console.log(`❌ NEGATIVE: ${p.title} = ${p.inventory_quantity}`);
+        console.log(`❌ NEGATIVE: ${p.title} = ${qty}`);
       }
       return qty < 0;
     });
@@ -1517,17 +1527,25 @@ const PlanogramProfitTracker = () => {
     const existingIds = new Set(badStockProducts.map(b => b.shopifyId));
     const newBadStockProducts = negativeStockProducts
       .filter(p => !existingIds.has(p.id))
-      .map(p => ({
-        id: Date.now() + Math.random(),
-        shopifyId: p.id,
-        title: p.title,
-        sku: p.sku,
-        upc: p.upc || '',
-        currentStock: parseInt(p.inventory_quantity) || 0,
-        reason: 'Negative Stock (Auto-detected)',
-        addedDate: new Date().toISOString(),
-        status: 'pending'
-      }));
+      .map(p => {
+        const currentStock = p.inventoryQuantity !== null && p.inventoryQuantity !== undefined 
+          ? p.inventoryQuantity 
+          : (p.inventory_quantity !== null && p.inventory_quantity !== undefined
+            ? parseInt(p.inventory_quantity)
+            : (p.quantity || 0));
+            
+        return {
+          id: Date.now() + Math.random(),
+          shopifyId: p.id,
+          title: p.title,
+          sku: p.sku,
+          upc: p.upc || '',
+          currentStock: currentStock,
+          reason: 'Negative Stock (Auto-detected)',
+          addedDate: new Date().toISOString(),
+          status: 'pending'
+        };
+      });
 
     if (newBadStockProducts.length > 0) {
       setBadStockProducts(prev => [...prev, ...newBadStockProducts]);
@@ -4684,16 +4702,16 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
-      {/* 🔥 NAVIGATION MENU */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg relative z-50 overflow-x-auto">
-        <div className="px-4 py-2">
-          <div className="flex gap-2 flex-nowrap min-w-max">
+      {/* 🔥 NAVIGATION MENU - Collapsible on Hover */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg relative z-50 group">
+        <div className="px-4 py-2 overflow-hidden">
+          <div className="flex gap-2 flex-nowrap relative">
             <button
               onClick={() => setCurrentPage('planner')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'planner'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-blue-500 text-white hover:bg-blue-400'
+                  ? 'bg-white text-blue-600 shadow-lg relative z-10'
+                  : 'bg-blue-500 text-white hover:bg-blue-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
             >
               🗺️ Store Planner
@@ -4702,8 +4720,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               onClick={() => setCurrentPage('findProduct')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'findProduct'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-green-500 text-white hover:bg-green-400'
+                  ? 'bg-white text-blue-600 shadow-lg relative z-10'
+                  : 'bg-green-500 text-white hover:bg-green-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
             >
               🔍 Find Product
@@ -4712,8 +4730,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               onClick={() => setCurrentPage('dashboard')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'dashboard'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-blue-500 text-white hover:bg-blue-400'
+                  ? 'bg-white text-blue-600 shadow-lg relative z-10'
+                  : 'bg-blue-500 text-white hover:bg-blue-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
             >
               📊 Dashboard
@@ -4722,8 +4740,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               onClick={() => setCurrentPage('forecasting')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'forecasting'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-blue-500 text-white hover:bg-blue-400'
+                  ? 'bg-white text-blue-600 shadow-lg relative z-10'
+                  : 'bg-blue-500 text-white hover:bg-blue-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
             >
               📈 Forecasting
@@ -4732,8 +4750,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               onClick={() => setCurrentPage('rowAnalytics')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'rowAnalytics'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-blue-500 text-white hover:bg-blue-400'
+                  ? 'bg-white text-blue-600 shadow-lg relative z-10'
+                  : 'bg-blue-500 text-white hover:bg-blue-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
             >
               📊 Row Analytics
@@ -4742,8 +4760,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               onClick={() => setCurrentPage('unknownProducts')}
               className={`px-4 py-2 rounded-lg font-semibold transition-all relative ${
                 currentPage === 'unknownProducts'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-blue-500 text-white hover:bg-blue-400'
+                  ? 'bg-white text-blue-600 shadow-lg z-10'
+                  : 'bg-blue-500 text-white hover:bg-blue-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
             >
               ⚠️ Unknown Products
@@ -4757,8 +4775,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               onClick={() => setCurrentPage('savedLayouts')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'savedLayouts'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-purple-500 text-white hover:bg-purple-400'
+                  ? 'bg-white text-blue-600 shadow-lg relative z-10'
+                  : 'bg-purple-500 text-white hover:bg-purple-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
             >
               💾 Saved Layouts
@@ -4772,8 +4790,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               onClick={() => setCurrentPage('badStock')}
               className={`px-4 py-2 rounded-lg font-semibold transition-all relative ${
                 currentPage === 'badStock'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-orange-500 text-white hover:bg-orange-400'
+                  ? 'bg-white text-blue-600 shadow-lg z-10'
+                  : 'bg-orange-500 text-white hover:bg-orange-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
             >
               📦 Bad Stock
@@ -4787,8 +4805,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               onClick={() => setCurrentPage('discounts')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'discounts'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-emerald-500 text-white hover:bg-emerald-400'
+                  ? 'bg-white text-blue-600 shadow-lg relative z-10'
+                  : 'bg-emerald-500 text-white hover:bg-emerald-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
             >
               💰 Discounts
@@ -4797,8 +4815,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               onClick={() => setCurrentPage('settings')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'settings'
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'bg-blue-500 text-white hover:bg-blue-400'
+                  ? 'bg-white text-blue-600 shadow-lg relative z-10'
+                  : 'bg-blue-500 text-white hover:bg-blue-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
             >
               ⚙️ Settings
