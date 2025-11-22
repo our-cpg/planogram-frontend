@@ -4210,6 +4210,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       const unresolvedBadStock = badStockProducts.filter(b => !b.resolved);
       let updatedCount = 0;
       let resolvedCount = 0;
+      let movedToUnknownCount = 0;
+      const productsToRemove = [];
 
       for (const badStock of unresolvedBadStock) {
         try {
@@ -4219,9 +4221,34 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           url.searchParams.append('accessToken', shopifyConfig.accessToken);
           
           const response = await fetch(url);
+          
+          // Product doesn't exist in Shopify - move to Unknown Products
+          if (!response.ok || response.status === 404) {
+            console.log(`🔍 UPC ${badStock.upc} not found in Shopify - moving to Unknown Products`);
+            
+            // Add to Unknown Products if not already there
+            setUnknownProducts(prev => {
+              const exists = prev.some(u => u.upc === badStock.upc);
+              if (!exists) {
+                return [...prev, {
+                  id: `unknown_${Date.now()}_${Math.random()}`,
+                  upc: badStock.upc,
+                  scannedAt: new Date().toISOString(),
+                  note: `Moved from Bad Stock - not found in Shopify`
+                }];
+              }
+              return prev;
+            });
+            
+            // Mark for removal from Bad Stock
+            productsToRemove.push(badStock.id);
+            movedToUnknownCount++;
+            continue;
+          }
+          
           const data = await response.json();
 
-          if (response.ok && data.inventoryQuantity !== undefined) {
+          if (data.inventoryQuantity !== undefined) {
             // Update the bad stock product with fresh inventory
             setBadStockProducts(prev =>
               prev.map(b => {
@@ -4256,12 +4283,25 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         }
       }
 
+      // Remove products that were moved to Unknown Products
+      if (productsToRemove.length > 0) {
+        setBadStockProducts(prev => 
+          prev.filter(b => !productsToRemove.includes(b.id))
+        );
+      }
+
       setBadStockLastRefresh(new Date());
       
-      if (resolvedCount > 0) {
-        setFeedback(`✅ Refreshed! ${resolvedCount} resolved, ${updatedCount} still negative`);
+      // Build feedback message
+      const feedbackParts = [];
+      if (resolvedCount > 0) feedbackParts.push(`${resolvedCount} resolved`);
+      if (updatedCount > 0) feedbackParts.push(`${updatedCount} still negative`);
+      if (movedToUnknownCount > 0) feedbackParts.push(`${movedToUnknownCount} moved to Unknown Products`);
+      
+      if (feedbackParts.length > 0) {
+        setFeedback(`✅ Refreshed! ${feedbackParts.join(', ')}`);
       } else {
-        setFeedback(`✅ Refreshed ${updatedCount} bad stock products`);
+        setFeedback(`✅ Refresh complete - no changes`);
       }
       
       setTimeout(() => setFeedback(''), 5000);
