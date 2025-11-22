@@ -1403,6 +1403,51 @@ const PlanogramProfitTracker = () => {
     }
   };
 
+  // Sync negative stock products to Bad Stock list
+  const syncNegativeStockToBadStock = () => {
+    if (allDatabaseProducts.length === 0) {
+      setFeedback('⚠️ Load products first');
+      setTimeout(() => setFeedback(''), 3000);
+      return;
+    }
+
+    const negativeStockProducts = allDatabaseProducts.filter(p => {
+      const qty = parseInt(p.inventory_quantity) || 0;
+      return qty < 0;
+    });
+
+    if (negativeStockProducts.length === 0) {
+      setFeedback('✅ No negative stock products found');
+      setTimeout(() => setFeedback(''), 3000);
+      return;
+    }
+
+    // Add to bad stock list (avoid duplicates)
+    const existingIds = new Set(badStockProducts.map(b => b.shopifyId));
+    const newBadStockProducts = negativeStockProducts
+      .filter(p => !existingIds.has(p.id))
+      .map(p => ({
+        id: Date.now() + Math.random(),
+        shopifyId: p.id,
+        title: p.title,
+        sku: p.sku,
+        upc: p.upc || '',
+        currentStock: parseInt(p.inventory_quantity) || 0,
+        reason: 'Negative Stock from Forecasting',
+        addedDate: new Date().toISOString(),
+        status: 'pending'
+      }));
+
+    if (newBadStockProducts.length > 0) {
+      setBadStockProducts(prev => [...prev, ...newBadStockProducts]);
+      setFeedback(`✅ Added ${newBadStockProducts.length} negative stock product(s) to Bad Stock list`);
+      setTimeout(() => setFeedback(''), 3000);
+    } else {
+      setFeedback('ℹ️ All negative stock products already in Bad Stock list');
+      setTimeout(() => setFeedback(''), 3000);
+    }
+  };
+
   // Generate Purchase Orders by Distributor
   const generatePurchaseOrders = () => {
     if (allDatabaseProducts.length === 0) {
@@ -7537,7 +7582,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </div>
 
               {/* Download PO Button */}
-              <div className="pt-5">
+              <div className="pt-5 flex gap-2">
                 <button
                   onClick={generatePurchaseOrders}
                   disabled={allDatabaseProducts.length === 0}
@@ -7549,6 +7594,20 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 >
                   <Icons.Download />
                   Download PO
+                </button>
+                
+                <button
+                  onClick={syncNegativeStockToBadStock}
+                  disabled={allDatabaseProducts.length === 0}
+                  className={`px-3 py-2 rounded text-sm flex items-center gap-1 ${
+                    allDatabaseProducts.length === 0
+                      ? 'bg-gray-300 text-gray-600 cursor-not-allowed' 
+                      : 'bg-red-600 text-white hover:bg-red-700'
+                  }`}
+                  title="Add products with negative stock to Bad Stock list"
+                >
+                  <Icons.AlertTriangle />
+                  Sync to Bad Stock
                 </button>
               </div>
             </div>
