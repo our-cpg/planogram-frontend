@@ -1485,43 +1485,30 @@ const PlanogramProfitTracker = () => {
 
   // AUTO-SYNC: Check for negative stock and add to Bad Stock list (with notification)
   const autoSyncBadStock = (products) => {
-    console.log('🔍 Checking for negative stock products...');
+    console.log('🔍 Checking for negative stock products from API...');
     
-    // Build the SAME product list that forecasting uses
-    let allProducts = allDatabaseProducts.length > 0 
-      ? allDatabaseProducts.map(p => ({
-          upc: p.barcode,
-          name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
-          inventoryQuantity: p.stock, // API returns 'stock'
-          shopifyId: p.id,
-          title: p.title,
-          sku: p.sku
-        }))
-      : sections.flatMap(section => {
-          const products = section.rows ? 
-            section.rows.flatMap(row => row.products || []) : 
-            (section.products || []);
-          return products;
-        });
+    // Use the products passed in (from API with stock field)
+    if (!products || products.length === 0) {
+      console.log('⚠️ No products provided to scan');
+      return;
+    }
 
-    console.log(`Total products to check: ${allProducts.length}`);
+    console.log(`Total products to check: ${products.length}`);
     
     // Sample first 5 products
-    const sample = allProducts.slice(0, 5);
+    const sample = products.slice(0, 5);
     console.log('Sample product inventory data:', sample.map(p => ({
-      title: p.name || p.title,
-      inventoryQuantity: p.inventoryQuantity,
-      quantity: p.quantity
+      title: p.title,
+      stock: p.stock,
+      variantTitle: p.variantTitle
     })));
 
-    const negativeStockProducts = allProducts.filter(p => {
-      // Check inventory using same logic as forecasting display
-      const currentStock = p.inventoryQuantity !== null && p.inventoryQuantity !== undefined 
-        ? p.inventoryQuantity 
-        : (p.quantity || 0);
+    const negativeStockProducts = products.filter(p => {
+      // API returns 'stock' field
+      const currentStock = p.stock !== null && p.stock !== undefined ? p.stock : 0;
       
       if (currentStock < 0) {
-        console.log(`❌ NEGATIVE: ${p.name || p.title} = ${currentStock}`);
+        console.log(`❌ NEGATIVE: ${p.title} ${p.variantTitle || ''} = ${currentStock}`);
       }
       return currentStock < 0;
     });
@@ -1537,21 +1524,17 @@ const PlanogramProfitTracker = () => {
     const existingIds = new Set(badStockProducts.map(b => b.shopifyId));
     const newBadStockProducts = negativeStockProducts
       .filter(p => {
-        const id = p.shopifyId || p.id;
+        const id = p.variantId;
         return id && !existingIds.has(id);
       })
       .map(p => {
-        const currentStock = p.inventoryQuantity !== null && p.inventoryQuantity !== undefined 
-          ? p.inventoryQuantity 
-          : (p.quantity || 0);
-            
         return {
           id: Date.now() + Math.random(),
-          shopifyId: p.shopifyId || p.id,
-          title: p.name || p.title,
+          shopifyId: p.variantId,
+          title: `${p.title}${p.variantTitle ? ` - ${p.variantTitle}` : ''}`,
           sku: p.sku,
-          upc: p.upc || '',
-          currentStock: currentStock,
+          upc: p.barcode || '',
+          currentStock: p.stock,
           reason: 'Negative Stock (Auto-detected)',
           addedDate: new Date().toISOString(),
           status: 'pending'
