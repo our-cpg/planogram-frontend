@@ -1488,11 +1488,25 @@ const PlanogramProfitTracker = () => {
     if (!products || products.length === 0) return;
 
     console.log('🔍 Checking for negative stock products...');
+    console.log(`Total products to check: ${products.length}`);
+    
+    // Sample first 5 products to see their inventory structure
+    const sample = products.slice(0, 5);
+    console.log('Sample product inventory data:', sample.map(p => ({
+      title: p.title?.substring(0, 30),
+      inventory_quantity: p.inventory_quantity,
+      type: typeof p.inventory_quantity
+    })));
 
     const negativeStockProducts = products.filter(p => {
       const qty = parseInt(p.inventory_quantity) || 0;
+      if (qty < 0) {
+        console.log(`❌ NEGATIVE: ${p.title} = ${p.inventory_quantity}`);
+      }
       return qty < 0;
     });
+
+    console.log(`Found ${negativeStockProducts.length} products with negative stock`);
 
     if (negativeStockProducts.length === 0) {
       console.log('✅ No negative stock products found');
