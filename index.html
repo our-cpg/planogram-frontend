@@ -1854,6 +1854,18 @@ const PlanogramProfitTracker = () => {
           
           // If stock is very low (≤5), look at quarterly sales for more accurate velocity
           if (currentStock <= 5) {
+            // Debug: Log sales data for zero-stock items
+            if (currentStock === 0 && (product.sku === 'AA92699' || !product.quarterlySales)) {
+              console.log(`📊 Sales data for ${product.name} (${product.sku}):`, {
+                daily: product.dailySales,
+                weekly: product.weeklySales,
+                monthly: product.monthlySales,
+                quarterly: product.quarterlySales,
+                yearly: product.yearlySales,
+                allTime: product.allTimeSales
+              });
+            }
+            
             salesVolume = product.quarterlySales || product.monthlySales || 0;
             daysInPeriod = product.quarterlySales ? 90 : 30;
           } else {
