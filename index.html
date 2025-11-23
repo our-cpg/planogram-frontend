@@ -1908,6 +1908,10 @@ const PlanogramProfitTracker = () => {
 
       distributorNames.forEach((distributor) => {
         const products = byDistributor[distributor];
+        
+        // Sort by reorder quantity (highest first)
+        const sortedProducts = products.sort((a, b) => b.reorderQty - a.reorderQty);
+        
         const doc = new jsPDF();
         
         // Header
@@ -1958,7 +1962,7 @@ const PlanogramProfitTracker = () => {
         let totalQty = 0;
         let totalCost = 0;
         
-        products.forEach((product) => {
+        sortedProducts.forEach((product) => {
           // Check if we need a new page
           if (yPos > 270) {
             doc.addPage();
@@ -2007,7 +2011,7 @@ const PlanogramProfitTracker = () => {
         doc.setFont(undefined, 'bold');
         doc.setFontSize(10);
         doc.text('TOTAL ITEMS:', 140, yPos);
-        doc.text(products.length.toString(), 190, yPos, { align: 'right' });
+        doc.text(sortedProducts.length.toString(), 190, yPos, { align: 'right' });
         
         yPos += 6;
         doc.text('TOTAL UNITS:', 140, yPos);
