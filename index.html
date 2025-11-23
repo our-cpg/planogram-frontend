@@ -1789,6 +1789,140 @@ const PlanogramProfitTracker = () => {
     }
   };
 
+  // Generate CSV export with forecasting data
+  const generateCSV = () => {
+    if (allDatabaseProducts.length === 0) {
+      setFeedback('⚠️ Load products first');
+      setTimeout(() => setFeedback(''), 3000);
+      return;
+    }
+
+    try {
+      // Create cost lookup from planogram
+      const costLookup = {};
+      sections.forEach(section => {
+        const products = section.rows ? 
+          section.rows.flatMap(row => row.products || []) : 
+          (section.products || []);
+        
+        products.forEach(product => {
+          if (product.upc && product.cost !== undefined && product.cost !== null && product.cost !== '') {
+            costLookup[product.upc] = product.cost;
+          }
+        });
+      });
+      
+      // Use API data with planogram costs
+      let allProducts = allDatabaseProducts.map(p => ({
+        upc: p.barcode,
+        name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
+        sku: p.sku,
+        vendor: p.vendor,
+        distributor: p.distributor,
+        cost: costLookup[p.barcode] || p.cost,
+        inventoryQuantity: p.stock,
+        dailySales: p.dailySales,
+        weeklySales: p.weeklySales,
+        monthlySales: p.monthlySales
+      }));
+
+      // Apply current filters
+      if (forecastFilterDistributor !== 'all') {
+        allProducts = allProducts.filter(p => {
+          const dist = p.distributor?.trim();
+          const distributor = dist && dist !== '' ? dist : 'Unknown Distributor';
+          return distributor === forecastFilterDistributor;
+        });
+      }
+
+      // Calculate forecasting metrics
+      const productsWithForecasts = allProducts.map(product => {
+        let salesVolume = 0;
+        let daysInPeriod = 30;
+        
+        if (timePeriod === 'dateRange' && dateRangeSalesData) {
+          const variantSales = dateRangeSalesData.salesData.find(
+            s => s.variantId.toString() === product.variantId?.toString()
+          );
+          salesVolume = variantSales ? variantSales.totalSales : 0;
+          daysInPeriod = dateRangeSalesData.daysInPeriod;
+        } else {
+          switch(timePeriod) {
+            case 'week':
+              salesVolume = product.weeklySales || 0;
+              daysInPeriod = 7;
+              break;
+            case 'month':
+              salesVolume = product.monthlySales || 0;
+              daysInPeriod = 30;
+              break;
+            default:
+              salesVolume = product.monthlySales || 0;
+              daysInPeriod = 30;
+          }
+        }
+
+        const dailyVelocity = daysInPeriod > 0 ? salesVolume / daysInPeriod : 0;
+        const currentStock = product.inventoryQuantity !== null && product.inventoryQuantity !== undefined 
+          ? product.inventoryQuantity 
+          : 0;
+        
+        const targetSupply = dailyVelocity * 30;
+        const safetyStock = targetSupply * 0.25;
+        const reorderQty = Math.max(0, Math.ceil(targetSupply + safetyStock - currentStock));
+
+        return {
+          ...product,
+          currentStock,
+          dailyVelocity,
+          reorderQty
+        };
+      });
+
+      // Sort by reorder quantity (highest first)
+      const sortedProducts = productsWithForecasts.sort((a, b) => b.reorderQty - a.reorderQty);
+
+      // Create CSV content
+      const headers = ['SKU', 'Product', 'Distributor', 'Velocity', 'Stock', 'Cost', 'Order Qty'];
+      const rows = sortedProducts.map(p => [
+        p.sku || 'N/A',
+        `"${p.name.replace(/"/g, '""')}"`, // Escape quotes in product names
+        p.distributor || 'Unknown',
+        p.dailyVelocity.toFixed(1),
+        p.currentStock,
+        p.cost ? p.cost.toFixed(2) : 'N/A',
+        p.reorderQty
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+
+      // Download CSV
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      const distributor = forecastFilterDistributor !== 'all' ? forecastFilterDistributor : 'All';
+      const fileName = `Forecast_${distributor.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', fileName);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setFeedback('✅ CSV downloaded!');
+      setTimeout(() => setFeedback(''), 3000);
+    } catch (error) {
+      console.error('CSV generation error:', error);
+      setFeedback('❌ Error generating CSV');
+      setTimeout(() => setFeedback(''), 3000);
+    }
+  };
+
   // Generate Purchase Orders by Distributor
   const generatePurchaseOrders = () => {
     if (allDatabaseProducts.length === 0) {
@@ -7991,6 +8125,22 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 >
                   <Icons.Download />
                   Download PO
+                </button>
+              </div>
+              
+              {/* Download CSV Button */}
+              <div>
+                <button
+                  onClick={generateCSV}
+                  className={`px-4 py-2 rounded flex items-center gap-2 ${
+                    allDatabaseProducts.length === 0
+                      ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                      : 'bg-purple-600 text-white hover:bg-purple-700'
+                  }`}
+                  disabled={allDatabaseProducts.length === 0}
+                >
+                  <Icons.FileText />
+                  Download CSV
                 </button>
               </div>
             </div>
