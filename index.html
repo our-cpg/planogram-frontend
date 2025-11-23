@@ -1847,18 +1847,30 @@ const PlanogramProfitTracker = () => {
           salesVolume = variantSales ? variantSales.totalSales : 0;
           daysInPeriod = dateRangeSalesData.daysInPeriod;
         } else {
-          switch(timePeriod) {
-            case 'week':
-              salesVolume = product.weeklySales || 0;
-              daysInPeriod = 7;
-              break;
-            case 'month':
-              salesVolume = product.monthlySales || 0;
-              daysInPeriod = 30;
-              break;
-            default:
-              salesVolume = product.monthlySales || 0;
-              daysInPeriod = 30;
+          // For products with low/zero stock, use longer periods to capture true velocity
+          const currentStock = product.inventoryQuantity !== null && product.inventoryQuantity !== undefined 
+            ? product.inventoryQuantity 
+            : 0;
+          
+          // If stock is very low (≤5), look at quarterly sales for more accurate velocity
+          if (currentStock <= 5) {
+            salesVolume = product.quarterlySales || product.monthlySales || 0;
+            daysInPeriod = product.quarterlySales ? 90 : 30;
+          } else {
+            // Normal stock levels - use selected time period
+            switch(timePeriod) {
+              case 'week':
+                salesVolume = product.weeklySales || 0;
+                daysInPeriod = 7;
+                break;
+              case 'month':
+                salesVolume = product.monthlySales || 0;
+                daysInPeriod = 30;
+                break;
+              default:
+                salesVolume = product.monthlySales || 0;
+                daysInPeriod = 30;
+            }
           }
         }
 
@@ -8216,31 +8228,42 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 salesVolume = variantSales ? variantSales.totalSales : 0;
                 daysInPeriod = dateRangeSalesData.daysInPeriod;
               } else {
-                // Use pre-calculated sales data from database
-                switch(timePeriod) {
-                  case 'day':
-                    salesVolume = product.dailySales || 0;
-                    daysInPeriod = 1;
-                    break;
-                  case 'week':
-                    salesVolume = product.weeklySales || 0;
-                    daysInPeriod = 7;
-                    break;
-                  case 'month':
-                    salesVolume = product.monthlySales || 0;
-                    daysInPeriod = 30;
-                    break;
-                  case 'quarter':
-                    salesVolume = product.quarterlySales || 0;
-                    daysInPeriod = 90;
-                    break;
-                  case 'year':
-                    salesVolume = product.yearlySales || 0;
-                    daysInPeriod = 365;
-                    break;
-                  default:
-                    salesVolume = product.monthlySales || 0;
-                    daysInPeriod = 30;
+                // For products with low/zero stock, use longer periods to capture true velocity
+                const currentStock = product.inventoryQuantity !== null && product.inventoryQuantity !== undefined 
+                  ? product.inventoryQuantity 
+                  : 0;
+                
+                // If stock is very low (≤5), look at quarterly sales for more accurate velocity
+                if (currentStock <= 5) {
+                  salesVolume = product.quarterlySales || product.monthlySales || 0;
+                  daysInPeriod = product.quarterlySales ? 90 : 30;
+                } else {
+                  // Normal stock levels - use selected time period
+                  switch(timePeriod) {
+                    case 'day':
+                      salesVolume = product.dailySales || 0;
+                      daysInPeriod = 1;
+                      break;
+                    case 'week':
+                      salesVolume = product.weeklySales || 0;
+                      daysInPeriod = 7;
+                      break;
+                    case 'month':
+                      salesVolume = product.monthlySales || 0;
+                      daysInPeriod = 30;
+                      break;
+                    case 'quarter':
+                      salesVolume = product.quarterlySales || 0;
+                      daysInPeriod = 90;
+                      break;
+                    case 'year':
+                      salesVolume = product.yearlySales || 0;
+                      daysInPeriod = 365;
+                      break;
+                    default:
+                      salesVolume = product.monthlySales || 0;
+                      daysInPeriod = 30;
+                  }
                 }
               }
 
