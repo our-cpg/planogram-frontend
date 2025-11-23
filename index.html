@@ -1393,6 +1393,25 @@ const PlanogramProfitTracker = () => {
       console.log(`✅ Loaded ${products.length} products with LIVE inventory from Shopify`);
       console.log(`📊 Summary:`, data.summary);
       console.log(`🔴 Source: ${data.summary?.source}`);
+      
+      // DEBUG: Check what fields we have for cost tracking
+      if (products.length > 0) {
+        console.log('🔍 COST DEBUG - First Product Fields:', {
+          title: products[0].title,
+          cost: products[0].cost,
+          price: products[0].price,
+          allFields: Object.keys(products[0])
+        });
+        
+        // Check if cost exists anywhere
+        const productsWithCost = products.filter(p => p.cost !== undefined && p.cost !== null && p.cost !== '');
+        console.log(`💰 Products with cost data: ${productsWithCost.length} / ${products.length}`);
+        
+        if (productsWithCost.length === 0) {
+          console.warn('⚠️ WARNING: No products have cost data! Check backend API.');
+        }
+      }
+      
       setAllDatabaseProducts(products);
       setFeedback(`✅ Loaded ${products.length} products with LIVE Shopify inventory (${data.summary?.criticalAlerts || 0} critical alerts)`);
       
