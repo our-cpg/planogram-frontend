@@ -1786,35 +1786,41 @@ const PlanogramProfitTracker = () => {
     }
 
     try {
-      // Create a cost lookup map from planogram products (which have accurate cost data)
-      const costLookup = {};
+      // Create a lookup map from planogram products (cost + distributor)
+      const planogramLookup = {};
       sections.forEach(section => {
         const products = section.rows ? 
           section.rows.flatMap(row => row.products || []) : 
           (section.products || []);
         
         products.forEach(product => {
-          if (product.upc && product.cost !== undefined && product.cost !== null) {
-            costLookup[product.upc] = product.cost;
+          if (product.upc) {
+            planogramLookup[product.upc] = {
+              cost: product.cost,
+              distributor: product.distributor
+            };
           }
         });
       });
       
-      console.log(`📊 Built cost lookup with ${Object.keys(costLookup).length} products from planogram`);
+      console.log(`📊 Built planogram lookup with ${Object.keys(planogramLookup).length} products`);
       
       // Get filtered and calculated products (same as display logic)
-      let allProducts = allDatabaseProducts.map(p => ({
-        upc: p.barcode,
-        name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
-        sku: p.sku,
-        vendor: p.vendor,
-        distributor: p.distributor,
-        cost: costLookup[p.barcode] || p.cost, // Use planogram cost first, fallback to API cost
-        inventoryQuantity: p.stock,
-        dailySales: p.dailySales,
-        weeklySales: p.weeklySales,
-        monthlySales: p.monthlySales
-      }));
+      let allProducts = allDatabaseProducts.map(p => {
+        const planogramData = planogramLookup[p.barcode] || {};
+        return {
+          upc: p.barcode,
+          name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
+          sku: p.sku,
+          vendor: p.vendor,
+          distributor: planogramData.distributor || p.distributor, // Use planogram distributor first
+          cost: planogramData.cost || p.cost, // Use planogram cost first
+          inventoryQuantity: p.stock,
+          dailySales: p.dailySales,
+          weeklySales: p.weeklySales,
+          monthlySales: p.monthlySales
+        };
+      });
 
       // Apply current filters
       if (forecastFilterDistributor !== 'all') {
@@ -1874,8 +1880,8 @@ const PlanogramProfitTracker = () => {
         };
       });
 
-      // Filter to only products that need reordering
-      const productsNeedingReorder = productsWithForecasts.filter(p => p.reorderQty > 0);
+      // Use all products (don't filter by reorderQty - include everything from this distributor)
+      const productsNeedingReorder = productsWithForecasts;
 
       if (productsNeedingReorder.length === 0) {
         setFeedback('✅ No products need reordering!');
@@ -2012,7 +2018,7 @@ const PlanogramProfitTracker = () => {
         yPos += 10; // Add space after summary
         doc.setFontSize(8);
         doc.setFont(undefined, 'italic');
-        doc.text('This purchase order is based on 30-day supply forecast with 25% safety stock.', 105, yPos, { align: 'center' });
+        doc.text('Order quantities based on 30-day supply forecast with 25% safety stock. Items with 0 qty are well-stocked.', 105, yPos, { align: 'center' });
         yPos += 5;
         doc.text('Please confirm pricing and availability before processing.', 105, yPos, { align: 'center' });
         
