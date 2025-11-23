@@ -539,6 +539,7 @@ const PlanogramProfitTracker = () => {
   const [forecastFilterFixture, setForecastFilterFixture] = useState('all'); // specific fixture filter
   const [forecastFilterBrand, setForecastFilterBrand] = useState('all'); // specific brand filter
   const [forecastFilterDistributor, setForecastFilterDistributor] = useState('all'); // specific distributor filter
+  const [forecastSearchQuery, setForecastSearchQuery] = useState(''); // search filter for UPC/SKU/name
   
   // Row Analytics filters
   const [rowFilterFixture, setRowFilterFixture] = useState('all');
@@ -7912,6 +7913,18 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 </>
               )}
 
+              {/* Search Filter */}
+              <div className="min-w-[200px]">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Search Products</label>
+                <input
+                  type="text"
+                  value={forecastSearchQuery}
+                  onChange={(e) => setForecastSearchQuery(e.target.value)}
+                  placeholder="UPC, SKU, or name..."
+                  className="w-full px-3 py-2 border rounded text-sm"
+                />
+              </div>
+
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Sort By</label>
                 <select
@@ -7927,13 +7940,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </div>
 
               {/* Clear Filters Button */}
-              {(forecastFilterFixture !== 'all' || forecastFilterBrand !== 'all' || forecastFilterDistributor !== 'all') && (
+              {(forecastFilterFixture !== 'all' || forecastFilterBrand !== 'all' || forecastFilterDistributor !== 'all' || forecastSearchQuery !== '') && (
                 <div className="pt-5">
                   <button
                     onClick={() => {
                       setForecastFilterFixture('all');
                       setForecastFilterBrand('all');
                       setForecastFilterDistributor('all');
+                      setForecastSearchQuery('');
                     }}
                     className="px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600 flex items-center gap-1"
                   >
@@ -8041,6 +8055,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 const dist = p.distributor?.trim();
                 const distributor = dist && dist !== '' ? dist : 'Unknown Distributor';
                 return distributor === forecastFilterDistributor;
+              });
+            }
+
+            // Apply search filter
+            if (forecastSearchQuery.trim() !== '') {
+              const query = forecastSearchQuery.toLowerCase().trim();
+              allProducts = allProducts.filter(p => {
+                const upc = (p.upc || '').toLowerCase();
+                const sku = (p.sku || '').toLowerCase();
+                const name = (p.name || '').toLowerCase();
+                return upc.includes(query) || sku.includes(query) || name.includes(query);
               });
             }
 
