@@ -1852,22 +1852,24 @@ const PlanogramProfitTracker = () => {
             ? product.inventoryQuantity 
             : 0;
           
-          // If stock is very low (≤5), look at quarterly sales for more accurate velocity
+          // If stock is very low (≤5), look at longer history for more accurate velocity
           if (currentStock <= 5) {
-            // Debug: Log sales data for zero-stock items
-            if (currentStock === 0 && (product.sku === 'AA92699' || !product.quarterlySales)) {
-              console.log(`📊 Sales data for ${product.name} (${product.sku}):`, {
-                daily: product.dailySales,
-                weekly: product.weeklySales,
-                monthly: product.monthlySales,
-                quarterly: product.quarterlySales,
-                yearly: product.yearlySales,
-                allTime: product.allTimeSales
-              });
+            // Try quarterly first, then yearly, then allTime
+            if (product.quarterlySales && product.quarterlySales > 0) {
+              salesVolume = product.quarterlySales;
+              daysInPeriod = 90;
+            } else if (product.yearlySales && product.yearlySales > 0) {
+              salesVolume = product.yearlySales;
+              daysInPeriod = 365;
+            } else if (product.allTimeSales && product.allTimeSales > 0) {
+              // Use all-time sales but cap at 1 year for realistic velocity
+              salesVolume = product.allTimeSales;
+              daysInPeriod = Math.min(365, 180); // Assume at least 6 months of history
+            } else {
+              // Fallback to monthly
+              salesVolume = product.monthlySales || 0;
+              daysInPeriod = 30;
             }
-            
-            salesVolume = product.quarterlySales || product.monthlySales || 0;
-            daysInPeriod = product.quarterlySales ? 90 : 30;
           } else {
             // Normal stock levels - use selected time period
             switch(timePeriod) {
@@ -8228,6 +8230,18 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
             // Calculate forecasting metrics for each product
             const productsWithForecasts = allProducts.map(product => {
+              // Debug: Log first few products with zero stock to see sales data
+              if (product.inventoryQuantity === 0 && Math.random() < 0.1) {
+                console.log(`📊 Zero-stock product: ${product.name} (${product.sku})`, {
+                  daily: product.dailySales,
+                  weekly: product.weeklySales,
+                  monthly: product.monthlySales,
+                  quarterly: product.quarterlySales,
+                  yearly: product.yearlySales,
+                  allTime: product.allTimeSales
+                });
+              }
+              
               // Get sales velocity based on time period
               let salesVolume = 0;
               let daysInPeriod = 30;
@@ -8245,10 +8259,24 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   ? product.inventoryQuantity 
                   : 0;
                 
-                // If stock is very low (≤5), look at quarterly sales for more accurate velocity
+                // If stock is very low (≤5), look at longer history for more accurate velocity
                 if (currentStock <= 5) {
-                  salesVolume = product.quarterlySales || product.monthlySales || 0;
-                  daysInPeriod = product.quarterlySales ? 90 : 30;
+                  // Try quarterly first, then yearly, then allTime
+                  if (product.quarterlySales && product.quarterlySales > 0) {
+                    salesVolume = product.quarterlySales;
+                    daysInPeriod = 90;
+                  } else if (product.yearlySales && product.yearlySales > 0) {
+                    salesVolume = product.yearlySales;
+                    daysInPeriod = 365;
+                  } else if (product.allTimeSales && product.allTimeSales > 0) {
+                    // Use all-time sales but cap at 1 year for realistic velocity
+                    salesVolume = product.allTimeSales;
+                    daysInPeriod = Math.min(365, 180); // Assume at least 6 months of history
+                  } else {
+                    // Fallback to monthly
+                    salesVolume = product.monthlySales || 0;
+                    daysInPeriod = 30;
+                  }
                 } else {
                   // Normal stock levels - use selected time period
                   switch(timePeriod) {
