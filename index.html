@@ -1796,11 +1796,10 @@ const PlanogramProfitTracker = () => {
         distributor: p.distributor,
         cost: p.cost,
         inventoryQuantity: p.stock,
-          dailySales: p.dailySales,
-          weeklySales: p.weeklySales,
-          monthlySales: p.monthlySales
-        };
-      });
+        dailySales: p.dailySales,
+        weeklySales: p.weeklySales,
+        monthlySales: p.monthlySales
+      }));
 
       // Apply current filters
       if (forecastFilterDistributor !== 'all') {
