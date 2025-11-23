@@ -1787,42 +1787,15 @@ const PlanogramProfitTracker = () => {
     }
 
     try {
-      // Create a lookup map from planogram products (cost + distributor)
-      const planogramLookup = {};
-      sections.forEach(section => {
-        const products = section.rows ? 
-          section.rows.flatMap(row => row.products || []) : 
-          (section.products || []);
-        
-        products.forEach(product => {
-          if (product.upc) {
-            const lookupData = {};
-            // Only add cost if it has a value
-            if (product.cost !== undefined && product.cost !== null && product.cost !== '') {
-              lookupData.cost = product.cost;
-            }
-            // Only add distributor if it has a value
-            if (product.distributor && product.distributor.trim() !== '') {
-              lookupData.distributor = product.distributor;
-            }
-            planogramLookup[product.upc] = lookupData;
-          }
-        });
-      });
-      
-      console.log(`📊 Built planogram lookup with ${Object.keys(planogramLookup).length} products`);
-      
-      // Get filtered and calculated products (same as display logic)
-      let allProducts = allDatabaseProducts.map(p => {
-        const planogramData = planogramLookup[p.barcode] || {};
-        return {
-          upc: p.barcode,
-          name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
-          sku: p.sku,
-          vendor: p.vendor,
-          distributor: planogramData.distributor || p.distributor, // Use planogram distributor first
-          cost: planogramData.cost || p.cost, // Use planogram cost first
-          inventoryQuantity: p.stock,
+      // Use API data directly - no planogram lookup
+      let allProducts = allDatabaseProducts.map(p => ({
+        upc: p.barcode,
+        name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
+        sku: p.sku,
+        vendor: p.vendor,
+        distributor: p.distributor,
+        cost: p.cost,
+        inventoryQuantity: p.stock,
           dailySales: p.dailySales,
           weeklySales: p.weeklySales,
           monthlySales: p.monthlySales
@@ -1831,19 +1804,10 @@ const PlanogramProfitTracker = () => {
 
       // Apply current filters
       if (forecastFilterDistributor !== 'all') {
-        // Normalize distributor names for comparison
-        const normalizeDistributor = (dist) => {
-          if (!dist) return 'Unknown Distributor';
-          const cleaned = dist.trim();
-          return cleaned
-            .replace(/\s+Beauty\s+Supply$/i, '')
-            .replace(/\s+Beauty$/i, '')
-            .trim() || 'Unknown Distributor';
-        };
-        
         allProducts = allProducts.filter(p => {
-          const normalizedDist = normalizeDistributor(p.distributor);
-          return normalizedDist === forecastFilterDistributor;
+          const dist = p.distributor?.trim();
+          const distributor = dist && dist !== '' ? dist : 'Unknown Distributor';
+          return distributor === forecastFilterDistributor;
         });
       }
 
@@ -1904,19 +1868,10 @@ const PlanogramProfitTracker = () => {
         return;
       }
 
-      // Group by distributor (normalized)
-      const normalizeDistributor = (dist) => {
-        if (!dist) return 'Unknown Distributor';
-        const cleaned = dist.trim();
-        return cleaned
-          .replace(/\s+Beauty\s+Supply$/i, '')
-          .replace(/\s+Beauty$/i, '')
-          .trim() || 'Unknown Distributor';
-      };
-      
+      // Group by distributor
       const byDistributor = {};
       productsNeedingReorder.forEach(product => {
-        const dist = normalizeDistributor(product.distributor);
+        const dist = product.distributor?.trim() || 'Unknown Distributor';
         if (!byDistributor[dist]) {
           byDistributor[dist] = [];
         }
@@ -7821,13 +7776,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 >
                   <option value="all">All Brands</option>
                   {(() => {
-                    const allProducts = sections.flatMap(section => {
-                      const products = section.rows ? 
-                        section.rows.flatMap(row => row.products || []) : 
-                        (section.products || []);
-                      return products;
-                    });
-                    const brands = [...new Set(allProducts.map(p => {
+                    // Build brand list from API data, not planogram
+                    const brands = [...new Set(allDatabaseProducts.map(p => {
                       const vendor = p.vendor?.trim();
                       return vendor && vendor !== '' ? vendor : 'Unknown Brand';
                     }))].sort();
@@ -7848,25 +7798,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 >
                   <option value="all">All Distributors</option>
                   {(() => {
-                    // Normalize distributor names to remove variations
-                    const normalizeDistributor = (dist) => {
-                      if (!dist) return 'Unknown Distributor';
-                      const cleaned = dist.trim();
-                      // Remove " Beauty Supply", " Beauty", etc. to standardize
-                      return cleaned
-                        .replace(/\s+Beauty\s+Supply$/i, '')
-                        .replace(/\s+Beauty$/i, '')
-                        .trim() || 'Unknown Distributor';
-                    };
-                    
-                    const allProducts = sections.flatMap(section => {
-                      const products = section.rows ? 
-                        section.rows.flatMap(row => row.products || []) : 
-                        (section.products || []);
-                      return products;
-                    });
-                    const distributors = [...new Set(allProducts.map(p => {
-                      return normalizeDistributor(p.distributor);
+                    // Build distributor list from API data, not planogram
+                    const distributors = [...new Set(allDatabaseProducts.map(p => {
+                      const dist = p.distributor?.trim();
+                      return dist && dist !== '' ? dist : 'Unknown Distributor';
                     }))].sort();
                     return distributors.map(dist => (
                       <option key={dist} value={dist}>{dist}</option>
@@ -8084,19 +8019,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             }
 
             if (forecastFilterDistributor !== 'all') {
-              // Normalize distributor names for comparison
-              const normalizeDistributor = (dist) => {
-                if (!dist) return 'Unknown Distributor';
-                const cleaned = dist.trim();
-                return cleaned
-                  .replace(/\s+Beauty\s+Supply$/i, '')
-                  .replace(/\s+Beauty$/i, '')
-                  .trim() || 'Unknown Distributor';
-              };
-              
               allProducts = allProducts.filter(p => {
-                const normalizedDist = normalizeDistributor(p.distributor);
-                return normalizedDist === forecastFilterDistributor;
+                const dist = p.distributor?.trim();
+                const distributor = dist && dist !== '' ? dist : 'Unknown Distributor';
+                return distributor === forecastFilterDistributor;
               });
             }
 
