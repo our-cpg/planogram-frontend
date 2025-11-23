@@ -550,7 +550,18 @@ const PlanogramProfitTracker = () => {
   const [rowDateRangeEnd, setRowDateRangeEnd] = useState('');
   
   // Navigation
-  const [currentPage, setCurrentPage] = useState('planner'); // planner, dashboard, forecasting, rowAnalytics, settings
+  const [currentPage, setCurrentPage] = useState(() => {
+    // Remember last visited tab
+    const savedPage = localStorage.getItem('store-planner-last-page');
+    return savedPage || 'forecasting';
+  }); // planner, dashboard, forecasting, rowAnalytics, settings
+  
+  // Wrapper to save page to localStorage
+  const changePage = (page) => {
+    setCurrentPage(page);
+    localStorage.setItem('store-planner-last-page', page);
+  };
+  
   const [searchUPC, setSearchUPC] = useState(''); // For Find Product page
   const [searchResults, setSearchResults] = useState(null); // Store search results
   
@@ -1787,14 +1798,28 @@ const PlanogramProfitTracker = () => {
     }
 
     try {
-      // Use API data directly - no planogram lookup
+      // Create cost lookup from planogram (distributor stays API-only)
+      const costLookup = {};
+      sections.forEach(section => {
+        const products = section.rows ? 
+          section.rows.flatMap(row => row.products || []) : 
+          (section.products || []);
+        
+        products.forEach(product => {
+          if (product.upc && product.cost !== undefined && product.cost !== null && product.cost !== '') {
+            costLookup[product.upc] = product.cost;
+          }
+        });
+      });
+      
+      // Use API data with planogram costs
       let allProducts = allDatabaseProducts.map(p => ({
         upc: p.barcode,
         name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
         sku: p.sku,
         vendor: p.vendor,
-        distributor: p.distributor,
-        cost: p.cost,
+        distributor: p.distributor,  // Always from API
+        cost: costLookup[p.barcode] || p.cost,  // Planogram cost first, fallback to API
         inventoryQuantity: p.stock,
         dailySales: p.dailySales,
         weeklySales: p.weeklySales,
@@ -4720,7 +4745,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         <div className="px-4 py-2 overflow-hidden">
           <div className="flex gap-2 flex-nowrap relative">
             <button
-              onClick={() => setCurrentPage('planner')}
+              onClick={() => changePage('planner')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'planner'
                   ? 'bg-white text-blue-600 shadow-lg relative z-10'
@@ -4730,7 +4755,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               🗺️ Store Planner
             </button>
             <button
-              onClick={() => setCurrentPage('findProduct')}
+              onClick={() => changePage('findProduct')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'findProduct'
                   ? 'bg-white text-blue-600 shadow-lg relative z-10'
@@ -4740,7 +4765,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               🔍 Find Product
             </button>
             <button
-              onClick={() => setCurrentPage('dashboard')}
+              onClick={() => changePage('dashboard')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'dashboard'
                   ? 'bg-white text-blue-600 shadow-lg relative z-10'
@@ -4750,7 +4775,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               📊 Dashboard
             </button>
             <button
-              onClick={() => setCurrentPage('forecasting')}
+              onClick={() => changePage('forecasting')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'forecasting'
                   ? 'bg-white text-blue-600 shadow-lg relative z-10'
@@ -4760,7 +4785,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               📈 Forecasting
             </button>
             <button
-              onClick={() => setCurrentPage('rowAnalytics')}
+              onClick={() => changePage('rowAnalytics')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'rowAnalytics'
                   ? 'bg-white text-blue-600 shadow-lg relative z-10'
@@ -4770,7 +4795,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               📊 Row Analytics
             </button>
             <button
-              onClick={() => setCurrentPage('unknownProducts')}
+              onClick={() => changePage('unknownProducts')}
               className={`px-4 py-2 rounded-lg font-semibold transition-all relative ${
                 currentPage === 'unknownProducts'
                   ? 'bg-white text-blue-600 shadow-lg z-10'
@@ -4785,7 +4810,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               )}
             </button>
             <button
-              onClick={() => setCurrentPage('savedLayouts')}
+              onClick={() => changePage('savedLayouts')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'savedLayouts'
                   ? 'bg-white text-blue-600 shadow-lg relative z-10'
@@ -4800,7 +4825,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               )}
             </button>
             <button
-              onClick={() => setCurrentPage('badStock')}
+              onClick={() => changePage('badStock')}
               className={`px-4 py-2 rounded-lg font-semibold transition-all relative ${
                 currentPage === 'badStock'
                   ? 'bg-white text-blue-600 shadow-lg z-10'
@@ -4815,7 +4840,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               )}
             </button>
             <button
-              onClick={() => setCurrentPage('discounts')}
+              onClick={() => changePage('discounts')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'discounts'
                   ? 'bg-white text-blue-600 shadow-lg relative z-10'
@@ -4825,7 +4850,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               💰 Discounts
             </button>
             <button
-              onClick={() => setCurrentPage('settings')}
+              onClick={() => changePage('settings')}
               className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
                 currentPage === 'settings'
                   ? 'bg-white text-blue-600 shadow-lg relative z-10'
@@ -7969,40 +7994,27 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
           {/* Forecasting Content */}
           {(() => {
-            // Use database products if loaded, otherwise use products from sections
-            let allProducts = allDatabaseProducts.length > 0 
-              ? allDatabaseProducts.map(p => ({
-                  upc: p.barcode,
-                  name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
-                  price: p.price,
-                  cost: p.cost,
-                  inventoryQuantity: p.stock, // API returns 'stock' not 'inventoryQuantity'
-                  dailySales: p.dailySales,
-                  weeklySales: p.weeklySales,
-                  monthlySales: p.monthlySales,
-                  quarterlySales: 0, // Not in API response yet
-                  yearlySales: 0, // Not in API response yet
-                  allTimeSales: p.allTimeSales,
-                  sku: p.sku,
-                  vendor: p.vendor,
-                  tags: p.tags,
-                  sectionName: 'All Products',
-                  fixtureName: 'Database',
-                  source: 'database'
-                }))
-              : sections.flatMap(section => {
-                  const products = section.rows ? 
-                    section.rows.flatMap(row => row.products || []) : 
-                    (section.products || []);
-                  
-                  return products.map(p => ({
-                    ...p,
-                    sectionId: section.id,
-                    sectionName: section.name,
-                    fixtureId: section.fixtureId,
-                    fixtureName: fixtures.find(f => f.id === section.fixtureId)?.name || 'Unknown'
-                  }));
-                });
+            // Always use database (API) products - no planogram fallback
+            let allProducts = allDatabaseProducts.map(p => ({
+              upc: p.barcode,
+              name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
+              price: p.price,
+              cost: p.cost,
+              distributor: p.distributor,
+              inventoryQuantity: p.stock,
+              dailySales: p.dailySales,
+              weeklySales: p.weeklySales,
+              monthlySales: p.monthlySales,
+              quarterlySales: 0,
+              yearlySales: 0,
+              allTimeSales: p.allTimeSales,
+              sku: p.sku,
+              vendor: p.vendor,
+              tags: p.tags,
+              sectionName: 'Database',
+              fixtureName: 'All Products',
+              source: 'database'
+            }));
 
             // Apply filters BEFORE calculating forecasts
             if (forecastFilterFixture !== 'all') {
