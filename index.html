@@ -2008,11 +2008,13 @@ const PlanogramProfitTracker = () => {
         doc.text('ESTIMATED COST:', 140, yPos);
         doc.text('$' + totalCost.toFixed(2), 190, yPos, { align: 'right' });
         
-        // Footer
+        // Footer - position dynamically to avoid overlap
+        yPos += 10; // Add space after summary
         doc.setFontSize(8);
         doc.setFont(undefined, 'italic');
-        doc.text('This purchase order is based on 30-day supply forecast with 25% safety stock.', 105, 285, { align: 'center' });
-        doc.text('Please confirm pricing and availability before processing.', 105, 290, { align: 'center' });
+        doc.text('This purchase order is based on 30-day supply forecast with 25% safety stock.', 105, yPos, { align: 'center' });
+        yPos += 5;
+        doc.text('Please confirm pricing and availability before processing.', 105, yPos, { align: 'center' });
         
         // Save PDF
         const fileName = `PO_${distributor.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
