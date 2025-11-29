@@ -799,6 +799,53 @@ const PlanogramProfitTracker = () => {
     }
   }, [currentPage]);
 
+  // DEBUG: Global function to manually verify today's order count
+  useEffect(() => {
+    window.debugTodayOrders = () => {
+      if (!orderAnalyticsData.allOrders) {
+        console.log('❌ No orders loaded. Click "Refresh Orders" first.');
+        return;
+      }
+      
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+      
+      console.log('🔍 Manual Order Count Debug');
+      console.log('Current time:', now.toLocaleString());
+      console.log('Today range:', todayStart.toLocaleString(), 'to', todayEnd.toLocaleString());
+      console.log('Total orders in memory:', orderAnalyticsData.allOrders?.length || 0);
+      
+      let count = 0;
+      let total = 0;
+      const samples = [];
+      
+      (orderAnalyticsData.allOrders || []).forEach(order => {
+        const orderDate = new Date(order.created_at);
+        const orderTotal = parseFloat(order.total_price || 0);
+        
+        if (orderDate >= todayStart && orderDate < todayEnd) {
+          count++;
+          total += orderTotal;
+          if (samples.length < 10) {
+            samples.push({
+              orderNumber: order.order_number || order.id,
+              date: orderDate.toLocaleString(),
+              total: `$${orderTotal.toFixed(2)}`
+            });
+          }
+        }
+      });
+      
+      console.log('\n📊 Results:');
+      console.log(`  Orders today: ${count}`);
+      console.log(`  Sales today: $${total.toFixed(2)}`);
+      console.log('\n📝 First 10 orders:', samples);
+      
+      return { count, total, samples };
+    };
+  }, [orderAnalyticsData]);
+
   const autoSave = (updatedSections, updatedFixtures = null, message = 'Auto-saved') => {
     try {
       localStorage.setItem('planogram_sections', JSON.stringify(updatedSections));
@@ -2734,10 +2781,14 @@ const PlanogramProfitTracker = () => {
         console.log('📅 Date Filtering Debug:');
         console.log('  Current time:', now.toLocaleString());
         console.log('  Today range:', todayStart.toLocaleString(), 'to', todayEnd.toLocaleString());
+        console.log('  todayStart timestamp:', todayStart.getTime());
+        console.log('  todayEnd timestamp:', todayEnd.getTime());
         
         let totalSales = 0;
         let salesToday = 0, salesWeek = 0, salesMonth = 0, salesYear = 0;
         let ordersToday = 0, ordersWeek = 0, ordersMonth = 0, ordersYear = 0;
+        
+        let todayOrders = [];
         
         orders.forEach(order => {
           // Parse order date and convert to local timezone for comparison
@@ -2750,9 +2801,12 @@ const PlanogramProfitTracker = () => {
           if (isToday) {
             salesToday += orderTotal;
             ordersToday++;
-            if (ordersToday <= 5) {
-              console.log(`  ✅ Today order: ${orderDate.toLocaleString()} - $${orderTotal.toFixed(2)}`);
-            }
+            todayOrders.push({
+              id: order.order_number || order.id,
+              date: orderDate.toLocaleString(),
+              timestamp: orderDate.getTime(),
+              total: orderTotal
+            });
           }
           if (orderDate >= weekStart) {
             salesWeek += orderTotal;
@@ -2768,6 +2822,8 @@ const PlanogramProfitTracker = () => {
           }
         });
         
+        console.log(`  📊 Today's Orders (${ordersToday} total):`);
+        console.log('  First 10 today:', todayOrders.slice(0, 10));
         console.log(`  💰 Today's total: ${ordersToday} orders, $${salesToday.toFixed(2)}`);
         
         setOrderAnalyticsData({
