@@ -513,6 +513,7 @@ const PlanogramProfitTracker = () => {
     return saved ? JSON.parse(saved) : ['totalOrders', 'totalSales', 'weekSales', 'monthSales'];
   });
   const [backgroundImage, setBackgroundImage] = useState(null);
+  const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [bgImagePosition, setBgImagePosition] = useState({ x: 0, y: 0 });
   const [isDraggingBg, setIsDraggingBg] = useState(false);
   const [bgDragStart, setBgDragStart] = useState({ x: 0, y: 0 });
