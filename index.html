@@ -537,6 +537,7 @@ const PlanogramProfitTracker = () => {
     lastRefresh: null,
     status: 'Idle',
     recentOrders: [],
+    allOrders: [],
     salesByPeriod: { today: 0, week: 0, month: 0, year: 0 },
     ordersByPeriod: { today: 0, week: 0, month: 0, year: 0 }
   });
@@ -2614,6 +2615,7 @@ const PlanogramProfitTracker = () => {
                     lastRefresh: now.toLocaleString(),
                     status: 'Complete',
                     recentOrders: orders.slice(0, 50),
+                    allOrders: orders,  // Store ALL orders for pattern analysis
                     salesByPeriod: {
                       today: salesToday,
                       week: salesWeek,
@@ -2779,6 +2781,7 @@ const PlanogramProfitTracker = () => {
           recentOrders: orders.slice(0, 50).sort((a, b) => 
             new Date(b.created_at) - new Date(a.created_at)
           ),
+          allOrders: orders,  // Store ALL orders for pattern analysis
           topProducts: [],
           salesByPeriod: {
             today: { orders: ordersToday, sales: salesToday },
@@ -8041,12 +8044,21 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             {/* 💰 Revenue by Time Period */}
             {/* ⏰ When Do People Buy? */}
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-bold mb-4">⏰ When Do People Buy?</h2>
-              <p className="text-sm text-gray-500 mb-4">Sales patterns by time of day and day of month</p>
+              <h2 className="text-xl font-bold mb-2">⏰ When Do People Buy?</h2>
+              <p className="text-sm text-gray-500 mb-4">
+                Sales patterns by time of day and day of month
+                {orderAnalyticsData.allOrders && orderAnalyticsData.allOrders.length > 0 && (
+                  <span className="ml-2 text-blue-600 font-semibold">
+                    (analyzing {orderAnalyticsData.allOrders.length.toLocaleString()} orders)
+                  </span>
+                )}
+              </p>
               
               {(() => {
-                // Calculate from actual orders
-                if (!orderAnalyticsData.recentOrders || orderAnalyticsData.recentOrders.length === 0) {
+                // Calculate from ALL orders for accurate patterns
+                const ordersToAnalyze = orderAnalyticsData.allOrders || orderAnalyticsData.recentOrders || [];
+                
+                if (ordersToAnalyze.length === 0) {
                   return (
                     <div className="p-8 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg border-2 border-orange-200 text-center">
                       <div className="text-4xl mb-3">🔥</div>
@@ -8083,7 +8095,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   '26-31': 0
                 };
                 
-                orderAnalyticsData.recentOrders.forEach(order => {
+                ordersToAnalyze.forEach(order => {
                   const orderDate = new Date(order.created_at);
                   const hour = orderDate.getHours();
                   const dayOfMonth = orderDate.getDate();
