@@ -819,30 +819,47 @@ const PlanogramProfitTracker = () => {
       let count = 0;
       let total = 0;
       const samples = [];
+      const orderIdsSeen = new Set();
+      const duplicates = [];
       
       (orderAnalyticsData.allOrders || []).forEach(order => {
         const orderDate = new Date(order.created_at);
         const orderTotal = parseFloat(order.total_price || 0);
+        const orderId = order.order_number || order.id;
+        
+        // Check for duplicates
+        if (orderIdsSeen.has(orderId)) {
+          duplicates.push(orderId);
+          console.log(`⚠️ DUPLICATE: Order #${orderId}`);
+        }
+        orderIdsSeen.add(orderId);
         
         if (orderDate >= todayStart && orderDate < todayEnd) {
           count++;
           total += orderTotal;
-          if (samples.length < 10) {
-            samples.push({
-              orderNumber: order.order_number || order.id,
-              date: orderDate.toLocaleString(),
-              total: `$${orderTotal.toFixed(2)}`
-            });
-          }
+          samples.push({
+            orderNumber: orderId,
+            created_at: order.created_at,
+            parsedDate: orderDate.toLocaleString(),
+            timestamp: orderDate.getTime(),
+            total: `$${orderTotal.toFixed(2)}`,
+            isDuplicate: duplicates.includes(orderId)
+          });
         }
       });
       
       console.log('\n📊 Results:');
       console.log(`  Orders today: ${count}`);
       console.log(`  Sales today: $${total.toFixed(2)}`);
-      console.log('\n📝 First 10 orders:', samples);
+      console.log(`  Duplicates found: ${duplicates.length}`);
+      console.log('\n📝 ALL orders counted as today:');
+      console.table(samples);
       
-      return { count, total, samples };
+      if (duplicates.length > 0) {
+        console.log('\n⚠️ DUPLICATE ORDER IDs:', duplicates);
+      }
+      
+      return { count, total, samples, duplicates };
     };
   }, [orderAnalyticsData]);
 
@@ -2789,23 +2806,56 @@ const PlanogramProfitTracker = () => {
         let ordersToday = 0, ordersWeek = 0, ordersMonth = 0, ordersYear = 0;
         
         let todayOrders = [];
+        const orderIdsSeen = new Set(); // Track duplicates
         
-        orders.forEach(order => {
+        console.log('\n🔍 DETAILED ORDER ANALYSIS:');
+        console.log('Checking each order against today range...\n');
+        
+        orders.forEach((order, index) => {
           // Parse order date and convert to local timezone for comparison
           const orderDate = new Date(order.created_at);
           const orderTotal = parseFloat(order.total_price || 0);
+          const orderId = order.order_number || order.id;
+          
           totalSales += orderTotal;
           
+          // Check if this is a duplicate
+          const isDuplicate = orderIdsSeen.has(orderId);
+          if (isDuplicate) {
+            console.log(`⚠️ DUPLICATE ORDER DETECTED: #${orderId}`);
+          }
+          orderIdsSeen.add(orderId);
+          
           // Compare dates (both are now in local timezone)
+          const orderTimestamp = orderDate.getTime();
+          const todayStartTimestamp = todayStart.getTime();
+          const todayEndTimestamp = todayEnd.getTime();
+          
           const isToday = orderDate >= todayStart && orderDate < todayEnd;
+          
+          // Log first 40 orders to see what's happening
+          if (index < 40) {
+            console.log(`Order #${orderId}:`);
+            console.log(`  created_at: ${order.created_at}`);
+            console.log(`  Parsed date: ${orderDate.toLocaleString()}`);
+            console.log(`  Timestamp: ${orderTimestamp}`);
+            console.log(`  >= todayStart? ${orderTimestamp >= todayStartTimestamp} (${orderTimestamp} >= ${todayStartTimestamp})`);
+            console.log(`  < todayEnd? ${orderTimestamp < todayEndTimestamp} (${orderTimestamp} < ${todayEndTimestamp})`);
+            console.log(`  ✅ Counted as TODAY? ${isToday}`);
+            console.log(`  Total: $${orderTotal.toFixed(2)}`);
+            console.log('');
+          }
+          
           if (isToday) {
             salesToday += orderTotal;
             ordersToday++;
             todayOrders.push({
-              id: order.order_number || order.id,
+              orderNumber: orderId,
+              created_at: order.created_at,
               date: orderDate.toLocaleString(),
-              timestamp: orderDate.getTime(),
-              total: orderTotal
+              timestamp: orderTimestamp,
+              total: orderTotal,
+              isDuplicate: isDuplicate
             });
           }
           if (orderDate >= weekStart) {
@@ -2822,9 +2872,11 @@ const PlanogramProfitTracker = () => {
           }
         });
         
-        console.log(`  📊 Today's Orders (${ordersToday} total):`);
-        console.log('  First 10 today:', todayOrders.slice(0, 10));
-        console.log(`  💰 Today's total: ${ordersToday} orders, $${salesToday.toFixed(2)}`);
+        console.log(`\n📊 TODAY'S ORDERS (${ordersToday} total):`);
+        console.log('All orders counted as today:');
+        console.table(todayOrders);
+        console.log(`\n💰 Today's total: ${ordersToday} orders, $${salesToday.toFixed(2)}`);
+        console.log(`⚠️ Duplicates detected: ${todayOrders.filter(o => o.isDuplicate).length}`);
         
         setOrderAnalyticsData({
           totalOrders: orders.length,
