@@ -8109,9 +8109,23 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
             {/* 🔥 ORDER ANALYTICS */}
             <div className="mt-8 -mx-8 px-8 py-8 bg-white">
-              <div className="mb-6">
-                <h2 className="text-3xl font-bold text-gray-800">🔥 Order Analytics</h2>
-                <p className="text-gray-600 mt-1">Real-time order data from Shopify</p>
+              <div className="mb-6 flex justify-between items-center">
+                <div>
+                  <h2 className="text-3xl font-bold text-gray-800">🔥 Order Analytics</h2>
+                  <p className="text-gray-600 mt-1">Real-time order data from Shopify</p>
+                </div>
+                
+                {/* Refresh Button */}
+                <button
+                  onClick={refreshOrders}
+                  className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-semibold flex items-center gap-2 transition-all"
+                  title="Import latest orders from Shopify"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh Orders
+                </button>
               </div>
 
               {/* Sales by Time Period */}
