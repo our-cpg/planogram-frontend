@@ -13,6 +13,11 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  
+  <!-- Firebase Configuration and Service -->
+  <script src="firebase-config.js"></script>
+  <script src="firebase-service.js"></script>
+  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
   
@@ -234,9 +239,18 @@ const PlanogramProfitTracker = () => {
 
   // Initialize Firebase on mount
   useEffect(() => {
+    // Simple timer-based fallback - if Firebase doesn't load in 3 seconds, mark as ready anyway
+    const fallbackTimer = setTimeout(() => {
+      if (!firebaseReady) {
+        console.log('⚠️ Firebase timeout - proceeding with localStorage only');
+        setFirebaseReady(true);
+      }
+    }, 3000);
+
     const initFirebase = async () => {
       try {
         if (window.firebaseService) {
+          clearTimeout(fallbackTimer);
           await window.firebaseService.initialize();
           await window.firebaseService.signInAnonymously();
           setFirebaseReady(true);
@@ -307,10 +321,11 @@ const PlanogramProfitTracker = () => {
         }
       } catch (error) {
         console.error('Firebase init failed:', error);
-        setFirebaseReady(false);
       }
     };
     initFirebase();
+    
+    return () => clearTimeout(fallbackTimer);
   }, []);
 
   // 🔥 KEYBOARD SHORTCUTS for row switching
@@ -8488,36 +8503,100 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
                       {orderAnalyticsData.recentOrders && orderAnalyticsData.recentOrders.length > 0 ? (
-                        orderAnalyticsData.recentOrders.slice(0, 50).map((order, idx) => (
-                          <tr key={idx} className="hover:bg-blue-50 transition-colors">
-                            <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
-                              {order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}
-                            </td>
-                            <td className="px-6 py-4 text-sm font-mono font-semibold text-blue-600 whitespace-nowrap">
-                              #{order.order_number || order.id || 'N/A'}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-800 whitespace-nowrap">
-                              {order.customer?.first_name || order.customer?.last_name 
-                                ? `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim()
-                                : 'Guest'}
-                            </td>
-                            <td className="px-6 py-4 text-sm font-semibold text-right text-green-600 whitespace-nowrap">
-                              ${parseFloat(order.total_price || 0).toFixed(2)}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-center text-gray-700 font-medium whitespace-nowrap">
-                              {order.line_items?.length || '—'}
-                            </td>
-                            <td className="px-6 py-4 text-sm whitespace-nowrap">
-                              <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
-                                order.financial_status === 'paid' 
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {order.financial_status || 'pending'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
+                        orderAnalyticsData.recentOrders.slice(0, 50).map((order, idx) => {
+                          const orderId = order.order_number || order.id;
+                          const isExpanded = expandedOrderId === orderId;
+                          
+                          return (
+                            <React.Fragment key={idx}>
+                              <tr 
+                                className="hover:bg-blue-50 transition-colors cursor-pointer"
+                                onClick={() => setExpandedOrderId(isExpanded ? null : orderId)}
+                              >
+                                <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                                      ▶
+                                    </span>
+                                    {order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-sm font-mono font-semibold text-blue-600 whitespace-nowrap">
+                                  #{order.order_number || order.id || 'N/A'}
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-800 whitespace-nowrap">
+                                  {order.customer?.first_name || order.customer?.last_name 
+                                    ? `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim()
+                                    : 'Guest'}
+                                </td>
+                                <td className="px-6 py-4 text-sm font-semibold text-right text-green-600 whitespace-nowrap">
+                                  ${parseFloat(order.total_price || 0).toFixed(2)}
+                                </td>
+                                <td className="px-6 py-4 text-sm text-center text-gray-700 font-medium whitespace-nowrap">
+                                  {order.line_items?.length || '—'}
+                                </td>
+                                <td className="px-6 py-4 text-sm whitespace-nowrap">
+                                  <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                                    order.financial_status === 'paid' 
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                  }`}>
+                                    {order.financial_status || 'pending'}
+                                  </span>
+                                </td>
+                              </tr>
+                              
+                              {/* Expanded Row - Line Items */}
+                              {isExpanded && (
+                                <tr>
+                                  <td colSpan="6" className="px-6 py-4 bg-gray-50">
+                                    <div className="border-l-4 border-blue-500 pl-4">
+                                      <h4 className="font-semibold text-gray-800 mb-3">📦 Order Items:</h4>
+                                      {order.line_items && order.line_items.length > 0 ? (
+                                        <div className="space-y-2">
+                                          {order.line_items.map((item, itemIdx) => (
+                                            <div key={itemIdx} className="flex items-start justify-between p-3 bg-white rounded-lg border border-gray-200">
+                                              <div className="flex-1">
+                                                <div className="font-medium text-gray-900">
+                                                  {item.title || item.name || 'Unknown Item'}
+                                                </div>
+                                                {item.variant_title && (
+                                                  <div className="text-sm text-gray-600">
+                                                    Variant: {item.variant_title}
+                                                  </div>
+                                                )}
+                                                {item.sku && (
+                                                  <div className="text-xs text-gray-500 font-mono">
+                                                    SKU: {item.sku}
+                                                  </div>
+                                                )}
+                                              </div>
+                                              <div className="text-right ml-4">
+                                                <div className="text-sm font-semibold text-gray-900">
+                                                  Qty: {item.quantity || 1}
+                                                </div>
+                                                <div className="text-sm text-green-600">
+                                                  ${parseFloat(item.price || 0).toFixed(2)} each
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                  Total: ${(parseFloat(item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <div className="text-gray-500 text-sm italic">
+                                          No line items data available for this order
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })
                       ) : (
                         <tr>
                           <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
