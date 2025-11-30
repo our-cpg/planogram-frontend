@@ -4680,19 +4680,18 @@ const PlanogramProfitTracker = () => {
           top: top,
           width: width,
           height: height,
-          background: color, // Still use heat map color as base
+          background: color,
           backgroundImage: heatMapMode && section.type !== 'deadspace' ? 
             (() => {
-              // Create gradient based on profit intensity
               const intensity = metrics.profitPerSqFt / (metrics.maxProfit || 100);
               if (intensity > 0.7) {
-                return 'linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(5, 150, 105) 100%)'; // Green gradient
+                return 'linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(5, 150, 105) 100%)';
               } else if (intensity > 0.5) {
-                return 'linear-gradient(135deg, rgb(251, 191, 36) 0%, rgb(245, 158, 11) 100%)'; // Yellow gradient
+                return 'linear-gradient(135deg, rgb(251, 191, 36) 0%, rgb(245, 158, 11) 100%)';
               } else if (intensity > 0.3) {
-                return 'linear-gradient(135deg, rgb(251, 146, 60) 0%, rgb(249, 115, 22) 100%)'; // Orange gradient
+                return 'linear-gradient(135deg, rgb(251, 146, 60) 0%, rgb(249, 115, 22) 100%)';
               } else {
-                return 'linear-gradient(135deg, rgb(248, 113, 113) 0%, rgb(239, 68, 68) 100%)'; // Red gradient
+                return 'linear-gradient(135deg, rgb(248, 113, 113) 0%, rgb(239, 68, 68) 100%)';
               }
             })() : 
             color,
@@ -4711,12 +4710,13 @@ const PlanogramProfitTracker = () => {
           textShadow: '0 1px 2px rgba(0,0,0,0.3)',
           zIndex: isSelected ? 60 : 40,
           overflow: 'hidden',
-          borderRadius: '8px',
+          borderRadius: '6px',
           boxShadow: isSelected 
             ? '0 4px 6px rgba(0, 0, 0, 0.15)'
             : '0 2px 4px rgba(0, 0, 0, 0.1)',
           backdropFilter: 'none',
-          transition: 'all 0.15s ease'
+          transition: 'all 0.15s ease',
+          padding: width > 80 ? '8px' : '4px'
         }}
         onMouseDown={handleMouseDown}
         onClick={(e) => {
@@ -4726,59 +4726,104 @@ const PlanogramProfitTracker = () => {
           }
         }}
       >
-        {/* Only show label if section is big enough */}
+        {/* Adaptive layout based on section size */}
         {width > 30 && height > 20 && (
           <div 
-            className="text-center pointer-events-none px-2" 
+            className="text-center pointer-events-none" 
             style={{ 
               maxWidth: '95%', 
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
-              gap: '1px',
+              gap: width > 80 ? '4px' : '2px',
               transform: height > width * 1.5 ? 'rotate(-90deg)' : 'none',
               transformOrigin: 'center center'
             }}
           >
-            {/* Section Name - SMALL and thin */}
-            <div style={{ 
-              fontSize: width < 50 ? '8px' : (width < 80 ? '10px' : '11px'), // Small!
-              lineHeight: '1.3',
-              fontWeight: '400', // Thin!
-              opacity: 0.9,
-              overflow: 'hidden', 
-              textOverflow: 'ellipsis', 
-              whiteSpace: 'nowrap'
-            }}>
-              {section.name}
-            </div>
-            
-            {/* Profit Numbers - BIG and BOLD */}
-            {heatMapMode && width > 50 && height > 30 && (
+            {/* SMALL SECTIONS: Just show name */}
+            {width < 80 && (
               <div style={{ 
-                fontSize: width < 60 ? '16px' : (width < 80 ? '20px' : '24px'), // BIG numbers!
-                fontWeight: '800', // BOLD!
-                lineHeight: '1.1',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                fontSize: width < 50 ? '10px' : '12px',
+                lineHeight: '1.2',
+                fontWeight: '600',
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis', 
                 whiteSpace: 'nowrap'
               }}>
-                ${metrics.profitPerSqFt.toFixed(0)}
+                {section.name}
               </div>
             )}
             
-            {/* Label for units */}
-            {heatMapMode && width > 50 && height > 30 && (
-              <div style={{ 
-                fontSize: width < 80 ? '7px' : '8px',
-                fontWeight: '400',
-                opacity: 0.85,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
-              }}>
-                per sqft
-              </div>
+            {/* SMALL-MEDIUM SECTIONS: Name + inline price */}
+            {width >= 80 && width < 140 && (
+              <>
+                <div style={{ 
+                  fontSize: '11px',
+                  lineHeight: '1.2',
+                  fontWeight: '500',
+                  opacity: 0.95,
+                  overflow: 'hidden', 
+                  textOverflow: 'ellipsis', 
+                  whiteSpace: 'nowrap'
+                }}>
+                  {section.name}
+                </div>
+                {heatMapMode && (
+                  <div style={{ 
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    lineHeight: '1.1',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    ${metrics.profitPerSqFt.toFixed(0)}/sqft
+                  </div>
+                )}
+              </>
+            )}
+            
+            {/* LARGE SECTIONS: Dashboard card style */}
+            {width >= 140 && (
+              <>
+                <div style={{ 
+                  fontSize: '13px',
+                  lineHeight: '1.3',
+                  fontWeight: '500',
+                  opacity: 0.9,
+                  overflow: 'hidden', 
+                  textOverflow: 'ellipsis', 
+                  whiteSpace: 'nowrap'
+                }}>
+                  {section.name}
+                </div>
+                
+                {heatMapMode && (
+                  <>
+                    <div style={{ 
+                      fontSize: height > 60 ? '28px' : '22px',
+                      fontWeight: '800',
+                      lineHeight: '1',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      ${metrics.profitPerSqFt.toFixed(0)}
+                    </div>
+                    
+                    <div style={{ 
+                      fontSize: '9px',
+                      fontWeight: '400',
+                      opacity: 0.85,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      per sqft
+                    </div>
+                  </>
+                )}
+              </>
             )}
           </div>
         )}
