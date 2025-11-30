@@ -4043,34 +4043,35 @@ const PlanogramProfitTracker = () => {
       intensity = Math.max(0, Math.min(1, intensity));
       
       // Create smooth gradient from red (0) -> orange -> yellow -> green (1)
+      // More vibrant colors with higher saturation
       if (intensity < 0.25) {
-        // Red to Orange (0-25%)
+        // Red to Orange (0-25%) - More saturated
         const t = intensity / 0.25;
         const r = 239;
-        const g = Math.floor(68 + (115 - 68) * t);
+        const g = Math.floor(68 + (140 - 68) * t);
         const b = 68;
-        return `rgba(${r}, ${g}, ${b}, 0.75)`;
+        return `rgba(${r}, ${g}, ${b}, 0.85)`; // Higher opacity
       } else if (intensity < 0.5) {
-        // Orange to Yellow (25-50%)
+        // Orange to Yellow (25-50%) - More vibrant
         const t = (intensity - 0.25) / 0.25;
-        const r = Math.floor(249 - (249 - 234) * t);
-        const g = Math.floor(115 + (179 - 115) * t);
-        const b = Math.floor(22 - 14 * t);
-        return `rgba(${r}, ${g}, ${b}, 0.75)`;
+        const r = Math.floor(255 - (255 - 250) * t);
+        const g = Math.floor(140 + (200 - 140) * t);
+        const b = Math.floor(30 - 20 * t);
+        return `rgba(${r}, ${g}, ${b}, 0.85)`;
       } else if (intensity < 0.75) {
-        // Yellow to Light Green (50-75%)
+        // Yellow to Light Green (50-75%) - More saturated
         const t = (intensity - 0.5) / 0.25;
-        const r = Math.floor(234 - (234 - 134) * t);
-        const g = Math.floor(179 + (197 - 179) * t);
-        const b = Math.floor(8 + (86 * t));
-        return `rgba(${r}, ${g}, ${b}, 0.75)`;
+        const r = Math.floor(250 - (250 - 100) * t);
+        const g = Math.floor(200 + (210 - 200) * t);
+        const b = Math.floor(10 + (70 * t));
+        return `rgba(${r}, ${g}, ${b}, 0.85)`;
       } else {
-        // Light Green to Dark Green (75-100%)
+        // Light Green to Vibrant Green (75-100%) - More punchy
         const t = (intensity - 0.75) / 0.25;
-        const r = Math.floor(134 - (134 - 34) * t);
-        const g = 197;
-        const b = Math.floor(94 - (94 - 94) * t);
-        return `rgba(${r}, ${g}, ${b}, 0.75)`;
+        const r = Math.floor(100 - (100 - 34) * t);
+        const g = Math.floor(210 + (197 - 210) * t);
+        const b = Math.floor(80 - (80 - 94) * t);
+        return `rgba(${r}, ${g}, ${b}, 0.9)`; // Even higher opacity for best performers
       }
     };
     
@@ -4437,10 +4438,10 @@ const PlanogramProfitTracker = () => {
           top: top,
           width: width,
           height: height,
-          background: color,
+          background: color, // Heat map color preserved!
           border: isSelected 
-            ? '2px solid #3b82f6' 
-            : 'none',
+            ? '3px solid #3b82f6' 
+            : '1px solid rgba(255, 255, 255, 0.2)', // Subtle border for definition
           cursor: isDragging ? 'grabbing' : 'grab',
           pointerEvents: 'auto',
           display: 'flex',
@@ -4449,12 +4450,15 @@ const PlanogramProfitTracker = () => {
           fontSize: width > 60 && height > 40 ? '11px' : '9px',
           color: 'white',
           fontWeight: 'bold',
-          textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+          textShadow: '0 2px 4px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,0.6)', // Better text shadow
           zIndex: isSelected ? 60 : 40,
-          overflow: 'hidden',
-          borderRadius: '0',
-          boxShadow: 'none',
-          backdropFilter: 'none'
+          overflow: 'visible', // Allow badge to overflow
+          borderRadius: '8px', // Rounded corners for Apple look
+          boxShadow: isSelected 
+            ? '0 8px 16px rgba(0,0,0,0.3), 0 0 0 3px rgba(59, 130, 246, 0.3)' 
+            : '0 2px 8px rgba(0,0,0,0.2)', // Add depth
+          backdropFilter: 'none',
+          transition: 'box-shadow 0.2s ease'
         }}
         onMouseDown={handleMouseDown}
         onClick={(e) => {
@@ -4467,15 +4471,18 @@ const PlanogramProfitTracker = () => {
         {/* Only show label if section is big enough */}
         {width > 30 && height > 20 && (
           <div 
-            className="text-center pointer-events-none px-1" 
+            className="text-center pointer-events-none px-2" 
             style={{ 
               maxWidth: '95%', 
               overflow: 'hidden',
-              fontSize: width < 50 ? '8px' : (width < 80 ? '10px' : '11px'),
-              lineHeight: width < 50 ? '10px' : '1.2',
+              fontSize: width < 50 ? '9px' : (width < 80 ? '12px' : '14px'), // Bigger text
+              lineHeight: '1.3',
               transform: height > width * 1.5 ? 'rotate(-90deg)' : 'none',
               transformOrigin: 'center center',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+              fontWeight: '600',
+              letterSpacing: '-0.01em'
             }}
           >
             <div style={{ 
@@ -4485,16 +4492,31 @@ const PlanogramProfitTracker = () => {
             }}>
               {section.name}
             </div>
-            {heatMapMode && width > 60 && height > 35 && (
-              <div style={{ 
-                fontSize: width < 80 ? '8px' : '9px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
-              }}>
-                ${metrics.profitPerSqFt.toFixed(0)}/sqft
-              </div>
-            )}
+          </div>
+        )}
+
+        {/* Profit Badge - Top Right Corner */}
+        {heatMapMode && width > 50 && height > 30 && (
+          <div 
+            className="pointer-events-none"
+            style={{ 
+              position: 'absolute',
+              top: '4px',
+              right: '4px',
+              background: 'rgba(0, 0, 0, 0.5)',
+              backdropFilter: 'blur(8px)',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              fontSize: width < 80 ? '9px' : '10px',
+              fontWeight: '700',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+              letterSpacing: '-0.01em',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            ${metrics.profitPerSqFt.toFixed(0)}/sqft
           </div>
         )}
 
