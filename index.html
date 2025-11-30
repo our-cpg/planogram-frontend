@@ -1632,12 +1632,14 @@ const PlanogramProfitTracker = () => {
     }
 
     if (!isAutoRefresh) {
+      console.log('🔄 Starting product refresh...');
       setIsRefreshing(true);
       setSyncProgress({ message: 'Loading products', current: 0, total: 0 });
       setFeedback('🔄 Starting product refresh...');
     }
     
     try {
+      console.log('📡 Calling backend /api/shopify with action: refreshProducts');
       // Use backend proxy to avoid CORS issues
       const response = await fetch(`${BACKEND_URL}/api/shopify`, {
         method: 'POST',
@@ -1656,9 +1658,11 @@ const PlanogramProfitTracker = () => {
       }
 
       const data = await response.json();
+      console.log('✅ Backend response:', data);
 
       if (data.success) {
         if (data.totalProducts && !isAutoRefresh) {
+          console.log(`📦 Loaded ${data.totalProducts} products`);
           setSyncProgress({ message: 'Products loaded', current: data.totalProducts, total: data.totalProducts });
           setFeedback(`✅ Loaded ${data.totalProducts} products`);
         }
@@ -2765,10 +2769,12 @@ const PlanogramProfitTracker = () => {
       return;
     }
 
+    console.log('💰 Starting sales refresh...');
     setSyncProgress({ message: 'Loading sales', current: 0, total: 0 });
     setFeedback('📊 Refreshing sales data...');
     
     try {
+      console.log('📡 Calling backend /api/shopify with action: refreshSales');
       const response = await fetch(`${BACKEND_URL}/api/shopify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2780,6 +2786,7 @@ const PlanogramProfitTracker = () => {
       });
 
       const data = await response.json();
+      console.log('✅ Backend response:', data);
 
       if (response.ok && data.success) {
         const now = new Date();
@@ -2820,10 +2827,12 @@ const PlanogramProfitTracker = () => {
       return;
     }
 
+    console.log('🔥 Starting Order Blitz...');
     setSyncProgress({ message: '🔥 Starting Order Blitz...', current: 0, total: 0 });
     setFeedback('🔥 Order Blitz: Starting...');
     
     try {
+      console.log('📡 Calling backend /api/shopify with action: refreshOrders');
       const response = await fetch(`${BACKEND_URL}/api/shopify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2835,6 +2844,7 @@ const PlanogramProfitTracker = () => {
       });
 
       const data = await response.json();
+      console.log('✅ Backend response:', data);
 
       if (response.ok && data.success) {
         const now = new Date();
@@ -2843,10 +2853,12 @@ const PlanogramProfitTracker = () => {
         
         // Check if processing in background
         if (data.processing) {
+          console.log(`📊 Processing ${data.totalOrders || '...'} orders in background`);
           setSyncProgress({ message: '🔥 Processing orders...', current: 0, total: data.totalOrders || 0 });
           setFeedback(`🔥 Order Blitz: Processing ${data.totalOrders || '...'} orders...`);
           
           // Poll every 2 seconds to check progress
+          console.log('⏱️ Starting progress polling every 2 seconds...');
           const checkStatus = setInterval(async () => {
             try {
               const statusRes = await fetch(`${BACKEND_URL}/api/orders/status`);
@@ -2855,6 +2867,7 @@ const PlanogramProfitTracker = () => {
               // Update progress
               if (statusData.progress) {
                 const { processed, total } = statusData.progress;
+                console.log(`📊 Progress: ${processed}/${total} orders processed`);
                 setSyncProgress({ 
                   message: `Processing orders`, 
                   current: processed || 0, 
@@ -2864,6 +2877,7 @@ const PlanogramProfitTracker = () => {
               }
               
               if (!statusData.isProcessing && statusData.lastResult) {
+                console.log('✅ Order processing complete!');
                 clearInterval(checkStatus);
                 setSyncProgress({ message: '', current: 0, total: 0 });
                 
@@ -6162,21 +6176,24 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             )}
           </div>
 
-          {/* Feedback and Progress Display */}
-          {(feedback || syncProgress.total > 0) && (
-            <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm">
-              <div>{feedback}</div>
-              {syncProgress.total > 0 && (
+          {/* Feedback and Progress Display - ALWAYS SHOW DURING SYNC */}
+          {(feedback || syncProgress.message || syncProgress.total > 0) && (
+            <div className="px-4 py-3 bg-gradient-to-r from-blue-100 to-purple-100 border-2 border-blue-300 text-blue-900 rounded-xl text-sm shadow-lg">
+              {feedback && <div className="font-semibold text-base">{feedback}</div>}
+              {(syncProgress.message || syncProgress.total > 0) && (
                 <div className="mt-2">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium">{syncProgress.message}</span>
-                    <span className="text-xs font-semibold">{syncProgress.current}/{syncProgress.total}</span>
+                    <span className="text-sm font-semibold">{syncProgress.message || 'Processing...'}</span>
+                    <span className="text-sm font-bold">{syncProgress.current}/{syncProgress.total}</span>
                   </div>
-                  <div className="w-full bg-blue-200 rounded-full h-2">
+                  <div className="w-full bg-blue-200 rounded-full h-3 shadow-inner">
                     <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300 shadow-sm"
                       style={{ width: `${syncProgress.total > 0 ? (syncProgress.current / syncProgress.total) * 100 : 0}%` }}
                     ></div>
+                  </div>
+                  <div className="text-xs text-blue-700 mt-1 text-center">
+                    {syncProgress.total > 0 ? `${Math.round((syncProgress.current / syncProgress.total) * 100)}% complete` : 'Starting...'}
                   </div>
                 </div>
               )}
