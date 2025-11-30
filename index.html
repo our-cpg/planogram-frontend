@@ -8516,19 +8516,39 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     
                     {/* 🗺️ CUSTOMER MOVEMENT HEAT MAP */}
                     {productCorrelations.length > 0 && (() => {
-                      // Extract product categories from names
+                      // Extract product categories from names - IMPROVED
                       const categorizeProduct = (name) => {
                         const lower = name.toLowerCase();
-                        if (lower.includes('developer') || lower.includes('peroxide')) return 'Developer';
-                        if (lower.includes('bw2') || lower.includes('powder') || lower.includes('bleach')) return 'Bleach/Lightener';
-                        if (lower.includes('braid')) return 'Braiding Hair';
-                        if (lower.includes('lash') || lower.includes('lashes')) return 'Lashes';
+                        
+                        // Hair Color & Lightening
+                        if (lower.includes('developer') || lower.includes('peroxide') || lower.includes('creme')) return 'Developer';
+                        if (lower.includes('bw2') || lower.includes('powder') || lower.includes('bleach') || lower.includes('lightener')) return 'Bleach/Lightener';
+                        if (lower.includes('color') || lower.includes('dye') || lower.includes('tint')) return 'Hair Color';
+                        
+                        // Hair Extensions & Braiding
+                        if (lower.includes('braid') || lower.includes('xpression') || lower.includes('kanekalon')) return 'Braiding Hair';
+                        if (lower.includes('weave') || lower.includes('bundle') || lower.includes('closure') || lower.includes('frontal')) return 'Weaves';
                         if (lower.includes('wig')) return 'Wigs';
-                        if (lower.includes('rubber band') || lower.includes('elastic')) return 'Accessories';
-                        if (lower.includes('glue') || lower.includes('bond')) return 'Adhesives';
-                        if (lower.includes('gel') || lower.includes('mousse') || lower.includes('spray')) return 'Styling Products';
-                        if (lower.includes('shampoo') || lower.includes('conditioner')) return 'Hair Care';
-                        return 'Other';
+                        
+                        // Lashes & Eyes
+                        if (lower.includes('lash') || lower.includes('lashes') || lower.includes('mink')) return 'Lashes';
+                        
+                        // Styling & Care
+                        if (lower.includes('gel') || lower.includes('mousse') || lower.includes('spray') || lower.includes('styling')) return 'Styling Products';
+                        if (lower.includes('shampoo') || lower.includes('conditioner') || lower.includes('treatment')) return 'Hair Care';
+                        if (lower.includes('edge') || lower.includes('control')) return 'Edge Control';
+                        
+                        // Accessories & Tools
+                        if (lower.includes('rubber band') || lower.includes('elastic') || lower.includes('clip') || lower.includes('pin')) return 'Accessories';
+                        if (lower.includes('glue') || lower.includes('bond') || lower.includes('adhesive')) return 'Adhesives';
+                        if (lower.includes('brush') || lower.includes('comb') || lower.includes('applicator')) return 'Tools';
+                        if (lower.includes('cap') || lower.includes('net') || lower.includes('wrap')) return 'Accessories';
+                        
+                        // Beauty & Makeup
+                        if (lower.includes('makeup') || lower.includes('foundation') || lower.includes('lipstick')) return 'Makeup';
+                        if (lower.includes('nail') || lower.includes('polish')) return 'Nails';
+                        
+                        return null; // Will be filtered out instead of "Other"
                       };
                       
                       // Build category flow matrix
@@ -8538,6 +8558,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       productCorrelations.forEach(corr => {
                         const catA = categorizeProduct(corr.productA.name);
                         const catB = categorizeProduct(corr.productB.name);
+                        
+                        // Skip if either product doesn't have a category
+                        if (!catA || !catB) return;
+                        
                         categories.add(catA);
                         categories.add(catB);
                         
@@ -8651,6 +8675,18 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             <div className="mt-3 text-xs text-gray-600 text-center italic">
                               💡 Hover over cells to see exact combo counts • Darker colors = stronger customer flows
                             </div>
+                            
+                            {/* Planogram Overlay Feature */}
+                            {fixtures && fixtures.length > 0 && (
+                              <div className="mt-4 p-3 bg-blue-100 border border-blue-300 rounded-lg text-center">
+                                <div className="text-sm font-bold text-blue-800 mb-1">
+                                  🗺️ Want to see this on your actual store layout?
+                                </div>
+                                <div className="text-xs text-blue-700">
+                                  Load your planogram to visualize customer paths between fixtures with heat-mapped arrows!
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
