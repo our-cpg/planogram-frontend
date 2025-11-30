@@ -6115,11 +6115,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             )}
 
             <input type="file" ref={fileInputRef} onChange={handleBackgroundUpload} accept="image/*" className="hidden" />
-            
-            <button onClick={() => fileInputRef.current?.click()} className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2 text-sm">
-              <Icons.Camera />
-              BG
-            </button>
 
             {backgroundImage && (
               <>
@@ -6136,10 +6131,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             <button onClick={exportLayout} className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2 text-sm">
               <Icons.Download />
               Export
-            </button>
-
-            <button onClick={() => setShowSettings(true)} className="px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm">
-              Shopify
             </button>
 
             {/* Sync All Button - Quick Access */}
