@@ -8273,8 +8273,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       </div>
                     )}
                     
-                    {/* Scrollable Container */}
-                    <div className="space-y-4 max-h-[900px] overflow-y-auto pr-2">
+                    {/* Scrollable Container - extends to bottom */}
+                    <div className="space-y-4 pr-2">
                       {filteredCorrelations.length > 0 ? (
                         filteredCorrelations.map((corr, idx) => (
                           <div key={idx} className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
