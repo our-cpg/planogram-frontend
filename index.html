@@ -305,6 +305,7 @@ const PlanogramProfitTracker = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [syncProgress, setSyncProgress] = useState({ message: '', current: 0, total: 0 });
   const [timeFilter, setTimeFilter] = useState('monthly');
   const [sortBy, setSortBy] = useState('profit');
   const [showSettings, setShowSettings] = useState(false);
@@ -1632,7 +1633,8 @@ const PlanogramProfitTracker = () => {
 
     if (!isAutoRefresh) {
       setIsRefreshing(true);
-      setFeedback('🔄 Starting refresh... This may take several minutes for large catalogs.');
+      setSyncProgress({ message: 'Loading products', current: 0, total: 0 });
+      setFeedback('🔄 Starting product refresh...');
     }
     
     try {
@@ -1656,6 +1658,11 @@ const PlanogramProfitTracker = () => {
       const data = await response.json();
 
       if (data.success) {
+        if (data.totalProducts && !isAutoRefresh) {
+          setSyncProgress({ message: 'Products loaded', current: data.totalProducts, total: data.totalProducts });
+          setFeedback(`✅ Loaded ${data.totalProducts} products`);
+        }
+        
         const now = new Date();
         setLastRefresh(now);
         setLastProductsRefresh(now);
@@ -1663,8 +1670,10 @@ const PlanogramProfitTracker = () => {
         localStorage.setItem('planogram_last_products_refresh', now.toISOString());
         
         if (!isAutoRefresh) {
-          setFeedback(`✅ ${data.message || 'Products refreshed from Shopify'}`);
-          setTimeout(() => setFeedback(''), 5000);
+          setTimeout(() => {
+            setSyncProgress({ message: '', current: 0, total: 0 });
+            setFeedback('');
+          }, 3000);
         } else {
           console.log('✅ Auto-refresh completed at', now.toLocaleTimeString());
         }
@@ -2756,6 +2765,7 @@ const PlanogramProfitTracker = () => {
       return;
     }
 
+    setSyncProgress({ message: 'Loading sales', current: 0, total: 0 });
     setFeedback('📊 Refreshing sales data...');
     
     try {
@@ -2777,13 +2787,25 @@ const PlanogramProfitTracker = () => {
         setLastSalesRefresh(now);
         localStorage.setItem('planogram_last_refresh', now.toISOString());
         localStorage.setItem('planogram_last_sales_refresh', now.toISOString());
-        setFeedback(`✅ ${data.message}`);
-        setTimeout(() => setFeedback(''), 5000);
+        
+        if (data.totalUpdated) {
+          setSyncProgress({ message: 'Sales loaded', current: data.totalUpdated, total: data.totalUpdated });
+          setFeedback(`✅ Updated ${data.totalUpdated} products with sales data`);
+        } else {
+          setFeedback(`✅ ${data.message}`);
+        }
+        
+        setTimeout(() => {
+          setSyncProgress({ message: '', current: 0, total: 0 });
+          setFeedback('');
+        }, 3000);
       } else {
+        setSyncProgress({ message: '', current: 0, total: 0 });
         setFeedback(`❌ ${data.error || 'Failed'}`);
         setTimeout(() => setFeedback(''), 5000);
       }
     } catch (error) {
+      setSyncProgress({ message: '', current: 0, total: 0 });
       setFeedback('❌ Sales refresh failed');
       setTimeout(() => setFeedback(''), 5000);
       console.error('Sales refresh error:', error);
@@ -2798,7 +2820,8 @@ const PlanogramProfitTracker = () => {
       return;
     }
 
-    setFeedback('🔥 Order Blitz: Importing orders... (this may take a minute)');
+    setSyncProgress({ message: '🔥 Starting Order Blitz...', current: 0, total: 0 });
+    setFeedback('🔥 Order Blitz: Starting...');
     
     try {
       const response = await fetch(`${BACKEND_URL}/api/shopify`, {
@@ -2820,16 +2843,29 @@ const PlanogramProfitTracker = () => {
         
         // Check if processing in background
         if (data.processing) {
-          setFeedback(`🔥 Order Blitz: Processing orders in background... (2-3 minutes)`);
+          setSyncProgress({ message: '🔥 Processing orders...', current: 0, total: data.totalOrders || 0 });
+          setFeedback(`🔥 Order Blitz: Processing ${data.totalOrders || '...'} orders...`);
           
-          // Poll every 10 seconds to check if done
+          // Poll every 2 seconds to check progress
           const checkStatus = setInterval(async () => {
             try {
               const statusRes = await fetch(`${BACKEND_URL}/api/orders/status`);
               const statusData = await statusRes.json();
               
+              // Update progress
+              if (statusData.progress) {
+                const { processed, total } = statusData.progress;
+                setSyncProgress({ 
+                  message: `Processing orders`, 
+                  current: processed || 0, 
+                  total: total || 0 
+                });
+                setFeedback(`🔥 Order Blitz: ${processed || 0}/${total || 0} orders processed`);
+              }
+              
               if (!statusData.isProcessing && statusData.lastResult) {
                 clearInterval(checkStatus);
+                setSyncProgress({ message: '', current: 0, total: 0 });
                 
                 // Update with results
                 if (statusData.lastResult.analytics) {
@@ -6126,9 +6162,24 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             )}
           </div>
 
-          {feedback && (
+          {/* Feedback and Progress Display */}
+          {(feedback || syncProgress.total > 0) && (
             <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm">
-              {feedback}
+              <div>{feedback}</div>
+              {syncProgress.total > 0 && (
+                <div className="mt-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium">{syncProgress.message}</span>
+                    <span className="text-xs font-semibold">{syncProgress.current}/{syncProgress.total}</span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${syncProgress.total > 0 ? (syncProgress.current / syncProgress.total) * 100 : 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -11167,48 +11218,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           <h1 className="text-3xl font-bold mb-6">⚙️ Settings</h1>
           
           <div className="max-w-2xl space-y-6">
-            {/* Shopify Connection */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-bold mb-4">🛍️ Shopify Connection</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Store Name</label>
-                  <input
-                    type="text"
-                    value={shopifyConfig.storeName}
-                    onChange={(e) => setShopifyConfig({...shopifyConfig, storeName: e.target.value})}
-                    placeholder="your-store.myshopify.com"
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Admin API Access Token</label>
-                  <input
-                    type="password"
-                    value={shopifyConfig.accessToken}
-                    onChange={(e) => setShopifyConfig({...shopifyConfig, accessToken: e.target.value})}
-                    placeholder="shpat_..."
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <button
-                  onClick={testShopifyConnection}
-                  className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-semibold"
-                >
-                  Test Connection
-                </button>
-                
-                {shopifyConfig.connected && (
-                  <div className="p-3 bg-green-100 text-green-800 rounded">
-                    ✅ Connected
-                  </div>
-                )}
-              </div>
-            </div>
-            
             {/* Data Management - Master Sync Controls */}
             <div className="apple-card rounded-2xl p-6">
               <h2 className="text-2xl font-semibold mb-2" style={{ 
@@ -11221,7 +11230,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               
               {!shopifyConfig.connected ? (
                 <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-sm" style={{ color: '#86868b' }}>
-                  ⚠️ Connect Shopify above to enable data syncing
+                  ⚠️ Connect Shopify below to enable data syncing
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -11341,6 +11350,48 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   </div>
                 </div>
               )}
+            </div>
+            
+            {/* Shopify Connection */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold mb-4">🛍️ Shopify Connection</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Store Name</label>
+                  <input
+                    type="text"
+                    value={shopifyConfig.storeName}
+                    onChange={(e) => setShopifyConfig({...shopifyConfig, storeName: e.target.value})}
+                    placeholder="your-store.myshopify.com"
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Admin API Access Token</label>
+                  <input
+                    type="password"
+                    value={shopifyConfig.accessToken}
+                    onChange={(e) => setShopifyConfig({...shopifyConfig, accessToken: e.target.value})}
+                    placeholder="shpat_..."
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <button
+                  onClick={testShopifyConnection}
+                  className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-semibold"
+                >
+                  Test Connection
+                </button>
+                
+                {shopifyConfig.connected && (
+                  <div className="p-3 bg-green-100 text-green-800 rounded">
+                    ✅ Connected
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* Additional Settings Placeholder */}
