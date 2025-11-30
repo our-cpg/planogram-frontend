@@ -1525,15 +1525,11 @@ const PlanogramProfitTracker = () => {
     }
 
     setLoadingAllProducts(true);
-    setFeedback('🔴 Loading ALL products with LIVE inventory from Shopify...');
+    setFeedback('🔴 Loading ALL products with sales data from database...');
 
     try {
-      // Use LIVE Shopify endpoint, not database!
-      const url = new URL(`${BACKEND_URL}/api/shopify/live-products-all`);
-      url.searchParams.append('storeName', shopifyConfig.storeName);
-      url.searchParams.append('accessToken', shopifyConfig.accessToken);
-      
-      const response = await fetch(url);
+      // Use the correct endpoint - /api/products/all (no params needed)
+      const response = await fetch(`${BACKEND_URL}/api/products/all`);
 
       if (!response.ok) {
         throw new Error(`Failed to load products: ${response.status}`);
@@ -1542,11 +1538,13 @@ const PlanogramProfitTracker = () => {
       const data = await response.json();
       const products = data.products || [];
       
-      console.log(`✅ Loaded ${products.length} products with LIVE inventory from Shopify`);
+      console.log(`✅ Loaded ${products.length} products with sales data from database`);
       console.log(`📊 Summary:`, data.summary);
-      console.log(`🔴 Source: ${data.summary?.source}`);
       setAllDatabaseProducts(products);
-      setFeedback(`✅ Loaded ${products.length} products with LIVE Shopify inventory (${data.summary?.criticalAlerts || 0} critical alerts)`);
+      setFeedback(`✅ Loaded ${products.length} products with sales data (${data.summary?.criticalAlerts || 0} critical alerts)`);
+      
+      // Save timestamp
+      localStorage.setItem('lastInventoryLoadTime', Date.now().toString());
       
       // AUTO-SYNC 1: Update distributor values in planogram (silent)
       setTimeout(() => autoSyncDistributors(products), 500);
