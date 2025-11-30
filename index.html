@@ -8364,8 +8364,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                     className="p-3 rounded-lg bg-white border border-orange-200"
                                   >
                                     <div className="text-lg font-bold text-orange-600">#{idx + 1}</div>
-                                    <div className="text-xs font-semibold truncate" title={productName}>
-                                      {productName.length > 30 ? productName.substring(0, 30) + '...' : productName}
+                                    <div className="text-xs font-semibold h-10 overflow-hidden" title={productName}>
+                                      {productName.length > 50 ? productName.substring(0, 50) + '...' : productName}
                                     </div>
                                     <div className="text-xs mt-1 text-gray-600">
                                       {count} combo sales
