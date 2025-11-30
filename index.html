@@ -8312,41 +8312,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         {topFixtures.length > 0 ? (
                           <>
                             <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                              🔥 Top Combo Hotspots
-                              <span className="text-xs font-normal text-gray-600">(Fixtures with most cross-sell activity)</span>
-                            </h3>
-                            <div className="grid grid-cols-5 gap-3">
-                              {topFixtures.map(([fixtureName, stats], idx) => (
-                                <button
-                                  key={fixtureName}
-                                  onClick={() => setCorrelationFixtureFilter(fixtureName)}
-                                  className={`p-3 rounded-lg transition-all text-left ${
-                                    correlationFixtureFilter === fixtureName
-                                      ? 'bg-orange-500 text-white shadow-lg scale-105'
-                                      : 'bg-white hover:bg-orange-100 border border-orange-200'
-                                  }`}
-                                >
-                                  <div className="text-lg font-bold">#{idx + 1}</div>
-                                  <div className="text-xs font-semibold truncate" title={fixtureName}>
-                                    {fixtureName}
-                                  </div>
-                                  <div className={`text-xs mt-1 ${correlationFixtureFilter === fixtureName ? 'text-orange-100' : 'text-gray-600'}`}>
-                                    {stats.totalComboSales} combo sales
-                                  </div>
-                                  <div className={`text-xs ${correlationFixtureFilter === fixtureName ? 'text-orange-100' : 'text-gray-500'}`}>
-                                    {stats.comboPairs} unique pairs
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
                               🔥 Top Products in Combos
                               <span className="text-xs font-normal text-gray-600">(Most frequently bundled items)</span>
                             </h3>
-                            <div className="grid grid-cols-5 gap-3">
+                            <div className="bg-white rounded-lg p-4 border border-orange-200">
                               {(() => {
                                 // Count how many combos each product appears in
                                 const productComboCount = {};
@@ -8359,22 +8328,58 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                 
                                 const topProducts = Object.entries(productComboCount)
                                   .sort((a, b) => b[1] - a[1])
-                                  .slice(0, 5);
+                                  .slice(0, 10);
                                 
-                                return topProducts.map(([productName, count], idx) => (
-                                  <div
-                                    key={productName}
-                                    className="p-3 rounded-lg bg-white border border-orange-200"
-                                  >
-                                    <div className="text-lg font-bold text-orange-600">#{idx + 1}</div>
-                                    <div className="text-xs font-semibold min-h-[40px] leading-tight break-words" title={productName}>
-                                      {productName}
-                                    </div>
-                                    <div className="text-xs mt-1 text-gray-600 font-bold">
-                                      {count} combo sales
-                                    </div>
+                                return (
+                                  <div className="space-y-2">
+                                    {topProducts.map(([productName, count], idx) => (
+                                      <div key={productName} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                                        <div className="flex items-center gap-3 flex-1">
+                                          <div className="text-lg font-bold text-orange-600 w-8">#{idx + 1}</div>
+                                          <div className="text-sm font-medium text-gray-800">{productName}</div>
+                                        </div>
+                                        <div className="text-sm font-bold text-gray-600">{count} combo sales</div>
+                                      </div>
+                                    ))}
                                   </div>
-                                ));
+                                );
+                              })()}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                              🔥 Top Products in Combos
+                              <span className="text-xs font-normal text-gray-600">(Most frequently bundled items)</span>
+                            </h3>
+                            <div className="bg-white rounded-lg p-4 border border-orange-200">
+                              {(() => {
+                                // Count how many combos each product appears in
+                                const productComboCount = {};
+                                productCorrelations.forEach(corr => {
+                                  const nameA = corr.productA.name;
+                                  const nameB = corr.productB.name;
+                                  productComboCount[nameA] = (productComboCount[nameA] || 0) + corr.timesBoughtTogether;
+                                  productComboCount[nameB] = (productComboCount[nameB] || 0) + corr.timesBoughtTogether;
+                                });
+                                
+                                const topProducts = Object.entries(productComboCount)
+                                  .sort((a, b) => b[1] - a[1])
+                                  .slice(0, 10);
+                                
+                                return (
+                                  <div className="space-y-2">
+                                    {topProducts.map(([productName, count], idx) => (
+                                      <div key={productName} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                                        <div className="flex items-center gap-3 flex-1">
+                                          <div className="text-lg font-bold text-orange-600 w-8">#{idx + 1}</div>
+                                          <div className="text-sm font-medium text-gray-800">{productName}</div>
+                                        </div>
+                                        <div className="text-sm font-bold text-gray-600">{count} combo sales</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
                               })()}
                             </div>
                           </>
@@ -8382,196 +8387,125 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       </div>
                     )}
                     
-                    {/* 🕸️ COMBO NETWORK VISUALIZATION */}
+                    {/* 💰 COMBO BUSINESS INTELLIGENCE */}
                     {productCorrelations.length > 0 && (() => {
-                      // Use callback ref to build D3 visualization when element mounts
-                      const buildNetwork = (containerElement) => {
-                        if (!containerElement || typeof d3 === 'undefined' || !productCorrelations.length) return;
-                        
-                        // Clear previous
-                        d3.select(containerElement).selectAll('*').remove();
-                        
-                        // Get top 20 products for cleaner visualization
-                        const productComboCount = {};
-                        productCorrelations.forEach(corr => {
-                          const nameA = corr.productA.name;
-                          const nameB = corr.productB.name;
-                          productComboCount[nameA] = (productComboCount[nameA] || 0) + corr.timesBoughtTogether;
-                          productComboCount[nameB] = (productComboCount[nameB] || 0) + corr.timesBoughtTogether;
-                        });
-                        
-                        const topProducts = Object.entries(productComboCount)
-                          .sort((a, b) => b[1] - a[1])
-                          .slice(0, 20)
-                          .map(([name]) => name);
-                        
-                        const topProductsSet = new Set(topProducts);
-                        
-                        // Build nodes
-                        const nodes = topProducts.map(name => ({
-                          id: name,
-                          value: productComboCount[name],
-                          radius: Math.sqrt(productComboCount[name]) * 2 + 10
-                        }));
-                        
-                        // Build links
-                        const links = productCorrelations
-                          .filter(corr => 
-                            topProductsSet.has(corr.productA.name) && 
-                            topProductsSet.has(corr.productB.name)
-                          )
-                          .map(corr => ({
-                            source: corr.productA.name,
-                            target: corr.productB.name,
-                            value: corr.timesBoughtTogether
-                          }));
-                        
-                        // Setup SVG
-                        const width = containerElement.clientWidth;
-                        const height = 500;
-                        
-                        const svg = d3.select(containerElement)
-                          .append('svg')
-                          .attr('width', width)
-                          .attr('height', height);
-                        
-                        // Create force simulation
-                        const simulation = d3.forceSimulation(nodes)
-                          .force('link', d3.forceLink(links).id(d => d.id).distance(100))
-                          .force('charge', d3.forceManyBody().strength(-300))
-                          .force('center', d3.forceCenter(width / 2, height / 2))
-                          .force('collision', d3.forceCollide().radius(d => d.radius + 5));
-                        
-                        // Draw links
-                        const link = svg.append('g')
-                          .selectAll('line')
-                          .data(links)
-                          .join('line')
-                          .attr('stroke', '#999')
-                          .attr('stroke-opacity', 0.6)
-                          .attr('stroke-width', d => Math.sqrt(d.value));
-                        
-                        // Draw nodes
-                        const node = svg.append('g')
-                          .selectAll('g')
-                          .data(nodes)
-                          .join('g')
-                          .call(d3.drag()
-                            .on('start', dragstarted)
-                            .on('drag', dragged)
-                            .on('end', dragended));
-                        
-                        // Add circles
-                        node.append('circle')
-                          .attr('r', d => d.radius)
-                          .attr('fill', d => {
-                            const maxValue = Math.max(...nodes.map(n => n.value));
-                            const ratio = d.value / maxValue;
-                            if (ratio > 0.6) return '#ef4444'; // red
-                            if (ratio > 0.3) return '#f97316'; // orange
-                            if (ratio > 0.15) return '#60a5fa'; // blue
-                            return '#9ca3af'; // gray
-                          })
-                          .attr('stroke', '#fff')
-                          .attr('stroke-width', 2)
-                          .style('cursor', 'pointer')
-                          .on('mouseover', function(event, d) {
-                            d3.select(this)
-                              .transition()
-                              .duration(200)
-                              .attr('r', d.radius * 1.2);
-                              
-                            // Highlight connected links
-                            link.attr('stroke-opacity', l => 
-                              (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.1
-                            );
-                          })
-                          .on('mouseout', function(event, d) {
-                            d3.select(this)
-                              .transition()
-                              .duration(200)
-                              .attr('r', d.radius);
-                              
-                            link.attr('stroke-opacity', 0.6);
-                          });
-                        
-                        // Add labels
-                        node.append('text')
-                          .text(d => {
-                            const name = d.id;
-                            return name.length > 20 ? name.substring(0, 20) + '...' : name;
-                          })
-                          .attr('font-size', '10px')
-                          .attr('dx', d => d.radius + 5)
-                          .attr('dy', 4)
-                          .attr('fill', '#333')
-                          .style('pointer-events', 'none');
-                        
-                        // Add title on hover
-                        node.append('title')
-                          .text(d => `${d.id}\n${d.value} combo sales`);
-                        
-                        // Update positions on tick
-                        simulation.on('tick', () => {
-                          link
-                            .attr('x1', d => d.source.x)
-                            .attr('y1', d => d.source.y)
-                            .attr('x2', d => d.target.x)
-                            .attr('y2', d => d.target.y);
-                          
-                          node.attr('transform', d => `translate(${d.x},${d.y})`);
-                        });
-                        
-                        // Drag functions
-                        function dragstarted(event, d) {
-                          if (!event.active) simulation.alphaTarget(0.3).restart();
-                          d.fx = d.x;
-                          d.fy = d.y;
-                        }
-                        
-                        function dragged(event, d) {
-                          d.fx = event.x;
-                          d.fy = event.y;
-                        }
-                        
-                        function dragended(event, d) {
-                          if (!event.active) simulation.alphaTarget(0);
-                          d.fx = null;
-                          d.fy = null;
-                        }
-                      };
+                      // Calculate business metrics
+                      const totalComboSales = productCorrelations.reduce((sum, corr) => sum + corr.timesBoughtTogether, 0);
+                      const totalComboRevenue = productCorrelations.reduce((sum, corr) => 
+                        sum + (corr.timesBoughtTogether * (corr.productA.price + corr.productB.price)), 0
+                      );
+                      const avgBundleValue = totalComboRevenue / totalComboSales;
+                      
+                      // Find strongest combo pairs (most frequently bought together)
+                      const strongestCombos = [...productCorrelations]
+                        .sort((a, b) => b.timesBoughtTogether - a.timesBoughtTogether)
+                        .slice(0, 5);
+                      
+                      // Find highest revenue combos
+                      const highestRevenueCombos = [...productCorrelations]
+                        .map(corr => ({
+                          ...corr,
+                          revenue: corr.timesBoughtTogether * (corr.productA.price + corr.productB.price)
+                        }))
+                        .sort((a, b) => b.revenue - a.revenue)
+                        .slice(0, 5);
+                      
+                      // Find highest AOV combos (premium bundles)
+                      const premiumCombos = [...productCorrelations]
+                        .map(corr => ({
+                          ...corr,
+                          bundlePrice: corr.productA.price + corr.productB.price
+                        }))
+                        .sort((a, b) => b.bundlePrice - a.bundlePrice)
+                        .slice(0, 5);
                       
                       return (
-                        <div className="mb-4 p-4 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
-                          <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                            🕸️ Combo Connection Map
-                            <span className="text-xs font-normal text-gray-600">(Interactive network - hover & drag bubbles!)</span>
+                        <div className="mb-4 p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                          <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            💰 Combo Business Intelligence
+                            <span className="text-xs font-normal text-gray-600">(Turn combos into revenue)</span>
                           </h3>
-                          <div 
-                            ref={buildNetwork}
-                            className="bg-white rounded-lg border border-purple-200"
-                            style={{ width: '100%', height: '500px' }}
-                          />
-                          <div className="mt-2 flex items-center justify-center gap-6 text-xs text-gray-600">
-                            <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                              <span>Hot Combo Star</span>
+                          
+                          {/* Key Metrics Row */}
+                          <div className="grid grid-cols-3 gap-4 mb-4">
+                            <div className="bg-white rounded-lg p-4 border border-green-200">
+                              <div className="text-xs text-gray-600 mb-1">Total Combo Sales</div>
+                              <div className="text-2xl font-bold text-green-600">{totalComboSales.toLocaleString()}</div>
+                              <div className="text-xs text-gray-500 mt-1">Times products bought together</div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-blue-400"></div>
-                              <span>Moderate Activity</span>
+                            <div className="bg-white rounded-lg p-4 border border-green-200">
+                              <div className="text-xs text-gray-600 mb-1">Combo Revenue</div>
+                              <div className="text-2xl font-bold text-green-600">${totalComboRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                              <div className="text-xs text-gray-500 mt-1">From bundled purchases</div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-gray-400"></div>
-                              <span>Light Activity</span>
+                            <div className="bg-white rounded-lg p-4 border border-green-200">
+                              <div className="text-xs text-gray-600 mb-1">Avg Bundle Value</div>
+                              <div className="text-2xl font-bold text-green-600">${avgBundleValue.toFixed(2)}</div>
+                              <div className="text-xs text-gray-500 mt-1">Per combo transaction</div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className="h-0.5 w-6 bg-gray-800"></div>
-                              <span>Strong Connection</span>
+                          </div>
+                          
+                          {/* Three columns of insights */}
+                          <div className="grid grid-cols-3 gap-4">
+                            {/* Strongest Combos */}
+                            <div className="bg-white rounded-lg p-4 border border-green-200">
+                              <h4 className="font-bold text-sm text-gray-800 mb-3">🔥 Most Frequent Combos</h4>
+                              <div className="space-y-2">
+                                {strongestCombos.map((combo, idx) => (
+                                  <div key={idx} className="text-xs border-b border-gray-100 pb-2 last:border-0">
+                                    <div className="font-semibold text-gray-700 truncate" title={`${combo.productA.name} + ${combo.productB.name}`}>
+                                      {combo.productA.name.substring(0, 20)}... + {combo.productB.name.substring(0, 20)}...
+                                    </div>
+                                    <div className="text-gray-600 mt-1">
+                                      <span className="font-bold text-green-600">{combo.timesBoughtTogether}x</span> bought together
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-3 text-xs text-gray-500 italic">
+                                💡 Create bundle deals for these pairs
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className="h-px w-6 bg-gray-300"></div>
-                              <span>Weak Connection</span>
+                            
+                            {/* Highest Revenue Combos */}
+                            <div className="bg-white rounded-lg p-4 border border-green-200">
+                              <h4 className="font-bold text-sm text-gray-800 mb-3">💵 Top Revenue Combos</h4>
+                              <div className="space-y-2">
+                                {highestRevenueCombos.map((combo, idx) => (
+                                  <div key={idx} className="text-xs border-b border-gray-100 pb-2 last:border-0">
+                                    <div className="font-semibold text-gray-700 truncate" title={`${combo.productA.name} + ${combo.productB.name}`}>
+                                      {combo.productA.name.substring(0, 20)}... + {combo.productB.name.substring(0, 20)}...
+                                    </div>
+                                    <div className="text-gray-600 mt-1">
+                                      <span className="font-bold text-green-600">${combo.revenue.toFixed(2)}</span> total revenue
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-3 text-xs text-gray-500 italic">
+                                💡 Prioritize these for placement & promotion
+                              </div>
+                            </div>
+                            
+                            {/* Premium Bundle Opportunities */}
+                            <div className="bg-white rounded-lg p-4 border border-green-200">
+                              <h4 className="font-bold text-sm text-gray-800 mb-3">👑 Premium Bundles</h4>
+                              <div className="space-y-2">
+                                {premiumCombos.map((combo, idx) => (
+                                  <div key={idx} className="text-xs border-b border-gray-100 pb-2 last:border-0">
+                                    <div className="font-semibold text-gray-700 truncate" title={`${combo.productA.name} + ${combo.productB.name}`}>
+                                      {combo.productA.name.substring(0, 20)}... + {combo.productB.name.substring(0, 20)}...
+                                    </div>
+                                    <div className="text-gray-600 mt-1">
+                                      <span className="font-bold text-green-600">${combo.bundlePrice.toFixed(2)}</span> bundle price
+                                      <span className="text-gray-500 ml-2">({combo.timesBoughtTogether}x)</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-3 text-xs text-gray-500 italic">
+                                💡 High-value customers buy these together
+                              </div>
                             </div>
                           </div>
                         </div>
