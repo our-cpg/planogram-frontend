@@ -8728,17 +8728,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                   const fixtureFlows = {};
                                   const fixtureNames = new Set();
                                   
-                                  // DEBUG: Log sections to see structure
-                                  console.log('🔍 DEBUGGING SECTIONS:', sections);
-                                  console.log('🔍 First section example:', sections[0]);
-                                  if (sections[0]?.products) {
-                                    console.log('🔍 First product example:', sections[0].products[0]);
-                                  }
-                                  
-                                  // DEBUG: Log correlations to compare
-                                  console.log('🔍 DEBUGGING CORRELATIONS:', productCorrelations.slice(0, 3));
-                                  console.log('🔍 First correlation example:', productCorrelations[0]);
-                                  
                                   // Map products to their fixtures from sections
                                   const productToFixture = {};
                                   
@@ -8756,20 +8745,42 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                   
                                   sections.forEach(section => {
                                     fixtureNames.add(section.name);
-                                    if (section.products) {
+                                    
+                                    // Products are in ROWS, not products array!
+                                    if (section.rows && Array.isArray(section.rows)) {
+                                      section.rows.forEach(row => {
+                                        if (row.products && Array.isArray(row.products)) {
+                                          row.products.forEach(p => {
+                                            // Map by normalized UPC
+                                            if (p.upc) {
+                                              const normalizedUPC = normalizeUPC(p.upc);
+                                              productToFixture[normalizedUPC] = section.name;
+                                              // Also keep original UPC
+                                              productToFixture[p.upc] = section.name;
+                                            }
+                                            // Map by normalized name
+                                            if (p.name) {
+                                              const normalizedName = normalizeName(p.name);
+                                              productToFixture[normalizedName] = section.name;
+                                              // Also keep original name
+                                              productToFixture[p.name] = section.name;
+                                            }
+                                          });
+                                        }
+                                      });
+                                    }
+                                    
+                                    // ALSO check products array as fallback
+                                    if (section.products && Array.isArray(section.products)) {
                                       section.products.forEach(p => {
-                                        // Map by normalized UPC
                                         if (p.upc) {
                                           const normalizedUPC = normalizeUPC(p.upc);
                                           productToFixture[normalizedUPC] = section.name;
-                                          // Also keep original UPC
                                           productToFixture[p.upc] = section.name;
                                         }
-                                        // Map by normalized name
                                         if (p.name) {
                                           const normalizedName = normalizeName(p.name);
                                           productToFixture[normalizedName] = section.name;
-                                          // Also keep original name
                                           productToFixture[p.name] = section.name;
                                         }
                                       });
