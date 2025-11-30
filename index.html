@@ -2621,8 +2621,12 @@ const PlanogramProfitTracker = () => {
       return;
     }
 
-    setFeedback('🔥 BEAST MODE: Importing orders... (this may take a minute)');
-    
+    setFeedback('🔥 BEAST MODE: Importing ALL orders... (this may take a few minutes)');
+
+    // Get ALL historical orders from 2020 to now
+    const startDate = '2020-01-01T00:00:00Z';
+    const endDate = new Date().toISOString();
+
     try {
       const response = await fetch(`${BACKEND_URL}/api/shopify`, {
         method: 'POST',
@@ -2630,7 +2634,10 @@ const PlanogramProfitTracker = () => {
         body: JSON.stringify({
           storeName: shopifyConfig.storeName,
           accessToken: shopifyConfig.accessToken,
-          action: 'refreshOrders'
+          action: 'refreshOrders',
+          created_at_min: startDate,
+          created_at_max: endDate,
+          fetchAll: true
         })
       });
 
@@ -2773,16 +2780,25 @@ const PlanogramProfitTracker = () => {
 
   const fetchAllOrders = async () => {
     setOrderAnalyticsData(prev => ({ ...prev, status: 'Loading...' }));
-    
+
     try {
+      // Calculate date range to get ALL historical orders (from 2020 to now)
+      const startDate = '2020-01-01T00:00:00Z';
+      const endDate = new Date().toISOString();
+
       // Try getOrders first (for full data with line_items)
+      // Pass date range to ensure we get ALL orders, not just recent ones
       let response = await fetch(`${BACKEND_URL}/api/shopify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           storeName: '1m3tfh-xt.myshopify.com',
           accessToken: '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',
-          action: 'getOrders'
+          action: 'getOrders',
+          created_at_min: startDate,
+          created_at_max: endDate,
+          limit: 250,
+          fetchAll: true
         })
       });
 
@@ -2795,7 +2811,11 @@ const PlanogramProfitTracker = () => {
           body: JSON.stringify({
             storeName: '1m3tfh-xt.myshopify.com',
             accessToken: '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',
-            action: 'getOrderAnalytics'
+            action: 'getOrderAnalytics',
+            created_at_min: startDate,
+            created_at_max: endDate,
+            limit: 250,
+            fetchAll: true
           })
         });
       }
@@ -8208,10 +8228,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-xl font-bold mb-2">⏰ When Do People Buy?</h2>
               <p className="text-sm text-gray-500 mb-4">
-                Sales patterns by time of day and day of month
+                Historical sales patterns from ALL orders
                 {orderAnalyticsData.allOrders && orderAnalyticsData.allOrders.length > 0 && (
                   <span className="ml-2 text-blue-600 font-semibold">
-                    (analyzing {orderAnalyticsData.allOrders.length.toLocaleString()} orders)
+                    (analyzing {orderAnalyticsData.allOrders.length.toLocaleString()} total orders)
                   </span>
                 )}
               </p>
@@ -8224,9 +8244,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   return (
                     <div className="p-8 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg border-2 border-orange-200 text-center">
                       <div className="text-4xl mb-3">🔥</div>
-                      <div className="font-bold text-lg mb-2">Import Order Data to Unlock</div>
+                      <div className="font-bold text-lg mb-2">Import ALL Order History to Unlock</div>
                       <div className="text-sm text-gray-600 mb-4">
-                        Click the <strong>🔥 Refresh Orders</strong> button above to analyze:
+                        Click the <strong>🔥 Refresh Orders</strong> button above to import ALL historical orders and analyze:
                       </div>
                       <div className="space-y-2 text-left max-w-md mx-auto">
                         <div className="flex items-center gap-2 text-sm">
