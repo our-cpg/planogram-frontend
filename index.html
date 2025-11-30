@@ -559,6 +559,7 @@ const PlanogramProfitTracker = () => {
   });
   const [productCorrelations, setProductCorrelations] = useState([]);
   const [correlationFixtureFilter, setCorrelationFixtureFilter] = useState('all'); // For Best Upsell Combinations filter
+  const [correlationSortBy, setCorrelationSortBy] = useState('count_desc'); // Sort method
   const [salesExplorerDateRange, setSalesExplorerDateRange] = useState({ start: null, end: null }); // For Interactive Sales Explorer
   const [salesExplorerView, setSalesExplorerView] = useState('hourly'); // For Interactive Sales Explorer view toggle
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true); // Enabled by default
@@ -8221,6 +8222,42 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     )).sort()
                   : [];
                 
+                // Calculate combo activity per fixture
+                const fixtureStats = {};
+                allFixtures.forEach(fixtureName => {
+                  const productsInFixture = new Set();
+                  fixtures.forEach(fixture => {
+                    if (fixture.shelves) {
+                      fixture.shelves.forEach(shelf => {
+                        if (shelf.name === fixtureName && shelf.products) {
+                          shelf.products.forEach(p => {
+                            if (p.upc) productsInFixture.add(p.upc);
+                          });
+                        }
+                      });
+                    }
+                  });
+                  
+                  // Count correlations involving this fixture
+                  const fixtureCorrelations = productCorrelations.filter(corr => 
+                    productsInFixture.has(corr.productA.upc) || 
+                    productsInFixture.has(corr.productB.upc)
+                  );
+                  
+                  const totalComboSales = fixtureCorrelations.reduce((sum, corr) => sum + corr.timesBoughtTogether, 0);
+                  
+                  fixtureStats[fixtureName] = {
+                    comboPairs: fixtureCorrelations.length,
+                    totalComboSales,
+                    avgPerPair: fixtureCorrelations.length > 0 ? (totalComboSales / fixtureCorrelations.length).toFixed(1) : 0
+                  };
+                });
+                
+                // Sort fixtures by combo activity
+                const topFixtures = Object.entries(fixtureStats)
+                  .sort((a, b) => b[1].totalComboSales - a[1].totalComboSales)
+                  .slice(0, 5);
+                
                 // Filter correlations by fixture
                 let filteredCorrelations = productCorrelations;
                 if (correlationFixtureFilter !== 'all' && fixtures && Array.isArray(fixtures)) {
@@ -8245,25 +8282,98 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   );
                 }
                 
+                // Apply sorting
+                filteredCorrelations = [...filteredCorrelations].sort((a, b) => {
+                  const bundlePriceA = a.productA.price + a.productB.price;
+                  const bundlePriceB = b.productA.price + b.productB.price;
+                  
+                  switch(correlationSortBy) {
+                    case 'count_desc':
+                      return b.timesBoughtTogether - a.timesBoughtTogether;
+                    case 'count_asc':
+                      return a.timesBoughtTogether - b.timesBoughtTogether;
+                    case 'price_desc':
+                      return bundlePriceB - bundlePriceA;
+                    case 'price_asc':
+                      return bundlePriceA - bundlePriceB;
+                    default:
+                      return b.timesBoughtTogether - a.timesBoughtTogether;
+                  }
+                });
+                
                 return (
                   <>
-                    {/* Fixture Filter */}
-                    {allFixtures.length > 0 && (
-                      <div className="mb-4 flex items-center gap-3">
-                        <label className="text-sm font-semibold text-gray-700">Filter by Fixture:</label>
-                        <select
-                          value={correlationFixtureFilter}
-                          onChange={(e) => setCorrelationFixtureFilter(e.target.value)}
-                          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="all">All Fixtures ({productCorrelations.length} pairs)</option>
-                          {allFixtures.map(fixtureName => (
-                            <option key={fixtureName} value={fixtureName}>
-                              {fixtureName}
-                            </option>
+                    {/* Fixture Heat Stats - Top Combo Hotspots */}
+                    {topFixtures.length > 0 && productCorrelations.length > 0 && (
+                      <div className="mb-4 p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
+                        <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                          🔥 Top Combo Hotspots
+                          <span className="text-xs font-normal text-gray-600">(Fixtures with most cross-sell activity)</span>
+                        </h3>
+                        <div className="grid grid-cols-5 gap-3">
+                          {topFixtures.map(([fixtureName, stats], idx) => (
+                            <button
+                              key={fixtureName}
+                              onClick={() => setCorrelationFixtureFilter(fixtureName)}
+                              className={`p-3 rounded-lg transition-all text-left ${
+                                correlationFixtureFilter === fixtureName
+                                  ? 'bg-orange-500 text-white shadow-lg scale-105'
+                                  : 'bg-white hover:bg-orange-100 border border-orange-200'
+                              }`}
+                            >
+                              <div className="text-lg font-bold">#{idx + 1}</div>
+                              <div className="text-xs font-semibold truncate" title={fixtureName}>
+                                {fixtureName}
+                              </div>
+                              <div className={`text-xs mt-1 ${correlationFixtureFilter === fixtureName ? 'text-orange-100' : 'text-gray-600'}`}>
+                                {stats.totalComboSales} combo sales
+                              </div>
+                              <div className={`text-xs ${correlationFixtureFilter === fixtureName ? 'text-orange-100' : 'text-gray-500'}`}>
+                                {stats.comboPairs} unique pairs
+                              </div>
+                            </button>
                           ))}
-                        </select>
-                        <span className="text-xs text-gray-500">
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Filters Row */}
+                    <div className="mb-4 space-y-3">
+                      {/* Top Row: Fixture Filter & Sort */}
+                      <div className="flex items-center gap-4 flex-wrap">
+                        {allFixtures.length > 0 && (
+                          <div className="flex items-center gap-2">
+                            <label className="text-sm font-semibold text-gray-700">Fixture:</label>
+                            <select
+                              value={correlationFixtureFilter}
+                              onChange={(e) => setCorrelationFixtureFilter(e.target.value)}
+                              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="all">All Fixtures</option>
+                              {allFixtures.map(fixtureName => (
+                                <option key={fixtureName} value={fixtureName}>
+                                  {fixtureName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-semibold text-gray-700">Sort By:</label>
+                          <select
+                            value={correlationSortBy}
+                            onChange={(e) => setCorrelationSortBy(e.target.value)}
+                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="count_desc">Times Bought (High → Low)</option>
+                            <option value="count_asc">Times Bought (Low → High)</option>
+                            <option value="price_desc">Bundle Price (High → Low)</option>
+                            <option value="price_asc">Bundle Price (Low → High)</option>
+                          </select>
+                        </div>
+                        
+                        <span className="text-xs text-gray-500 ml-auto">
                           Showing {filteredCorrelations.length} combination{filteredCorrelations.length === 1 ? '' : 's'}
                           {filteredCorrelations.length > 0 && (
                             <span className="ml-2 text-blue-600 font-semibold">
@@ -8272,10 +8382,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           )}
                         </span>
                       </div>
-                    )}
+                    </div>
                     
-                    {/* Scrollable Container - fills card space */}
-                    <div className="space-y-4 max-h-[800px] overflow-y-auto pr-2">
+                    {/* Scrollable Container - fills all white space */}
+                    <div className="space-y-4 max-h-[2000px] overflow-y-auto pr-2">
                       {filteredCorrelations.length > 0 ? (
                         filteredCorrelations.map((corr, idx) => (
                           <div key={idx} className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
