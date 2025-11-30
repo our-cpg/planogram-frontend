@@ -378,6 +378,39 @@ const PlanogramProfitTracker = () => {
     console.log('🔧 Debug helper installed. Type "window.debugStorePlanner.logData()" in console to see all data');
   }, [sections, fixtures, discountConfig, discountImpact]);
 
+  // 🚀 AUTO-LOAD DATA ON STARTUP
+  useEffect(() => {
+    const autoLoadData = async () => {
+      // Only auto-load if Shopify is connected
+      if (!shopifyConfig.connected) {
+        console.log('⏭️ Skipping auto-load: Shopify not connected');
+        return;
+      }
+
+      console.log('🚀 Auto-loading data on startup...');
+      
+      // Wait a bit for the planogram to load first
+      setTimeout(async () => {
+        try {
+          // Load products first (needed for everything else)
+          await refreshProductCache(true);
+          
+          // Then load sales data
+          await refreshSalesOnly();
+          
+          // Load orders for analytics (can be slow, so do last)
+          await refreshOrders();
+          
+          console.log('✅ Auto-load complete!');
+        } catch (error) {
+          console.error('❌ Auto-load error:', error);
+        }
+      }, 2000); // Wait 2 seconds for Firebase/planogram to load
+    };
+
+    autoLoadData();
+  }, [shopifyConfig.connected]); // Only run when Shopify connection changes
+
   // Initialize Firebase on mount
   useEffect(() => {
     // Simple timer-based fallback - if Firebase doesn't load in 3 seconds, mark as ready anyway
@@ -6032,6 +6065,28 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               Shopify
             </button>
 
+            {/* Sync All Button - Quick Access */}
+            {shopifyConfig.connected && (
+              <button 
+                onClick={async () => {
+                  setFeedback('🔄 Syncing all data...');
+                  try {
+                    await refreshProductCache(false);
+                    await refreshSalesOnly();
+                    await refreshOrders();
+                    setFeedback('✅ All data synced!');
+                    setTimeout(() => setFeedback(''), 3000);
+                  } catch (error) {
+                    setFeedback('❌ Sync failed');
+                  }
+                }}
+                className="px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded hover:from-blue-600 hover:to-blue-700 text-sm font-medium flex items-center gap-1 shadow-sm"
+                title="Sync all data: Products, Sales, and Orders"
+              >
+                🔄 Sync All
+              </button>
+            )}
+
             {/* Time Period Filter */}
             <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-purple-50 px-3 py-2 rounded-lg border border-blue-200">
               <Icons.BarChart3 />
@@ -10449,10 +10504,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     if (products.length === 0) return null;
 
                     return (
-                      <div key={groupName} className="bg-white rounded-lg shadow-lg overflow-hidden">
-                        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
-                          <h2 className="text-xl font-bold">{groupName}</h2>
-                          <div className="text-sm opacity-90 mt-1">{products.length} products</div>
+                      <div key={groupName} className="apple-card rounded-2xl overflow-hidden">
+                        <div className="bg-white/70 backdrop-blur-sm p-5 border-b border-gray-200/50">
+                          <h2 className="text-2xl font-semibold" style={{ 
+                            color: '#1d1d1f',
+                            letterSpacing: '-0.02em'
+                          }}>{groupName}</h2>
+                          <div className="text-sm mt-1" style={{ color: '#86868b', letterSpacing: '-0.01em' }}>{products.length} products</div>
                         </div>
 
                         <div className="overflow-x-auto">
@@ -11151,10 +11209,147 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </div>
             </div>
             
+            {/* Data Management - Master Sync Controls */}
+            <div className="apple-card rounded-2xl p-6">
+              <h2 className="text-2xl font-semibold mb-2" style={{ 
+                color: '#1d1d1f',
+                letterSpacing: '-0.02em'
+              }}>📊 Data Management</h2>
+              <p className="text-sm mb-6" style={{ color: '#86868b', letterSpacing: '-0.01em' }}>
+                Master controls for syncing data from Shopify
+              </p>
+              
+              {!shopifyConfig.connected ? (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-sm" style={{ color: '#86868b' }}>
+                  ⚠️ Connect Shopify above to enable data syncing
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Sync All Button */}
+                  <button
+                    onClick={async () => {
+                      setFeedback('🔄 Syncing all data...');
+                      try {
+                        await refreshProductCache(false);
+                        await refreshSalesOnly();
+                        await refreshOrders();
+                        setFeedback('✅ All data synced successfully!');
+                        setTimeout(() => setFeedback(''), 3000);
+                      } catch (error) {
+                        setFeedback('❌ Sync failed: ' + error.message);
+                      }
+                    }}
+                    className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 font-semibold text-lg shadow-lg transition-all"
+                  >
+                    🔄 Sync All Data
+                  </button>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* Products Button */}
+                    <button
+                      onClick={async () => {
+                        setFeedback('📦 Syncing products...');
+                        try {
+                          await refreshProductCache(false);
+                          setFeedback('✅ Products synced!');
+                          setTimeout(() => setFeedback(''), 3000);
+                        } catch (error) {
+                          setFeedback('❌ Failed: ' + error.message);
+                        }
+                      }}
+                      className="px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 font-medium transition-all shadow-md"
+                      title="Refresh product catalog and inventory levels"
+                    >
+                      📦 Products
+                    </button>
+
+                    {/* Sales Button */}
+                    <button
+                      onClick={async () => {
+                        setFeedback('💰 Syncing sales...');
+                        try {
+                          await refreshSalesOnly();
+                          setFeedback('✅ Sales synced!');
+                          setTimeout(() => setFeedback(''), 3000);
+                        } catch (error) {
+                          setFeedback('❌ Failed: ' + error.message);
+                        }
+                      }}
+                      className="px-4 py-3 bg-green-500 text-white rounded-xl hover:bg-green-600 font-medium transition-all shadow-md"
+                      title="Refresh sales data and velocity metrics"
+                    >
+                      💰 Sales
+                    </button>
+
+                    {/* Orders Button */}
+                    <button
+                      onClick={async () => {
+                        setFeedback('📊 Syncing orders...');
+                        try {
+                          await refreshOrders();
+                          setFeedback('✅ Orders synced!');
+                          setTimeout(() => setFeedback(''), 3000);
+                        } catch (error) {
+                          setFeedback('❌ Failed: ' + error.message);
+                        }
+                      }}
+                      className="px-4 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 font-medium transition-all shadow-md"
+                      title="Import full order data for analytics"
+                    >
+                      📊 Orders
+                    </button>
+                  </div>
+
+                  {/* Status Display */}
+                  <div className="grid grid-cols-3 gap-3 pt-4 border-t border-gray-200">
+                    <div className="text-center">
+                      <div className="text-xs font-medium" style={{ color: '#86868b' }}>Products</div>
+                      <div className={`text-sm font-semibold ${productsStatus.isStale ? 'text-yellow-600' : 'text-green-600'}`}>
+                        {productsStatus.message}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs font-medium" style={{ color: '#86868b' }}>Sales</div>
+                      <div className={`text-sm font-semibold ${salesStatus.isStale ? 'text-yellow-600' : 'text-green-600'}`}>
+                        {salesStatus.message}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs font-medium" style={{ color: '#86868b' }}>Orders</div>
+                      <div className={`text-sm font-semibold ${ordersStatus.isStale ? 'text-red-600' : 'text-green-600'}`}>
+                        {ordersStatus.message}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Auto-sync toggle */}
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                      <div className="font-medium" style={{ color: '#1d1d1f' }}>Auto-sync</div>
+                      <div className="text-xs" style={{ color: '#86868b' }}>Automatically refresh data every 5 minutes</div>
+                    </div>
+                    <button
+                      onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                        autoRefreshEnabled 
+                          ? 'bg-green-500 text-white' 
+                          : 'bg-gray-300 text-gray-700'
+                      }`}
+                    >
+                      {autoRefreshEnabled ? '✓ ON' : 'OFF'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
             {/* Additional Settings Placeholder */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-bold mb-4">🎨 Display Settings</h2>
-              <p className="text-gray-600">More settings coming soon...</p>
+            <div className="apple-card rounded-2xl p-6">
+              <h2 className="text-2xl font-semibold mb-4" style={{ 
+                color: '#1d1d1f',
+                letterSpacing: '-0.02em'
+              }}>🎨 Display Settings</h2>
+              <p className="text-sm" style={{ color: '#86868b' }}>More settings coming soon...</p>
             </div>
           </div>
         </div>
