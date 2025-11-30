@@ -8264,12 +8264,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         </select>
                         <span className="text-xs text-gray-500">
                           Showing {filteredCorrelations.length} combination{filteredCorrelations.length === 1 ? '' : 's'}
+                          {filteredCorrelations.length > 0 && (
+                            <span className="ml-2 text-blue-600 font-semibold">
+                              (Range: {Math.min(...filteredCorrelations.map(c => c.timesBoughtTogether))}–{Math.max(...filteredCorrelations.map(c => c.timesBoughtTogether))} times)
+                            </span>
+                          )}
                         </span>
                       </div>
                     )}
                     
                     {/* Scrollable Container */}
-                    <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                    <div className="space-y-4 max-h-[900px] overflow-y-auto pr-2">
                       {filteredCorrelations.length > 0 ? (
                         filteredCorrelations.map((corr, idx) => (
                           <div key={idx} className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
