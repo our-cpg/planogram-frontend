@@ -8834,13 +8834,40 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                   
                                   // Count how many correlations were successfully mapped
                                   let matchedCorrelations = 0;
+                                  const unmatchedProducts = [];
+                                  
                                   productCorrelations.forEach(corr => {
                                     const fixtureA = productToFixture[corr.productA.upc] || productToFixture[normalizeUPC(corr.productA.upc)] || 
                                                      productToFixture[corr.productA.name] || productToFixture[normalizeName(corr.productA.name)];
                                     const fixtureB = productToFixture[corr.productB.upc] || productToFixture[normalizeUPC(corr.productB.upc)] || 
                                                      productToFixture[corr.productB.name] || productToFixture[normalizeName(corr.productB.name)];
-                                    if (fixtureA && fixtureB) matchedCorrelations++;
+                                    
+                                    if (fixtureA && fixtureB) {
+                                      matchedCorrelations++;
+                                    } else {
+                                      // Track unmatched for debugging
+                                      if (!fixtureA) {
+                                        unmatchedProducts.push({
+                                          name: corr.productA.name,
+                                          upc: corr.productA.upc,
+                                          normalizedUPC: normalizeUPC(corr.productA.upc),
+                                          normalizedName: normalizeName(corr.productA.name)
+                                        });
+                                      }
+                                      if (!fixtureB) {
+                                        unmatchedProducts.push({
+                                          name: corr.productB.name,
+                                          upc: corr.productB.upc,
+                                          normalizedUPC: normalizeUPC(corr.productB.upc),
+                                          normalizedName: normalizeName(corr.productB.name)
+                                        });
+                                      }
+                                    }
                                   });
+                                  
+                                  // Debug unmatched products
+                                  console.log('❌ UNMATCHED PRODUCTS (first 10):', unmatchedProducts.slice(0, 10));
+                                  console.log('✅ AVAILABLE UPCs IN PLANOGRAM (first 20):', Object.keys(productToFixture).slice(0, 20));
                                   
                                   if (fixtureList.length === 0) {
                                     return (
