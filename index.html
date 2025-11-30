@@ -725,16 +725,36 @@ const PlanogramProfitTracker = () => {
       };
 
       console.log('💾 Calling Firebase savePlanogram...');
+      console.log('💾 Layout data being saved:', {
+        name: layoutData.name,
+        isSavedLayout: layoutData.isSavedLayout,
+        timestamp: layoutData.timestamp
+      });
       
       // Save to Firebase (let Firebase generate the ID)
       const savedId = await window.firebaseService.savePlanogram(layoutData);
       
+      if (!savedId) {
+        throw new Error('Firebase did not return an ID - save may have failed');
+      }
+      
       console.log(`✅ Layout "${layoutName}" saved with ID: ${savedId}`);
+      
+      // Add to local list immediately (no need to refetch everything!)
+      const newLayout = {
+        id: savedId,
+        name: layoutData.name,
+        timestamp: layoutData.timestamp,
+        metadata: layoutData.metadata
+      };
+      setSavedLayouts(prev => {
+        const updated = [newLayout, ...prev];
+        console.log(`📝 Local state updated - now have ${updated.length} layouts`);
+        return updated;
+      });
+      
       setFeedback(`✅ Layout "${layoutName}" saved!`);
       setTimeout(() => setFeedback(''), 3000);
-      
-      // Refresh the saved layouts list
-      await getAllSavedLayouts();
       
       setSavingLayout(false);
       return true;
@@ -759,9 +779,23 @@ const PlanogramProfitTracker = () => {
       const allPlanograms = await window.firebaseService.listPlanograms();
       console.log(`📂 Got ${allPlanograms.length} total planograms`);
       
+      // DEBUG: Log first few planograms to see structure
+      console.log('🔍 First 3 planograms:', allPlanograms.slice(0, 3).map(p => ({
+        id: p.id,
+        name: p.name,
+        isSavedLayout: p.isSavedLayout,
+        hasFlag: 'isSavedLayout' in p
+      })));
+      
       // Filter for saved layouts (those marked with isSavedLayout: true)
       const layouts = allPlanograms
-        .filter(p => p.isSavedLayout === true)
+        .filter(p => {
+          const isSaved = p.isSavedLayout === true;
+          if (!isSaved && p.name) {
+            console.log(`⏭️ Skipping "${p.name}" - isSavedLayout: ${p.isSavedLayout}`);
+          }
+          return isSaved;
+        })
         .map(p => ({
           id: p.id,
           name: p.name || 'Unnamed Layout',
@@ -771,6 +805,9 @@ const PlanogramProfitTracker = () => {
         .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Newest first
       
       console.log(`📂 Found ${layouts.length} saved layouts`);
+      if (layouts.length > 0) {
+        console.log('✅ Saved layouts:', layouts.map(l => l.name));
+      }
       setSavedLayouts(layouts);
       setLoadingLayouts(false);
     } catch (error) {
@@ -853,8 +890,8 @@ const PlanogramProfitTracker = () => {
       await window.firebaseService.deletePlanogram(layoutId);
       console.log(`🗑️ Deleted layout: ${layoutId}`);
       
-      // Refresh the list
-      await getAllSavedLayouts();
+      // Remove from local list immediately (no need to refetch!)
+      setSavedLayouts(prev => prev.filter(layout => layout.id !== layoutId));
       
       setFeedback('✅ Layout deleted');
       setTimeout(() => setFeedback(''), 3000);
@@ -4643,24 +4680,45 @@ const PlanogramProfitTracker = () => {
           top: top,
           width: width,
           height: height,
-          background: color,
+          background: color, // Still use heat map color as base
+          backgroundImage: heatMapMode && section.type !== 'deadspace' ? 
+            (() => {
+              // Create gradient based on profit intensity
+              const intensity = metrics.profitPerSqFt / (metrics.maxProfit || 100);
+              if (intensity > 0.7) {
+                return 'linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(5, 150, 105) 100%)'; // Green gradient
+              } else if (intensity > 0.5) {
+                return 'linear-gradient(135deg, rgb(251, 191, 36) 0%, rgb(245, 158, 11) 100%)'; // Yellow gradient
+              } else if (intensity > 0.3) {
+                return 'linear-gradient(135deg, rgb(251, 146, 60) 0%, rgb(249, 115, 22) 100%)'; // Orange gradient
+              } else {
+                return 'linear-gradient(135deg, rgb(248, 113, 113) 0%, rgb(239, 68, 68) 100%)'; // Red gradient
+              }
+            })() : 
+            color,
           border: isSelected 
-            ? '2px solid #3b82f6' 
+            ? '3px solid rgba(59, 130, 246, 0.8)' 
             : 'none',
           cursor: isDragging ? 'grabbing' : 'grab',
           pointerEvents: 'auto',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: width > 60 && height > 40 ? '11px' : '9px',
           color: 'white',
-          fontWeight: 'bold',
-          textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+          fontWeight: '600',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif',
+          letterSpacing: '-0.02em',
+          textShadow: '0 2px 4px rgba(0,0,0,0.5)',
           zIndex: isSelected ? 60 : 40,
           overflow: 'hidden',
-          borderRadius: '0',
-          boxShadow: 'none',
-          backdropFilter: 'none'
+          borderRadius: '12px', // Rounded like dashboard cards
+          boxShadow: isSelected 
+            ? '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)'
+            : '0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
+          backdropFilter: 'none',
+          transition: 'all 0.2s ease'
         }}
         onMouseDown={handleMouseDown}
         onClick={(e) => {
@@ -4673,30 +4731,34 @@ const PlanogramProfitTracker = () => {
         {/* Only show label if section is big enough */}
         {width > 30 && height > 20 && (
           <div 
-            className="text-center pointer-events-none px-1" 
+            className="text-center pointer-events-none px-2" 
             style={{ 
               maxWidth: '95%', 
               overflow: 'hidden',
-              fontSize: width < 50 ? '8px' : (width < 80 ? '10px' : '11px'),
-              lineHeight: width < 50 ? '10px' : '1.2',
+              fontSize: width < 50 ? '10px' : (width < 80 ? '14px' : '16px'), // Bigger text
+              lineHeight: '1.4',
               transform: height > width * 1.5 ? 'rotate(-90deg)' : 'none',
               transformOrigin: 'center center',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              fontWeight: '700'
             }}
           >
             <div style={{ 
               overflow: 'hidden', 
               textOverflow: 'ellipsis', 
-              whiteSpace: 'nowrap' 
+              whiteSpace: 'nowrap',
+              marginBottom: heatMapMode && width > 60 && height > 35 ? '4px' : '0'
             }}>
               {section.name}
             </div>
             {heatMapMode && width > 60 && height > 35 && (
               <div style={{ 
-                fontSize: width < 80 ? '8px' : '9px',
+                fontSize: width < 80 ? '11px' : '13px',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                fontWeight: '800',
+                opacity: 0.95
               }}>
                 ${metrics.profitPerSqFt.toFixed(0)}/sqft
               </div>
@@ -6398,7 +6460,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             <button
               onClick={() => {
                 setShowLoadLayoutModal(true);
-                getAllSavedLayouts(); // Refresh list
+                // Only fetch if we don't have any layouts yet
+                if (savedLayouts.length === 0) {
+                  console.log('📂 No layouts in state, fetching from Firebase...');
+                  getAllSavedLayouts();
+                } else {
+                  console.log(`📂 Using ${savedLayouts.length} layouts from state`);
+                }
               }}
               className="px-3 py-2 bg-indigo-500 text-white rounded flex items-center gap-2 text-sm hover:bg-indigo-600"
               title="Load a previously saved layout"
