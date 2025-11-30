@@ -8213,24 +8213,28 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               {(() => {
                 const [selectedFixture, setSelectedFixture] = React.useState('all');
                 
-                // Get all unique fixtures from planogram
-                const allFixtures = Array.from(new Set(
-                  fixtures.flatMap(f => f.shelves.map(s => s.name))
-                )).sort();
+                // Get all unique fixtures from planogram - with safety check
+                const allFixtures = fixtures && Array.isArray(fixtures) 
+                  ? Array.from(new Set(
+                      fixtures.flatMap(f => f.shelves ? f.shelves.map(s => s.name) : [])
+                    )).sort()
+                  : [];
                 
                 // Filter correlations by fixture
                 let filteredCorrelations = productCorrelations;
-                if (selectedFixture !== 'all') {
+                if (selectedFixture !== 'all' && fixtures && Array.isArray(fixtures)) {
                   // Get all products in the selected fixture
                   const productsInFixture = new Set();
                   fixtures.forEach(fixture => {
-                    fixture.shelves.forEach(shelf => {
-                      if (shelf.name === selectedFixture) {
-                        shelf.products.forEach(p => {
-                          if (p.upc) productsInFixture.add(p.upc);
-                        });
-                      }
-                    });
+                    if (fixture.shelves) {
+                      fixture.shelves.forEach(shelf => {
+                        if (shelf.name === selectedFixture && shelf.products) {
+                          shelf.products.forEach(p => {
+                            if (p.upc) productsInFixture.add(p.upc);
+                          });
+                        }
+                      });
+                    }
                   });
                   
                   // Filter correlations where at least one product is in the fixture
