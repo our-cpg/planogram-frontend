@@ -2859,12 +2859,28 @@ const PlanogramProfitTracker = () => {
           
           // Poll every 2 seconds to check progress
           console.log('⏱️ Starting progress polling every 2 seconds...');
+          let pollCount = 0;
+          const maxPolls = 150; // Stop after 5 minutes (150 polls x 2 seconds)
           const checkStatus = setInterval(async () => {
             try {
+              pollCount++;
+              console.log(`🔄 Poll #${pollCount}/${maxPolls} - Checking order status...`);
+              
+              // Safety: Stop polling after max attempts
+              if (pollCount > maxPolls) {
+                console.log('⚠️ Max polling attempts reached, stopping...');
+                clearInterval(checkStatus);
+                setSyncProgress({ message: '', current: 0, total: 0 });
+                setFeedback('⚠️ Order processing took too long. Check Settings > Data Management.');
+                setTimeout(() => setFeedback(''), 5000);
+                return;
+              }
+              
               const statusRes = await fetch(`${BACKEND_URL}/api/orders/status`);
               const statusData = await statusRes.json();
+              console.log(`📥 Status response:`, statusData);
               
-              // Update progress
+              // Update progress if backend provides it
               if (statusData.progress) {
                 const { processed, total } = statusData.progress;
                 console.log(`📊 Progress: ${processed}/${total} orders processed`);
@@ -2874,6 +2890,10 @@ const PlanogramProfitTracker = () => {
                   total: total || 0 
                 });
                 setFeedback(`🔥 Order Blitz: ${processed || 0}/${total || 0} orders processed`);
+              } else {
+                // Backend doesn't report progress - just show we're still processing
+                console.log(`⏳ No progress data from backend, still processing...`);
+                setFeedback(`🔥 Order Blitz: Processing... (${pollCount * 2}s elapsed)`);
               }
               
               if (!statusData.isProcessing && statusData.lastResult) {
@@ -6156,26 +6176,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </select>
             </div>
 
-            {/* Feedback and Progress Display - RIGHT NEXT TO PERIOD */}
+            {/* Compact Progress Display - Inline with toolbar */}
             {(feedback || syncProgress.message || syncProgress.total > 0) && (
-              <div className="px-4 py-3 bg-gradient-to-r from-blue-100 to-purple-100 border-2 border-blue-300 text-blue-900 rounded-xl text-sm shadow-lg">
-                {feedback && <div className="font-semibold text-base">{feedback}</div>}
-                {(syncProgress.message || syncProgress.total > 0) && (
-                  <div className="mt-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-semibold">{syncProgress.message || 'Processing...'}</span>
-                      <span className="text-sm font-bold">{syncProgress.current}/{syncProgress.total}</span>
-                    </div>
-                    <div className="w-full bg-blue-200 rounded-full h-3 shadow-inner">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300 shadow-sm"
-                        style={{ width: `${syncProgress.total > 0 ? (syncProgress.current / syncProgress.total) * 100 : 0}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-xs text-blue-700 mt-1 text-center">
-                      {syncProgress.total > 0 ? `${Math.round((syncProgress.current / syncProgress.total) * 100)}% complete` : 'Starting...'}
-                    </div>
-                  </div>
+              <div className="px-3 py-2 bg-gradient-to-r from-blue-100 to-purple-100 border border-blue-300 rounded-lg text-sm flex items-center gap-2">
+                <span className="font-medium text-blue-900">{feedback || syncProgress.message}</span>
+                {syncProgress.total > 0 && (
+                  <span className="font-bold text-blue-700">{syncProgress.current}/{syncProgress.total}</span>
                 )}
               </div>
             )}
