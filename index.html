@@ -8178,17 +8178,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 );
               })()}
             </div>
-                              <div className="text-xs font-semibold text-gray-700">
-                                <strong>Action:</strong> Reorder immediately to capture ${(product.periodRevenue || 0).toFixed(0)}/{timePeriod === 'day' ? 'day' : timePeriod === 'week' ? 'wk' : timePeriod === 'month' ? 'mo' : 'period'}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
               
               {/* Summary Stats */}
               {(() => {
