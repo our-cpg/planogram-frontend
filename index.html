@@ -4216,6 +4216,12 @@ const PlanogramProfitTracker = () => {
           backdropFilter: 'none'
         }}
         onMouseDown={handleMouseDown}
+        onClick={(e) => {
+          if (!isDragging && !isResizing && !shiftPressed) {
+            e.stopPropagation();
+            onSelect();
+          }
+        }}
       >
         {/* Only show label if section is big enough */}
         {width > 30 && height > 20 && (
