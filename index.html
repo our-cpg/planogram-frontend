@@ -6156,6 +6156,30 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </select>
             </div>
 
+            {/* Feedback and Progress Display - RIGHT NEXT TO PERIOD */}
+            {(feedback || syncProgress.message || syncProgress.total > 0) && (
+              <div className="px-4 py-3 bg-gradient-to-r from-blue-100 to-purple-100 border-2 border-blue-300 text-blue-900 rounded-xl text-sm shadow-lg">
+                {feedback && <div className="font-semibold text-base">{feedback}</div>}
+                {(syncProgress.message || syncProgress.total > 0) && (
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold">{syncProgress.message || 'Processing...'}</span>
+                      <span className="text-sm font-bold">{syncProgress.current}/{syncProgress.total}</span>
+                    </div>
+                    <div className="w-full bg-blue-200 rounded-full h-3 shadow-inner">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300 shadow-sm"
+                        style={{ width: `${syncProgress.total > 0 ? (syncProgress.current / syncProgress.total) * 100 : 0}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-blue-700 mt-1 text-center">
+                      {syncProgress.total > 0 ? `${Math.round((syncProgress.current / syncProgress.total) * 100)}% complete` : 'Starting...'}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Custom Date Range Picker */}
             {timePeriod === 'custom' && (
               <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-pink-50 px-3 py-2 rounded-lg border border-purple-300">
@@ -6175,30 +6199,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </div>
             )}
           </div>
-
-          {/* Feedback and Progress Display - ALWAYS SHOW DURING SYNC */}
-          {(feedback || syncProgress.message || syncProgress.total > 0) && (
-            <div className="px-4 py-3 bg-gradient-to-r from-blue-100 to-purple-100 border-2 border-blue-300 text-blue-900 rounded-xl text-sm shadow-lg">
-              {feedback && <div className="font-semibold text-base">{feedback}</div>}
-              {(syncProgress.message || syncProgress.total > 0) && (
-                <div className="mt-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-semibold">{syncProgress.message || 'Processing...'}</span>
-                    <span className="text-sm font-bold">{syncProgress.current}/{syncProgress.total}</span>
-                  </div>
-                  <div className="w-full bg-blue-200 rounded-full h-3 shadow-inner">
-                    <div 
-                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300 shadow-sm"
-                      style={{ width: `${syncProgress.total > 0 ? (syncProgress.current / syncProgress.total) * 100 : 0}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-blue-700 mt-1 text-center">
-                    {syncProgress.total > 0 ? `${Math.round((syncProgress.current / syncProgress.total) * 100)}% complete` : 'Starting...'}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         <div 
