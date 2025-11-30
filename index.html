@@ -8384,13 +8384,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     
                     {/* 🕸️ COMBO NETWORK VISUALIZATION */}
                     {productCorrelations.length > 0 && (() => {
-                      const networkRef = React.useRef(null);
-                      
-                      React.useEffect(() => {
-                        if (typeof d3 === 'undefined' || !productCorrelations.length || !networkRef.current) return;
+                      // Use callback ref to build D3 visualization when element mounts
+                      const buildNetwork = (containerElement) => {
+                        if (!containerElement || typeof d3 === 'undefined' || !productCorrelations.length) return;
                         
                         // Clear previous
-                        d3.select(networkRef.current).selectAll('*').remove();
+                        d3.select(containerElement).selectAll('*').remove();
                         
                         // Get top 20 products for cleaner visualization
                         const productComboCount = {};
@@ -8428,10 +8427,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           }));
                         
                         // Setup SVG
-                        const width = networkRef.current.clientWidth;
+                        const width = containerElement.clientWidth;
                         const height = 500;
                         
-                        const svg = d3.select(networkRef.current)
+                        const svg = d3.select(containerElement)
                           .append('svg')
                           .attr('width', width)
                           .attr('height', height);
@@ -8540,7 +8539,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           d.fx = null;
                           d.fy = null;
                         }
-                      }, [productCorrelations]);
+                      };
                       
                       return (
                         <div className="mb-4 p-4 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
@@ -8549,7 +8548,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             <span className="text-xs font-normal text-gray-600">(Interactive network - hover & drag bubbles!)</span>
                           </h3>
                           <div 
-                            ref={networkRef}
+                            ref={buildNetwork}
                             className="bg-white rounded-lg border border-purple-200"
                             style={{ width: '100%', height: '500px' }}
                           />
