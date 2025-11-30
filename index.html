@@ -11058,6 +11058,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     // Search for product in all sections and rows
                     let found = null;
                     for (const section of sections) {
+                      // First check in rows (if section has rows)
                       if (section.rows) {
                         for (const row of section.rows) {
                           const product = row.products?.find(p => p.upc === searchUPC.trim());
@@ -11073,6 +11074,21 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           }
                         }
                       }
+                      
+                      // Also check in section.products directly (for sections without rows)
+                      if (!found && section.products) {
+                        const product = section.products.find(p => p.upc === searchUPC.trim());
+                        if (product) {
+                          const fixture = fixtures.find(f => f.id === section.fixtureId);
+                          found = {
+                            product,
+                            section,
+                            row: null, // No row for direct section products
+                            fixture
+                          };
+                        }
+                      }
+                      
                       if (found) break;
                     }
                     setSearchResults(found);
@@ -11104,7 +11120,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   <div className="bg-white rounded-lg p-4">
                     <div className="text-sm text-gray-600">Location</div>
                     <div className="text-xl font-bold text-blue-600">
-                      📍 {searchResults.fixture?.name || 'Unknown Fixture'} → {searchResults.section.name} → {searchResults.row.name}
+                      📍 {searchResults.fixture?.name || 'Unknown Fixture'} → {searchResults.section.name}{searchResults.row ? ` → ${searchResults.row.name}` : ''}
                     </div>
                   </div>
 
