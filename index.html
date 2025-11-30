@@ -2616,7 +2616,7 @@ const PlanogramProfitTracker = () => {
     }
   };
 
-  // 🔥 BEAST MODE: Refresh order data
+  // 🔥 Order Blitz: Refresh order data
   const refreshOrders = async () => {
     if (!shopifyConfig.connected || !shopifyConfig.accessToken) {
       setFeedback('⚠️ Connect to Shopify first');
@@ -2624,7 +2624,7 @@ const PlanogramProfitTracker = () => {
       return;
     }
 
-    setFeedback('🔥 BEAST MODE: Importing orders... (this may take a minute)');
+    setFeedback('🔥 Order Blitz: Importing orders... (this may take a minute)');
     
     try {
       const response = await fetch(`${BACKEND_URL}/api/shopify`, {
@@ -2646,7 +2646,7 @@ const PlanogramProfitTracker = () => {
         
         // Check if processing in background
         if (data.processing) {
-          setFeedback(`🔥 BEAST MODE: Processing orders in background... (2-3 minutes)`);
+          setFeedback(`🔥 Order Blitz: Processing orders in background... (2-3 minutes)`);
           
           // Poll every 10 seconds to check if done
           const checkStatus = setInterval(async () => {
@@ -2760,7 +2760,7 @@ const PlanogramProfitTracker = () => {
           // Fetch correlations after orders are processed
           fetchCorrelations();
           
-          setFeedback(`✅ BEAST MODE: ${data.ordersProcessed} orders, ${data.itemsProcessed} items analyzed!`);
+          setFeedback(`✅ Order Blitz: ${data.ordersProcessed} orders, ${data.itemsProcessed} items analyzed!`);
           setTimeout(() => setFeedback(''), 8000);
         }
       } else {
@@ -3908,7 +3908,7 @@ const PlanogramProfitTracker = () => {
       }
       
       case 'aov': {
-        // 🔥 BEAST MODE: Average Order Value heat map
+        // 🔥 Order Blitz: Average Order Value heat map
         const avgAOV = metrics.productMetrics.length > 0 ?
           metrics.productMetrics.reduce((sum, p) => {
             return sum + (p.analytics?.averageOrderValue || 0);
@@ -3926,7 +3926,7 @@ const PlanogramProfitTracker = () => {
       }
       
       case 'returningCustomers': {
-        // 🔥 BEAST MODE: Returning customer preferences
+        // 🔥 Order Blitz: Returning customer preferences
         const returningCustomerRatio = metrics.productMetrics.length > 0 ?
           metrics.productMetrics.reduce((sum, p) => {
             const total = (p.analytics?.returningCustomerPurchases || 0) + (p.analytics?.newCustomerPurchases || 0);
@@ -3940,7 +3940,7 @@ const PlanogramProfitTracker = () => {
       }
       
       case 'shoppingPath': {
-        // 🔥 BEAST MODE: Cart position (what they grab first vs last)
+        // 🔥 Order Blitz: Cart position (what they grab first vs last)
         const avgCartPosition = metrics.productMetrics.length > 0 ?
           metrics.productMetrics.reduce((sum, p) => {
             return sum + (p.analytics?.averageCartPosition || 99);
@@ -5912,7 +5912,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   <button
                     onClick={() => refreshOrders()}
                     className={`px-3 py-1 ${ordersStatus.isStale ? 'bg-red-500 animate-pulse' : 'bg-orange-500'} text-white rounded hover:bg-orange-600 font-semibold flex items-center gap-1`}
-                    title={`🔥 BEAST MODE: Import full order data for analytics! - Last: ${ordersStatus.message}`}
+                    title={`🔥 Order Blitz: Import full order data for analytics! - Last: ${ordersStatus.message}`}
                 >
                   🔥 Orders
                   {ordersStatus.isStale && <span className="text-xs">!</span>}
@@ -8731,15 +8731,15 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 {/* Refresh Button */}
                 <button
                   onClick={refreshOrders}
-                  disabled={feedback.includes('BEAST MODE') || feedback.includes('Importing')}
+                  disabled={feedback.includes('Order Blitz') || feedback.includes('Importing')}
                   className={`px-4 py-2 ${
-                    feedback.includes('BEAST MODE') || feedback.includes('Importing')
+                    feedback.includes('Order Blitz') || feedback.includes('Importing')
                       ? 'bg-gray-400 cursor-not-allowed'
                       : 'bg-orange-500 hover:bg-orange-600'
                   } text-white rounded-lg font-semibold flex items-center gap-2 transition-all`}
                   title="Import latest orders from Shopify"
                 >
-                  {feedback.includes('BEAST MODE') || feedback.includes('Importing') ? (
+                  {feedback.includes('Order Blitz') || feedback.includes('Importing') ? (
                     <>
                       <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -8759,7 +8759,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </div>
 
               {/* Loading Banner */}
-              {(feedback.includes('BEAST MODE') || feedback.includes('Importing') || feedback.includes('Processing')) && (
+              {(feedback.includes('Order Blitz') || feedback.includes('Importing') || feedback.includes('Processing')) && (
                 <div className="mb-6 bg-gradient-to-r from-orange-50 to-yellow-50 border-l-4 border-orange-500 rounded-lg p-6 shadow-lg">
                   <div className="flex items-center gap-4">
                     <div className="flex-shrink-0">
@@ -8786,7 +8786,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               )}
 
               {/* Success Banner */}
-              {feedback.includes('✅') && feedback.includes('BEAST MODE') && (
+              {feedback.includes('✅') && feedback.includes('Order Blitz') && (
                 <div className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 rounded-lg p-6 shadow-lg">
                   <div className="flex items-center gap-4">
                     <div className="flex-shrink-0">
