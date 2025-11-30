@@ -8395,282 +8395,258 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   </div>
                 );
               })()}
-            </div>
-
-            {/* 📊 INTERACTIVE SALES EXPLORER */}
-            <div className="mt-8 -mx-8 px-8 py-8 bg-gradient-to-br from-purple-50 to-blue-50">
-              {(() => {
-                const [dateRange, setDateRange] = React.useState({ start: null, end: null });
-                const [selectedView, setSelectedView] = React.useState('hourly'); // 'hourly' or 'daily'
-                
-                const ordersToAnalyze = orderAnalyticsData.allOrders || orderAnalyticsData.recentOrders || [];
-                
-                if (ordersToAnalyze.length === 0) {
-                  return null; // Don't show if no data
-                }
-                
-                // Get date range from data
-                const allDates = ordersToAnalyze.map(o => new Date(o.created_at).getTime()).filter(Boolean);
-                const minDate = new Date(Math.min(...allDates));
-                const maxDate = new Date(Math.max(...allDates));
-                
-                // Initialize date range if not set
-                if (!dateRange.start) {
-                  setDateRange({ start: minDate, end: maxDate });
-                  return <div className="text-center text-gray-500">Loading interactive explorer...</div>;
-                }
-                
-                // Filter orders by selected date range
-                const filteredOrders = ordersToAnalyze.filter(order => {
-                  const orderDate = new Date(order.created_at);
-                  return orderDate >= dateRange.start && orderDate <= dateRange.end;
-                });
-                
-                // Calculate hourly data for chart
-                const hourlyData = Array(24).fill(0).map((_, hour) => {
-                  const count = filteredOrders.filter(order => {
-                    const orderHour = new Date(order.created_at).getHours();
-                    return orderHour === hour;
-                  }).length;
+              
+              {/* 📊 INTERACTIVE SALES EXPLORER - Inside same card */}
+              <div className="mt-8 pt-8 border-t-2 border-gray-200">
+                {(() => {
+                  const [dateRange, setDateRange] = React.useState({ start: null, end: null });
+                  const [selectedView, setSelectedView] = React.useState('hourly');
                   
-                  const sales = filteredOrders
-                    .filter(order => new Date(order.created_at).getHours() === hour)
-                    .reduce((sum, order) => sum + parseFloat(order.total_price || 0), 0);
+                  const ordersToAnalyze = orderAnalyticsData.allOrders || orderAnalyticsData.recentOrders || [];
                   
-                  return {
-                    hour: hour === 0 ? '12am' : hour < 12 ? `${hour}am` : hour === 12 ? '12pm' : `${hour - 12}pm`,
-                    orders: count,
-                    sales: sales
-                  };
-                });
-                
-                // Calculate daily data for chart
-                const dailyData = {};
-                filteredOrders.forEach(order => {
-                  const date = new Date(order.created_at).toLocaleDateString();
-                  if (!dailyData[date]) {
-                    dailyData[date] = { date, orders: 0, sales: 0 };
+                  if (ordersToAnalyze.length === 0) {
+                    return null;
                   }
-                  dailyData[date].orders++;
-                  dailyData[date].sales += parseFloat(order.total_price || 0);
-                });
-                const dailyChartData = Object.values(dailyData).sort((a, b) => 
-                  new Date(a.date) - new Date(b.date)
-                );
-                
-                const chartData = selectedView === 'hourly' ? hourlyData : dailyChartData;
-                const xKey = selectedView === 'hourly' ? 'hour' : 'date';
-                
-                return (
-                  <div>
-                    <div className="mb-6">
-                      <h2 className="text-2xl font-bold text-gray-800 mb-2">📊 Interactive Sales Explorer</h2>
-                      <p className="text-sm text-gray-600">Filter and analyze your sales data dynamically</p>
-                    </div>
+                  
+                  const allDates = ordersToAnalyze.map(o => new Date(o.created_at).getTime()).filter(Boolean);
+                  const minDate = new Date(Math.min(...allDates));
+                  const maxDate = new Date(Math.max(...allDates));
+                  
+                  if (!dateRange.start) {
+                    setDateRange({ start: minDate, end: maxDate });
+                    return <div className="text-center text-gray-500">Loading interactive explorer...</div>;
+                  }
+                  
+                  const filteredOrders = ordersToAnalyze.filter(order => {
+                    const orderDate = new Date(order.created_at);
+                    return orderDate >= dateRange.start && orderDate <= dateRange.end;
+                  });
+                  
+                  const hourlyData = Array(24).fill(0).map((_, hour) => {
+                    const count = filteredOrders.filter(order => {
+                      const orderHour = new Date(order.created_at).getHours();
+                      return orderHour === hour;
+                    }).length;
                     
-                    {/* Date Range Slider */}
-                    <div className="bg-white rounded-xl p-6 shadow-lg mb-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="font-semibold text-gray-800">Date Range Filter</h3>
-                          <p className="text-xs text-gray-500">
-                            Analyzing {filteredOrders.length.toLocaleString()} orders from{' '}
-                            {dateRange.start.toLocaleDateString()} to {dateRange.end.toLocaleDateString()}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => setDateRange({ start: minDate, end: maxDate })}
-                          className="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                        >
-                          Reset to All Time
-                        </button>
-                      </div>
-                      
-                      {/* Quick Range Buttons */}
-                      <div className="flex gap-2 mb-4 flex-wrap">
-                        <button
-                          onClick={() => {
-                            const end = new Date();
-                            const start = new Date();
-                            start.setDate(start.getDate() - 7);
-                            setDateRange({ start, end });
-                          }}
-                          className="text-xs px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg transition-colors"
-                        >
-                          Last 7 Days
-                        </button>
-                        <button
-                          onClick={() => {
-                            const end = new Date();
-                            const start = new Date();
-                            start.setMonth(start.getMonth() - 1);
-                            setDateRange({ start, end });
-                          }}
-                          className="text-xs px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg transition-colors"
-                        >
-                          Last Month
-                        </button>
-                        <button
-                          onClick={() => {
-                            const end = new Date();
-                            const start = new Date();
-                            start.setMonth(start.getMonth() - 3);
-                            setDateRange({ start, end });
-                          }}
-                          className="text-xs px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg transition-colors"
-                        >
-                          Last 3 Months
-                        </button>
-                        <button
-                          onClick={() => {
-                            const end = new Date();
-                            const start = new Date();
-                            start.setFullYear(start.getFullYear() - 1);
-                            setDateRange({ start, end });
-                          }}
-                          className="text-xs px-3 py-1.5 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-lg transition-colors"
-                        >
-                          Last Year
-                        </button>
-                      </div>
-                      
-                      {/* View Toggle */}
-                      <div className="flex gap-2 pt-4 border-t">
-                        <button
-                          onClick={() => setSelectedView('hourly')}
-                          className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
-                            selectedView === 'hourly'
-                              ? 'bg-blue-500 text-white shadow-lg'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          📊 Hourly View
-                        </button>
-                        <button
-                          onClick={() => setSelectedView('daily')}
-                          className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
-                            selectedView === 'daily'
-                              ? 'bg-blue-500 text-white shadow-lg'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          📅 Daily View
-                        </button>
-                      </div>
-                    </div>
+                    const sales = filteredOrders
+                      .filter(order => new Date(order.created_at).getHours() === hour)
+                      .reduce((sum, order) => sum + parseFloat(order.total_price || 0), 0);
                     
-                    {/* Interactive Chart - Pure CSS */}
-                    <div className="bg-white rounded-xl p-6 shadow-lg">
-                      <div className="mb-4">
-                        <h3 className="font-semibold text-gray-800">
-                          {selectedView === 'hourly' ? '⏰ Orders by Hour of Day' : '📆 Orders by Date'}
-                        </h3>
-                        <p className="text-xs text-gray-500">
-                          Hover over bars for details
-                        </p>
+                    return {
+                      hour: hour === 0 ? '12am' : hour < 12 ? `${hour}am` : hour === 12 ? '12pm' : `${hour - 12}pm`,
+                      orders: count,
+                      sales: sales
+                    };
+                  });
+                  
+                  const dailyData = {};
+                  filteredOrders.forEach(order => {
+                    const date = new Date(order.created_at).toLocaleDateString();
+                    if (!dailyData[date]) {
+                      dailyData[date] = { date, orders: 0, sales: 0 };
+                    }
+                    dailyData[date].orders++;
+                    dailyData[date].sales += parseFloat(order.total_price || 0);
+                  });
+                  const dailyChartData = Object.values(dailyData).sort((a, b) => 
+                    new Date(a.date) - new Date(b.date)
+                  );
+                  
+                  const chartData = selectedView === 'hourly' ? hourlyData : dailyChartData;
+                  
+                  return (
+                    <div>
+                      <div className="mb-6">
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">📊 Interactive Sales Explorer</h3>
+                        <p className="text-sm text-gray-600">Filter and analyze your sales data dynamically</p>
                       </div>
                       
-                      {/* Chart Container */}
-                      <div className="relative" style={{ height: '300px' }}>
-                        {/* Y-Axis Labels */}
-                        <div className="absolute left-0 top-0 bottom-8 flex flex-col justify-between text-xs text-gray-500 pr-2">
-                          <span>{Math.max(...chartData.map(d => Math.max(d.orders, d.sales / 100))).toFixed(0)}</span>
-                          <span>{(Math.max(...chartData.map(d => Math.max(d.orders, d.sales / 100))) * 0.75).toFixed(0)}</span>
-                          <span>{(Math.max(...chartData.map(d => Math.max(d.orders, d.sales / 100))) * 0.5).toFixed(0)}</span>
-                          <span>{(Math.max(...chartData.map(d => Math.max(d.orders, d.sales / 100))) * 0.25).toFixed(0)}</span>
-                          <span>0</span>
+                      <div className="bg-gray-50 rounded-xl p-6 mb-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h4 className="font-semibold text-gray-800">Date Range Filter</h4>
+                            <p className="text-xs text-gray-500">
+                              Analyzing {filteredOrders.length.toLocaleString()} orders from{' '}
+                              {dateRange.start.toLocaleDateString()} to {dateRange.end.toLocaleDateString()}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setDateRange({ start: minDate, end: maxDate })}
+                            className="text-xs px-3 py-1 bg-white hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
+                          >
+                            Reset
+                          </button>
                         </div>
                         
-                        {/* Chart Area */}
-                        <div className="absolute left-12 right-0 top-0 bottom-8 flex items-end gap-1 border-l border-b border-gray-300">
-                          {chartData.map((item, idx) => {
-                            const maxValue = Math.max(...chartData.map(d => Math.max(d.orders, d.sales / 100)));
-                            const ordersHeight = maxValue > 0 ? (item.orders / maxValue) * 100 : 0;
-                            const salesHeight = maxValue > 0 ? ((item.sales / 100) / maxValue) * 100 : 0;
-                            
-                            return (
-                              <div key={idx} className="flex-1 flex flex-col items-center gap-1 group relative">
-                                {/* Tooltip on hover */}
-                                <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl z-10 whitespace-nowrap">
-                                  <div className="font-semibold mb-1">{selectedView === 'hourly' ? item.hour : item.date}</div>
-                                  <div className="text-blue-300">Orders: {item.orders}</div>
-                                  <div className="text-green-300">Sales: ${item.sales.toFixed(2)}</div>
+                        <div className="flex gap-2 mb-4 flex-wrap">
+                          <button
+                            onClick={() => {
+                              const end = new Date();
+                              const start = new Date();
+                              start.setDate(start.getDate() - 7);
+                              setDateRange({ start, end });
+                            }}
+                            className="text-xs px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg transition-colors"
+                          >
+                            Last 7 Days
+                          </button>
+                          <button
+                            onClick={() => {
+                              const end = new Date();
+                              const start = new Date();
+                              start.setMonth(start.getMonth() - 1);
+                              setDateRange({ start, end });
+                            }}
+                            className="text-xs px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg transition-colors"
+                          >
+                            Last Month
+                          </button>
+                          <button
+                            onClick={() => {
+                              const end = new Date();
+                              const start = new Date();
+                              start.setMonth(start.getMonth() - 3);
+                              setDateRange({ start, end });
+                            }}
+                            className="text-xs px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg transition-colors"
+                          >
+                            Last 3 Months
+                          </button>
+                          <button
+                            onClick={() => {
+                              const end = new Date();
+                              const start = new Date();
+                              start.setFullYear(start.getFullYear() - 1);
+                              setDateRange({ start, end });
+                            }}
+                            className="text-xs px-3 py-1.5 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-lg transition-colors"
+                          >
+                            Last Year
+                          </button>
+                        </div>
+                        
+                        <div className="flex gap-2 pt-4 border-t border-gray-300">
+                          <button
+                            onClick={() => setSelectedView('hourly')}
+                            className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
+                              selectedView === 'hourly'
+                                ? 'bg-blue-500 text-white shadow-lg'
+                                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
+                            }`}
+                          >
+                            📊 Hourly
+                          </button>
+                          <button
+                            onClick={() => setSelectedView('daily')}
+                            className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
+                              selectedView === 'daily'
+                                ? 'bg-blue-500 text-white shadow-lg'
+                                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
+                            }`}
+                          >
+                            📅 Daily
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 rounded-xl p-6">
+                        <div className="mb-4">
+                          <h4 className="font-semibold text-gray-800">
+                            {selectedView === 'hourly' ? '⏰ Orders by Hour' : '📆 Orders by Date'}
+                          </h4>
+                          <p className="text-xs text-gray-500">Hover for details</p>
+                        </div>
+                        
+                        <div className="relative bg-white rounded-lg p-4" style={{ height: '300px' }}>
+                          <div className="absolute left-0 top-0 bottom-8 flex flex-col justify-between text-xs text-gray-500 pr-2">
+                            <span>{Math.max(...chartData.map(d => Math.max(d.orders, d.sales / 100))).toFixed(0)}</span>
+                            <span>{(Math.max(...chartData.map(d => Math.max(d.orders, d.sales / 100))) * 0.75).toFixed(0)}</span>
+                            <span>{(Math.max(...chartData.map(d => Math.max(d.orders, d.sales / 100))) * 0.5).toFixed(0)}</span>
+                            <span>{(Math.max(...chartData.map(d => Math.max(d.orders, d.sales / 100))) * 0.25).toFixed(0)}</span>
+                            <span>0</span>
+                          </div>
+                          
+                          <div className="absolute left-12 right-0 top-0 bottom-8 flex items-end gap-1 border-l border-b border-gray-300">
+                            {chartData.map((item, idx) => {
+                              const maxValue = Math.max(...chartData.map(d => Math.max(d.orders, d.sales / 100)));
+                              const ordersHeight = maxValue > 0 ? (item.orders / maxValue) * 100 : 0;
+                              const salesHeight = maxValue > 0 ? ((item.sales / 100) / maxValue) * 100 : 0;
+                              
+                              return (
+                                <div key={idx} className="flex-1 flex flex-col items-center gap-1 group relative">
+                                  <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl z-10 whitespace-nowrap">
+                                    <div className="font-semibold mb-1">{selectedView === 'hourly' ? item.hour : item.date}</div>
+                                    <div className="text-blue-300">Orders: {item.orders}</div>
+                                    <div className="text-green-300">Sales: ${item.sales.toFixed(2)}</div>
+                                  </div>
+                                  
+                                  <div 
+                                    className="w-full bg-blue-500 hover:bg-blue-600 transition-all rounded-t cursor-pointer"
+                                    style={{ height: `${ordersHeight}%` }}
+                                  />
+                                  
+                                  <div 
+                                    className="w-full bg-green-500 hover:bg-green-600 transition-all rounded-t cursor-pointer"
+                                    style={{ height: `${salesHeight}%` }}
+                                  />
                                 </div>
-                                
-                                {/* Orders Bar */}
-                                <div 
-                                  className="w-full bg-blue-500 hover:bg-blue-600 transition-all rounded-t cursor-pointer"
-                                  style={{ height: `${ordersHeight}%` }}
-                                  title={`Orders: ${item.orders}`}
-                                />
-                                
-                                {/* Sales Bar */}
-                                <div 
-                                  className="w-full bg-green-500 hover:bg-green-600 transition-all rounded-t cursor-pointer"
-                                  style={{ height: `${salesHeight}%` }}
-                                  title={`Sales: $${item.sales.toFixed(2)}`}
-                                />
+                              );
+                            })}
+                          </div>
+                          
+                          <div className="absolute left-12 right-0 bottom-0 flex gap-1 mt-2">
+                            {chartData.map((item, idx) => (
+                              <div 
+                                key={idx} 
+                                className="flex-1 text-center text-xs text-gray-600 truncate"
+                                style={{ 
+                                  fontSize: selectedView === 'daily' ? '9px' : '11px',
+                                  transform: selectedView === 'daily' ? 'rotate(-45deg)' : 'none'
+                                }}
+                                title={selectedView === 'hourly' ? item.hour : item.date}
+                              >
+                                {selectedView === 'hourly' ? item.hour : item.date.split('/')[1] + '/' + item.date.split('/')[0]}
                               </div>
-                            );
-                          })}
+                            ))}
+                          </div>
                         </div>
                         
-                        {/* X-Axis Labels */}
-                        <div className="absolute left-12 right-0 bottom-0 flex gap-1 mt-2">
-                          {chartData.map((item, idx) => (
-                            <div 
-                              key={idx} 
-                              className="flex-1 text-center text-xs text-gray-600 truncate"
-                              style={{ 
-                                fontSize: selectedView === 'daily' ? '9px' : '11px',
-                                transform: selectedView === 'daily' ? 'rotate(-45deg)' : 'none',
-                                transformOrigin: 'center'
-                              }}
-                              title={selectedView === 'hourly' ? item.hour : item.date}
-                            >
-                              {selectedView === 'hourly' ? item.hour : item.date.split('/')[1] + '/' + item.date.split('/')[0]}
+                        <div className="flex justify-center gap-6 mt-6 pt-4 border-t border-gray-300">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-blue-500 rounded"></div>
+                            <span className="text-sm">Orders</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-green-500 rounded"></div>
+                            <span className="text-sm">Sales ($)</span>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-300">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-blue-600">
+                              {filteredOrders.length.toLocaleString()}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      {/* Legend */}
-                      <div className="flex justify-center gap-6 mt-6 pt-4 border-t">
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 bg-blue-500 rounded"></div>
-                          <span className="text-sm text-gray-600">Orders</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 bg-green-500 rounded"></div>
-                          <span className="text-sm text-gray-600">Sales ($)</span>
-                        </div>
-                      </div>
-                      
-                      {/* Summary Stats */}
-                      <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {filteredOrders.length.toLocaleString()}
+                            <div className="text-xs text-gray-600">Total Orders</div>
                           </div>
-                          <div className="text-xs text-gray-600">Total Orders</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">
-                            ${filteredOrders.reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-green-600">
+                              ${filteredOrders.reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                            </div>
+                            <div className="text-xs text-gray-600">Total Sales</div>
                           </div>
-                          <div className="text-xs text-gray-600">Total Sales</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-purple-600">
-                            ${(filteredOrders.reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0) / filteredOrders.length).toFixed(2)}
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-purple-600">
+                              ${(filteredOrders.reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0) / filteredOrders.length).toFixed(2)}
+                            </div>
+                            <div className="text-xs text-gray-600">Avg Order Value</div>
                           </div>
-                          <div className="text-xs text-gray-600">Avg Order Value</div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
+              </div>
             </div>
 
             {/* 🔥 ORDER ANALYTICS */}
