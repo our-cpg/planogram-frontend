@@ -8330,7 +8330,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 }
                 
                 return (
-                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                  <div className="space-y-3 max-h-[800px] overflow-y-auto pr-2">
                     {criticalProducts.map((product, idx) => {
                       const isOutOfStock = product.stock === 0;
                       const urgency = idx < 5 ? 'CRITICAL' : idx < 10 ? 'HIGH' : 'MEDIUM';
