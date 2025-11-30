@@ -126,6 +126,19 @@
     .smooth-transition {
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
+    
+    /* Compact Toolbar Buttons */
+    .toolbar-compact button {
+      padding-top: 0.25rem !important;
+      padding-bottom: 0.25rem !important;
+      font-size: 0.8rem !important;
+    }
+    
+    .toolbar-compact select {
+      padding-top: 0.25rem !important;
+      padding-bottom: 0.25rem !important;
+      font-size: 0.8rem !important;
+    }
   </style>
 </head>
   
@@ -287,6 +300,7 @@ const PlanogramProfitTracker = () => {
   const [badStockProducts, setBadStockProducts] = useState([]); // NEW: Separate list for negative stock items
   const [allDatabaseProducts, setAllDatabaseProducts] = useState([]); // NEW: All products from database for forecasting
   const [loadingAllProducts, setLoadingAllProducts] = useState(false); // NEW: Loading state
+  const [loadingMessage, setLoadingMessage] = useState(''); // For bulk UPC sync loading state
   const [showUnknownProducts, setShowUnknownProducts] = useState(true);
   const [selectedFixtures, setSelectedFixtures] = useState([]); // Multi-select fixtures
   const [shiftPressed, setShiftPressed] = useState(false); // Track shift key for multi-select
@@ -5501,11 +5515,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               className={`px-4 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap ${
                 currentPage === 'planner'
                   ? 'bg-blue-500 text-white shadow-md'
-                  : 'text-gray-700 hover:bg-gray-100/80 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
+                  : 'text-gray-700 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
               style={{
                 letterSpacing: '-0.01em',
-                fontWeight: currentPage === 'planner' ? '500' : '400'
+                fontSize: '0.875rem',
+                fontWeight: currentPage === 'planner' ? '500' : '400',
+                background: currentPage !== 'planner' ? 'linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%)' : undefined
               }}
             >
               🗺️ Store Planner
@@ -5515,11 +5531,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               className={`px-4 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap ${
                 currentPage === 'findProduct'
                   ? 'bg-blue-500 text-white shadow-md'
-                  : 'text-gray-700 hover:bg-gray-100/80 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
+                  : 'text-gray-700 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
               style={{
                 letterSpacing: '-0.01em',
-                fontWeight: currentPage === 'findProduct' ? '500' : '400'
+                fontSize: '0.875rem',
+                fontWeight: currentPage === 'findProduct' ? '500' : '400',
+                background: currentPage !== 'findProduct' ? 'linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%)' : undefined
               }}
             >
               🔍 Find Product
@@ -5529,11 +5547,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               className={`px-4 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap ${
                 currentPage === 'dashboard'
                   ? 'bg-blue-500 text-white shadow-md'
-                  : 'text-gray-700 hover:bg-gray-100/80 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
+                  : 'text-gray-700 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
               style={{
                 letterSpacing: '-0.01em',
-                fontWeight: currentPage === 'dashboard' ? '500' : '400'
+                fontSize: '0.875rem',
+                fontWeight: currentPage === 'dashboard' ? '500' : '400',
+                background: currentPage !== 'dashboard' ? 'linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%)' : undefined
               }}
             >
               📊 Dashboard
@@ -5543,11 +5563,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               className={`px-4 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap ${
                 currentPage === 'forecasting'
                   ? 'bg-blue-500 text-white shadow-md'
-                  : 'text-gray-700 hover:bg-gray-100/80 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
+                  : 'text-gray-700 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
               style={{
                 letterSpacing: '-0.01em',
-                fontWeight: currentPage === 'forecasting' ? '500' : '400'
+                fontSize: '0.875rem',
+                fontWeight: currentPage === 'forecasting' ? '500' : '400',
+                background: currentPage !== 'forecasting' ? 'linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%)' : undefined
               }}
             >
               📈 Forecasting
@@ -5557,25 +5579,29 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               className={`px-4 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap ${
                 currentPage === 'rowAnalytics'
                   ? 'bg-blue-500 text-white shadow-md'
-                  : 'text-gray-700 hover:bg-gray-100/80 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
+                  : 'text-gray-700 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
               style={{
                 letterSpacing: '-0.01em',
-                fontWeight: currentPage === 'rowAnalytics' ? '500' : '400'
+                fontSize: '0.875rem',
+                fontWeight: currentPage === 'rowAnalytics' ? '500' : '400',
+                background: currentPage !== 'rowAnalytics' ? 'linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%)' : undefined
               }}
             >
               📊 Row Analytics
             </button>
             <button
               onClick={() => changePage('unknownProducts')}
-              className={`px-4 py-2.5 rounded-xl font-medium transition-all relative ${
+              className={`px-4 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap relative ${
                 currentPage === 'unknownProducts'
                   ? 'bg-blue-500 text-white shadow-md z-10'
-                  : 'text-gray-700 hover:bg-gray-100/80 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
+                  : 'text-gray-700 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
               style={{
                 letterSpacing: '-0.01em',
-                fontWeight: currentPage === 'unknownProducts' ? '500' : '400'
+                fontSize: '0.875rem',
+                fontWeight: currentPage === 'unknownProducts' ? '500' : '400',
+                background: currentPage !== 'unknownProducts' ? 'linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%)' : undefined
               }}
             >
               ⚠️ Unknown Products
@@ -5587,51 +5613,75 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             </button>
             <button
               onClick={() => changePage('savedLayouts')}
-              className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
+              className={`px-4 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap ${
                 currentPage === 'savedLayouts'
-                  ? 'bg-white text-blue-600 shadow-lg relative z-10'
-                  : 'bg-purple-500 text-white hover:bg-purple-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
+                  ? 'bg-blue-500 text-white shadow-md relative z-10'
+                  : 'text-gray-700 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
+              style={{
+                letterSpacing: '-0.01em',
+                fontSize: '0.875rem',
+                fontWeight: currentPage === 'savedLayouts' ? '500' : '400',
+                background: currentPage !== 'savedLayouts' ? 'linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%)' : undefined
+              }}
             >
               💾 Saved Layouts
               {savedLayouts.length > 0 && (
-                <span className="ml-2 bg-white text-purple-600 text-xs rounded-full px-2 py-0.5">
+                <span className="ml-2 bg-white text-blue-600 text-xs rounded-full px-2 py-0.5">
                   {savedLayouts.length}
                 </span>
               )}
             </button>
             <button
               onClick={() => changePage('badStock')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all relative ${
+              className={`px-4 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap relative ${
                 currentPage === 'badStock'
-                  ? 'bg-white text-blue-600 shadow-lg z-10'
-                  : 'bg-orange-500 text-white hover:bg-orange-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
+                  ? 'bg-blue-500 text-white shadow-md z-10'
+                  : 'text-gray-700 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
+              style={{
+                letterSpacing: '-0.01em',
+                fontSize: '0.875rem',
+                fontWeight: currentPage === 'badStock' ? '500' : '400',
+                background: currentPage !== 'badStock' ? 'linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%)' : undefined
+              }}
             >
               📦 Bad Stock
               {badStockProducts.filter(b => !b.resolved).length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
                   {badStockProducts.filter(b => !b.resolved).length}
                 </span>
               )}
             </button>
             <button
               onClick={() => changePage('discounts')}
-              className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
+              className={`px-4 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap ${
                 currentPage === 'discounts'
-                  ? 'bg-white text-blue-600 shadow-lg relative z-10'
-                  : 'bg-emerald-500 text-white hover:bg-emerald-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
+                  ? 'bg-blue-500 text-white shadow-md relative z-10'
+                  : 'text-gray-700 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
+              style={{
+                letterSpacing: '-0.01em',
+                fontSize: '0.875rem',
+                fontWeight: currentPage === 'discounts' ? '500' : '400',
+                background: currentPage !== 'discounts' ? 'linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%)' : undefined
+              }}
             >
               💰 Discounts
             </button>
             <button
               onClick={() => changePage('settings')}
-              className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm whitespace-nowrap ${
+              className={`px-4 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap ${
                 currentPage === 'settings'
-                  ? 'bg-white text-blue-600 shadow-lg relative z-10'
-                  : 'bg-blue-500 text-white hover:bg-blue-400 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
+                  ? 'bg-blue-500 text-white shadow-md relative z-10'
+                  : 'text-gray-700 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
               }`}
+              style={{
+                letterSpacing: '-0.01em',
+                fontSize: '0.875rem',
+                fontWeight: currentPage === 'settings' ? '500' : '400',
+                background: currentPage !== 'settings' ? 'linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%)' : undefined
+              }}
             >
               ⚙️ Settings
             </button>
@@ -5816,7 +5866,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       )}
 
       <div className="flex-1 flex flex-col">
-        <div className="bg-white shadow-md p-4 flex items-center justify-between flex-wrap gap-2">
+        <div className="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 px-3 py-0.5 flex items-center justify-between flex-wrap gap-1 toolbar-compact" style={{
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          minHeight: '32px'
+        }}>
           <div className="flex items-center gap-2 flex-wrap">
             {!showLibrary && (
               <button onClick={() => setShowLibrary(true)} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">
