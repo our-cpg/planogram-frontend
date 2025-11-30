@@ -8303,37 +8303,79 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 
                 return (
                   <>
-                    {/* Fixture Heat Stats - Top Combo Hotspots */}
-                    {topFixtures.length > 0 && productCorrelations.length > 0 && (
+                    {/* Hotspots - Fixtures OR Top Products */}
+                    {productCorrelations.length > 0 && (
                       <div className="mb-4 p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
-                        <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                          🔥 Top Combo Hotspots
-                          <span className="text-xs font-normal text-gray-600">(Fixtures with most cross-sell activity)</span>
-                        </h3>
-                        <div className="grid grid-cols-5 gap-3">
-                          {topFixtures.map(([fixtureName, stats], idx) => (
-                            <button
-                              key={fixtureName}
-                              onClick={() => setCorrelationFixtureFilter(fixtureName)}
-                              className={`p-3 rounded-lg transition-all text-left ${
-                                correlationFixtureFilter === fixtureName
-                                  ? 'bg-orange-500 text-white shadow-lg scale-105'
-                                  : 'bg-white hover:bg-orange-100 border border-orange-200'
-                              }`}
-                            >
-                              <div className="text-lg font-bold">#{idx + 1}</div>
-                              <div className="text-xs font-semibold truncate" title={fixtureName}>
-                                {fixtureName}
-                              </div>
-                              <div className={`text-xs mt-1 ${correlationFixtureFilter === fixtureName ? 'text-orange-100' : 'text-gray-600'}`}>
-                                {stats.totalComboSales} combo sales
-                              </div>
-                              <div className={`text-xs ${correlationFixtureFilter === fixtureName ? 'text-orange-100' : 'text-gray-500'}`}>
-                                {stats.comboPairs} unique pairs
-                              </div>
-                            </button>
-                          ))}
-                        </div>
+                        {topFixtures.length > 0 ? (
+                          <>
+                            <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                              🔥 Top Combo Hotspots
+                              <span className="text-xs font-normal text-gray-600">(Fixtures with most cross-sell activity)</span>
+                            </h3>
+                            <div className="grid grid-cols-5 gap-3">
+                              {topFixtures.map(([fixtureName, stats], idx) => (
+                                <button
+                                  key={fixtureName}
+                                  onClick={() => setCorrelationFixtureFilter(fixtureName)}
+                                  className={`p-3 rounded-lg transition-all text-left ${
+                                    correlationFixtureFilter === fixtureName
+                                      ? 'bg-orange-500 text-white shadow-lg scale-105'
+                                      : 'bg-white hover:bg-orange-100 border border-orange-200'
+                                  }`}
+                                >
+                                  <div className="text-lg font-bold">#{idx + 1}</div>
+                                  <div className="text-xs font-semibold truncate" title={fixtureName}>
+                                    {fixtureName}
+                                  </div>
+                                  <div className={`text-xs mt-1 ${correlationFixtureFilter === fixtureName ? 'text-orange-100' : 'text-gray-600'}`}>
+                                    {stats.totalComboSales} combo sales
+                                  </div>
+                                  <div className={`text-xs ${correlationFixtureFilter === fixtureName ? 'text-orange-100' : 'text-gray-500'}`}>
+                                    {stats.comboPairs} unique pairs
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                              🔥 Top Products in Combos
+                              <span className="text-xs font-normal text-gray-600">(Most frequently bundled items)</span>
+                            </h3>
+                            <div className="grid grid-cols-5 gap-3">
+                              {(() => {
+                                // Count how many combos each product appears in
+                                const productComboCount = {};
+                                productCorrelations.forEach(corr => {
+                                  const nameA = corr.productA.name;
+                                  const nameB = corr.productB.name;
+                                  productComboCount[nameA] = (productComboCount[nameA] || 0) + corr.timesBoughtTogether;
+                                  productComboCount[nameB] = (productComboCount[nameB] || 0) + corr.timesBoughtTogether;
+                                });
+                                
+                                const topProducts = Object.entries(productComboCount)
+                                  .sort((a, b) => b[1] - a[1])
+                                  .slice(0, 5);
+                                
+                                return topProducts.map(([productName, count], idx) => (
+                                  <div
+                                    key={productName}
+                                    className="p-3 rounded-lg bg-white border border-orange-200"
+                                  >
+                                    <div className="text-lg font-bold text-orange-600">#{idx + 1}</div>
+                                    <div className="text-xs font-semibold truncate" title={productName}>
+                                      {productName.length > 30 ? productName.substring(0, 30) + '...' : productName}
+                                    </div>
+                                    <div className="text-xs mt-1 text-gray-600">
+                                      {count} combo sales
+                                    </div>
+                                  </div>
+                                ));
+                              })()}
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                     
