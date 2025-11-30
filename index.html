@@ -702,10 +702,12 @@ const PlanogramProfitTracker = () => {
 
     try {
       setSavingLayout(true);
+      console.log(`💾 Starting save for layout: "${layoutName}"`);
       
       const layoutData = {
         name: layoutName.trim(),
         timestamp: new Date().toISOString(),
+        isSavedLayout: true, // Mark this as a saved layout (not the working copy)
         fixtures: fixtures,
         sections: sections,
         unknownProducts: unknownProducts,
@@ -722,13 +724,12 @@ const PlanogramProfitTracker = () => {
         }
       };
 
-      // Use a special naming convention for saved layouts
-      const savedLayoutId = `saved_${Date.now()}_${layoutName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      console.log('💾 Calling Firebase savePlanogram...');
       
-      // Save to Firebase with the custom ID
-      await window.firebaseService.savePlanogram(layoutData, savedLayoutId);
+      // Save to Firebase (let Firebase generate the ID)
+      const savedId = await window.firebaseService.savePlanogram(layoutData);
       
-      console.log(`✅ Layout "${layoutName}" saved!`);
+      console.log(`✅ Layout "${layoutName}" saved with ID: ${savedId}`);
       setFeedback(`✅ Layout "${layoutName}" saved!`);
       setTimeout(() => setFeedback(''), 3000);
       
@@ -738,7 +739,7 @@ const PlanogramProfitTracker = () => {
       setSavingLayout(false);
       return true;
     } catch (error) {
-      console.error('Save layout failed:', error);
+      console.error('❌ Save layout failed:', error);
       alert('❌ Failed to save layout: ' + error.message);
       setSavingLayout(false);
       return false;
@@ -754,11 +755,13 @@ const PlanogramProfitTracker = () => {
 
     try {
       setLoadingLayouts(true);
+      console.log('📂 Fetching all planograms...');
       const allPlanograms = await window.firebaseService.listPlanograms();
+      console.log(`📂 Got ${allPlanograms.length} total planograms`);
       
-      // Filter for saved layouts (those starting with 'saved_')
+      // Filter for saved layouts (those marked with isSavedLayout: true)
       const layouts = allPlanograms
-        .filter(p => p.id.startsWith('saved_'))
+        .filter(p => p.isSavedLayout === true)
         .map(p => ({
           id: p.id,
           name: p.name || 'Unnamed Layout',
@@ -767,11 +770,11 @@ const PlanogramProfitTracker = () => {
         }))
         .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Newest first
       
+      console.log(`📂 Found ${layouts.length} saved layouts`);
       setSavedLayouts(layouts);
       setLoadingLayouts(false);
-      console.log(`📂 Loaded ${layouts.length} saved layouts`);
     } catch (error) {
-      console.error('Failed to load layouts:', error);
+      console.error('❌ Failed to load layouts:', error);
       setLoadingLayouts(false);
     }
   };
@@ -6356,91 +6359,23 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               Heat Map
             </button>
 
-            {/* Heat Map Type Selector */}
+            {/* Heat Map Type Selector - Button Style */}
             {heatMapMode && (
-              <div className="flex items-center gap-2 bg-gradient-to-r from-red-50 to-orange-50 px-3 py-2 rounded-lg border border-red-200 relative">
-                <span className="text-sm font-semibold text-gray-700">Show:</span>
-                <select
-                  value={heatMapType}
-                  onChange={(e) => setHeatMapType(e.target.value)}
-                  className="px-2 py-1 bg-white border-2 border-red-300 rounded text-sm font-medium hover:border-red-500 focus:outline-none focus:border-red-600 cursor-pointer"
-                >
-                  <option value="profit">💰 Profit Density</option>
-                  <option value="velocity">📦 Sales Velocity</option>
-                  <option value="deadStock">🚨 Dead Stock</option>
-                  <option value="margin">💸 Profit Margin</option>
-                  <option value="stockHealth">❤️ Stock Health</option>
-                  <option value="aov">🔥 High AOV Products</option>
-                  <option value="returningCustomers">🔄 Returning Customer Favorites</option>
-                  <option value="shoppingPath">🛒 Shopping Path (Cart Position)</option>
-                </select>
-                
-                {/* Info Icon with Tooltip */}
-                <div 
-                  className="relative"
-                  onMouseEnter={() => setShowHeatMapGuide(true)}
-                  onMouseLeave={() => setShowHeatMapGuide(false)}
-                >
-                  <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold cursor-help">
-                    i
-                  </div>
-                  
-                  {showHeatMapGuide && (
-                    <div className="absolute left-0 top-8 z-[9999] w-96 bg-white rounded-lg shadow-2xl border-2 border-blue-500 p-4 text-xs">
-                      <div className="font-bold text-lg mb-3 text-blue-600">🔥 Heat Map Guide</div>
-                      
-                      <div className="space-y-3 max-h-96 overflow-y-auto">
-                        <div className="border-l-4 border-green-500 pl-2">
-                          <div className="font-bold">💰 Profit Density</div>
-                          <div className="text-gray-600">🟢 Green = High profit per sq ft | 🔴 Red = Low profit</div>
-                        </div>
-                        
-                        <div className="border-l-4 border-green-500 pl-2">
-                          <div className="font-bold">📦 Sales Velocity</div>
-                          <div className="text-gray-600">🟢 Fast-moving products | 🔴 Slow sellers</div>
-                        </div>
-                        
-                        <div className="border-l-4 border-red-500 pl-2">
-                          <div className="font-bold">🚨 Dead Stock</div>
-                          <div className="text-gray-600">🔴 Inventory with ZERO sales (clearance needed!) | 🟢 No dead stock</div>
-                        </div>
-                        
-                        <div className="border-l-4 border-green-500 pl-2">
-                          <div className="font-bold">💸 Profit Margin</div>
-                          <div className="text-gray-600">🟢 50%+ margin | 🔴 Under 15% margin</div>
-                        </div>
-                        
-                        <div className="border-l-4 border-green-500 pl-2">
-                          <div className="font-bold">❤️ Stock Health</div>
-                          <div className="text-gray-600">🟢 Perfect stock levels | 🔴 Out of stock or excess dead stock</div>
-                        </div>
-                        
-                        <div className="border-l-4 border-orange-500 pl-2 bg-orange-50">
-                          <div className="font-bold">🔥 High AOV Products</div>
-                          <div className="text-gray-600">🟢 Products in $150+ orders (BIG SPENDERS!) | 🔴 Low-value orders</div>
-                          <div className="text-xs italic mt-1">Requires order data - click 🔥 Orders button first!</div>
-                        </div>
-                        
-                        <div className="border-l-4 border-blue-500 pl-2 bg-blue-50">
-                          <div className="font-bold">🔄 Returning Customer Favorites</div>
-                          <div className="text-gray-600">🟢 Loyal customer favorites (70%+ returning) | 🟣 New customer products</div>
-                          <div className="text-xs italic mt-1">Shows what brings customers back!</div>
-                        </div>
-                        
-                        <div className="border-l-4 border-purple-500 pl-2 bg-purple-50">
-                          <div className="font-bold">🛒 Shopping Path (Cart Position)</div>
-                          <div className="text-gray-600">🟢 Grabbed FIRST (entry products) | 🔴 Grabbed LAST (checkout impulse)</div>
-                          <div className="text-xs italic mt-1">See HOW customers shop - what they look for vs add at checkout!</div>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-3 pt-3 border-t text-center text-gray-500 italic">
-                        💡 Use Period dropdown to change timeframe
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <select
+                value={heatMapType}
+                onChange={(e) => setHeatMapType(e.target.value)}
+                className="px-3 py-2 bg-orange-100 text-orange-900 border-2 border-orange-300 rounded hover:bg-orange-200 text-sm font-medium focus:outline-none focus:border-orange-500 cursor-pointer appearance-none"
+                style={{ minWidth: '180px' }}
+              >
+                <option value="profit">💰 Profit Density</option>
+                <option value="velocity">📦 Sales Velocity</option>
+                <option value="deadStock">🚨 Dead Stock</option>
+                <option value="margin">💸 Profit Margin</option>
+                <option value="stockHealth">❤️ Stock Health</option>
+                <option value="aov">🔥 High AOV Products</option>
+                <option value="returningCustomers">🔄 Returning Customer Favorites</option>
+                <option value="shoppingPath">🛒 Shopping Path</option>
+              </select>
             )}
 
             <button
@@ -6518,24 +6453,21 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </button>
             )}
 
-            {/* Time Period Filter */}
-            <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-purple-50 px-3 py-2 rounded-lg border border-blue-200">
-              <Icons.BarChart3 />
-              <span className="text-sm font-semibold text-gray-700">Period:</span>
-              <select
-                value={timePeriod}
-                onChange={(e) => setTimePeriod(e.target.value)}
-                className="px-2 py-1 bg-white border-2 border-blue-300 rounded text-sm font-medium hover:border-blue-500 focus:outline-none focus:border-blue-600 cursor-pointer"
-              >
-                <option value="day">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="quarter">This Quarter</option>
-                <option value="year">This Year</option>
-                <option value="all">All Time</option>
-                <option value="custom">Custom Range</option>
-              </select>
-            </div>
+            {/* Time Period Filter - Button Style */}
+            <select
+              value={timePeriod}
+              onChange={(e) => setTimePeriod(e.target.value)}
+              className="px-3 py-2 bg-blue-100 text-blue-900 border-2 border-blue-300 rounded hover:bg-blue-200 text-sm font-medium focus:outline-none focus:border-blue-500 cursor-pointer appearance-none flex items-center gap-2"
+              style={{ minWidth: '140px' }}
+            >
+              <option value="day">📅 Today</option>
+              <option value="week">📅 This Week</option>
+              <option value="month">📅 This Month</option>
+              <option value="quarter">📅 This Quarter</option>
+              <option value="year">📅 This Year</option>
+              <option value="all">📅 All Time</option>
+              <option value="custom">📅 Custom Range</option>
+            </select>
 
             {/* Compact Progress Display - Inline with toolbar */}
             {(feedback || syncProgress.message || syncProgress.total > 0) && (
