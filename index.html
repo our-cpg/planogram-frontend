@@ -8573,7 +8573,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                               const salesHeight = maxValue > 0 ? ((item.sales / 100) / maxValue) * 100 : 0;
                               
                               return (
-                                <div key={idx} className="flex-1 flex flex-col items-center gap-1 group relative">
+                                <div key={idx} className="flex-1 flex items-end gap-0.5 group relative" style={{ height: '100%' }}>
                                   <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl z-10 whitespace-nowrap">
                                     <div className="font-semibold mb-1">{selectedView === 'hourly' ? item.hour : item.date}</div>
                                     <div className="text-blue-300">Orders: {item.orders}</div>
@@ -8581,13 +8581,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                   </div>
                                   
                                   <div 
-                                    className="w-full bg-blue-500 hover:bg-blue-600 transition-all rounded-t cursor-pointer"
-                                    style={{ height: `${ordersHeight}%` }}
+                                    className="flex-1 bg-blue-500 hover:bg-blue-600 transition-all rounded-t cursor-pointer"
+                                    style={{ height: `${ordersHeight}%`, minHeight: ordersHeight > 0 ? '2px' : '0' }}
                                   />
                                   
                                   <div 
-                                    className="w-full bg-green-500 hover:bg-green-600 transition-all rounded-t cursor-pointer"
-                                    style={{ height: `${salesHeight}%` }}
+                                    className="flex-1 bg-green-500 hover:bg-green-600 transition-all rounded-t cursor-pointer"
+                                    style={{ height: `${salesHeight}%`, minHeight: salesHeight > 0 ? '2px' : '0' }}
                                   />
                                 </div>
                               );
