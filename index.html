@@ -2775,39 +2775,85 @@ const PlanogramProfitTracker = () => {
     setOrderAnalyticsData(prev => ({ ...prev, status: 'Loading...' }));
     
     try {
-      // Try getOrders first (for full data with line_items)
-      let response = await fetch(`${BACKEND_URL}/api/shopify`, {
+      // ALWAYS call getOrderAnalytics to get recent orders WITH line items
+      const analyticsResponse = await fetch(`${BACKEND_URL}/api/shopify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           storeName: '1m3tfh-xt.myshopify.com',
           accessToken: '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',
-          action: 'getOrders'
+          action: 'getOrderAnalytics'
         })
       });
 
-      // If getOrders fails, fallback to getOrderAnalytics
-      if (!response.ok) {
-        console.log('⚠️ getOrders failed, trying getOrderAnalytics...');
-        response = await fetch(`${BACKEND_URL}/api/shopify`, {
+      if (!analyticsResponse.ok) {
+        throw new Error(`HTTP ${analyticsResponse.status}: Backend error`);
+      }
+
+      const analyticsData = await analyticsResponse.json();
+      console.log('✅ Got analytics with line items:', analyticsData.recentOrders?.length, 'orders');
+      
+      // Try to also get full order list for analysis
+      try {
+        const ordersResponse = await fetch(`${BACKEND_URL}/api/shopify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             storeName: '1m3tfh-xt.myshopify.com',
             accessToken: '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',
-            action: 'getOrderAnalytics'
+            action: 'getOrders'
           })
         });
-      }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API error response:', errorText);
-        throw new Error(`HTTP ${response.status}: Backend error`);
+        if (ordersResponse.ok) {
+          const ordersData = await ordersResponse.json();
+          console.log('✅ Got full order list:', ordersData.orders?.length, 'orders');
+          
+          // Combine: use analytics data for recent orders (WITH line items),
+          // but use full order list for pattern analysis
+          setOrderAnalyticsData({
+            totalOrders: analyticsData.totalOrders || ordersData.orders?.length || 0,
+            totalSales: analyticsData.totalSales || 0,
+            avgOrderValue: analyticsData.avgOrderValue || 0,
+            uniqueCustomers: analyticsData.uniqueCustomers || 0,
+            processingStatus: 'Complete',
+            lastRefresh: new Date().toLocaleString(),
+            status: 'Complete',
+            recentOrders: analyticsData.recentOrders || [], // FROM ANALYTICS (has line items!)
+            allOrders: ordersData.orders || [], // FROM getOrders (for pattern analysis)
+            topProducts: analyticsData.topProducts || [],
+            salesByPeriod: analyticsData.salesByPeriod || {
+              today: { orders: 0, sales: 0 },
+              week: { orders: 0, sales: 0 },
+              month: { orders: 0, sales: 0 },
+              year: { orders: 0, sales: 0 }
+            }
+          });
+          
+          return;
+        }
+      } catch (ordersErr) {
+        console.log('⚠️ Could not fetch full order list, using analytics only:', ordersErr.message);
       }
-
-      const data = await response.json();
-      console.log('✅ Raw API response:', data);
+      
+      // If getOrders failed, just use analytics data
+      setOrderAnalyticsData({
+        totalOrders: analyticsData.totalOrders || 0,
+        totalSales: analyticsData.totalSales || 0,
+        avgOrderValue: analyticsData.avgOrderValue || 0,
+        uniqueCustomers: analyticsData.uniqueCustomers || 0,
+        processingStatus: 'Complete',
+        lastRefresh: new Date().toLocaleString(),
+        status: 'Complete',
+        recentOrders: analyticsData.recentOrders || [],
+        topProducts: analyticsData.topProducts || [],
+        salesByPeriod: analyticsData.salesByPeriod || {
+          today: { orders: 0, sales: 0 },
+          week: { orders: 0, sales: 0 },
+          month: { orders: 0, sales: 0 },
+          year: { orders: 0, sales: 0 }
+        }
+      });
       
       // Check if we got orders array or analytics object
       if (data.orders) {
@@ -8294,22 +8340,30 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <div className="text-sm font-semibold mb-2">📊 Sales by Hour</div>
+                        <div className="text-sm font-semibold mb-2">📊 Early Morning Orders (5am-6am)</div>
                         <div className="space-y-1">
-                          {hourCounts.map((count, hour) => (
-                            <div key={hour} className="flex items-center gap-2">
-                              <span className="text-xs w-20">{formatHour(hour)}</span>
-                              <div className="flex-1 bg-gray-200 rounded h-4">
-                                <div 
-                                  className={`h-full rounded transition-all ${
-                                    count === maxHourly && maxHourly > 0 ? 'bg-blue-600' : 'bg-blue-500'
-                                  }`}
-                                  style={{ width: maxHourly > 0 ? `${(count / maxHourly * 100)}%` : '0%' }}
-                                />
+                          {/* Show only 5am-6am */}
+                          {[5].map(hour => {
+                            const count = hourCounts[hour];
+                            return (
+                              <div key={hour} className="flex items-center gap-2">
+                                <span className="text-xs w-20">{formatHour(hour)}</span>
+                                <div className="flex-1 bg-gray-200 rounded h-4">
+                                  <div 
+                                    className="h-full rounded transition-all bg-orange-500"
+                                    style={{ width: count > 0 ? '100%' : '0%' }}
+                                  />
+                                </div>
+                                <span className="text-xs w-12 text-right text-gray-600">{count}</span>
                               </div>
-                              <span className="text-xs w-12 text-right text-gray-600">{count}</span>
+                            );
+                          })}
+                          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                            <div className="font-semibold text-yellow-800 mb-1">⚠️ Store Closed</div>
+                            <div className="text-yellow-700">
+                              {hourCounts[5]} order{hourCounts[5] === 1 ? '' : 's'} during closed hours
                             </div>
-                          ))}
+                          </div>
                         </div>
                       </div>
                       
