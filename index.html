@@ -4705,18 +4705,16 @@ const PlanogramProfitTracker = () => {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: width > 60 && height > 40 ? '11px' : '9px',
           color: 'white',
-          fontWeight: '600',
           fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif',
           letterSpacing: '-0.01em',
           textShadow: '0 1px 2px rgba(0,0,0,0.3)',
           zIndex: isSelected ? 60 : 40,
           overflow: 'hidden',
-          borderRadius: '8px', // Less rounded
+          borderRadius: '8px',
           boxShadow: isSelected 
             ? '0 4px 6px rgba(0, 0, 0, 0.15)'
-            : '0 2px 4px rgba(0, 0, 0, 0.1)', // Subtle shadow
+            : '0 2px 4px rgba(0, 0, 0, 0.1)',
           backdropFilter: 'none',
           transition: 'all 0.15s ease'
         }}
@@ -4737,34 +4735,49 @@ const PlanogramProfitTracker = () => {
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
-              gap: '2px'
-            }}
-          >
-            {/* Section Name - BIG and prominent */}
-            <div style={{ 
-              fontSize: width < 50 ? '11px' : (width < 80 ? '15px' : '18px'), // Bigger titles
-              lineHeight: '1.2',
-              fontWeight: '700',
-              overflow: 'hidden', 
-              textOverflow: 'ellipsis', 
-              whiteSpace: 'nowrap',
+              gap: '1px',
               transform: height > width * 1.5 ? 'rotate(-90deg)' : 'none',
               transformOrigin: 'center center'
+            }}
+          >
+            {/* Section Name - SMALL and thin */}
+            <div style={{ 
+              fontSize: width < 50 ? '8px' : (width < 80 ? '10px' : '11px'), // Small!
+              lineHeight: '1.3',
+              fontWeight: '400', // Thin!
+              opacity: 0.9,
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis', 
+              whiteSpace: 'nowrap'
             }}>
               {section.name}
             </div>
             
-            {/* Profit - smaller, secondary */}
-            {heatMapMode && width > 60 && height > 35 && (
+            {/* Profit Numbers - BIG and BOLD */}
+            {heatMapMode && width > 50 && height > 30 && (
               <div style={{ 
-                fontSize: width < 80 ? '10px' : '12px', // Smaller numbers
-                fontWeight: '600',
-                opacity: 0.9,
+                fontSize: width < 60 ? '16px' : (width < 80 ? '20px' : '24px'), // BIG numbers!
+                fontWeight: '800', // BOLD!
+                lineHeight: '1.1',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap'
               }}>
-                ${metrics.profitPerSqFt.toFixed(0)}/sqft
+                ${metrics.profitPerSqFt.toFixed(0)}
+              </div>
+            )}
+            
+            {/* Label for units */}
+            {heatMapMode && width > 50 && height > 30 && (
+              <div style={{ 
+                fontSize: width < 80 ? '7px' : '8px',
+                fontWeight: '400',
+                opacity: 0.85,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                per sqft
               </div>
             )}
           </div>
