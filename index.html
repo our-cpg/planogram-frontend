@@ -8734,8 +8734,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                     fixtureNames.add(section.name);
                                     if (section.products) {
                                       section.products.forEach(p => {
+                                        // Map by UPC
                                         if (p.upc) {
                                           productToFixture[p.upc] = section.name;
+                                        }
+                                        // ALSO map by product name as fallback
+                                        if (p.name) {
+                                          productToFixture[p.name] = section.name;
                                         }
                                       });
                                     }
@@ -8743,8 +8748,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                   
                                   // Calculate flows between fixtures
                                   productCorrelations.forEach(corr => {
-                                    const fixtureA = productToFixture[corr.productA.upc];
-                                    const fixtureB = productToFixture[corr.productB.upc];
+                                    // Try UPC first, then name
+                                    const fixtureA = productToFixture[corr.productA.upc] || productToFixture[corr.productA.name];
+                                    const fixtureB = productToFixture[corr.productB.upc] || productToFixture[corr.productB.name];
                                     
                                     if (fixtureA && fixtureB && fixtureA !== fixtureB) {
                                       const key = fixtureA < fixtureB ? `${fixtureA}→${fixtureB}` : `${fixtureB}→${fixtureA}`;
@@ -8754,6 +8760,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                   
                                   const fixtureList = Array.from(fixtureNames).sort();
                                   const maxFlow = Math.max(...Object.values(fixtureFlows), 1);
+                                  const totalMappedProducts = Object.keys(productToFixture).length;
+                                  const totalFlows = Object.keys(fixtureFlows).length;
                                   
                                   if (fixtureList.length === 0) {
                                     return (
@@ -8762,6 +8770,21 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                         <div className="font-bold text-lg text-gray-700 mb-2">No Fixtures Found</div>
                                         <div className="text-sm text-gray-600">
                                           Add products to your planogram sections to see customer flows!
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  if (totalFlows === 0) {
+                                    return (
+                                      <div className="py-12 text-center">
+                                        <div className="text-4xl mb-3">🔍</div>
+                                        <div className="font-bold text-lg text-gray-700 mb-2">No Cross-Fixture Combos Found</div>
+                                        <div className="text-sm text-gray-600 mb-2">
+                                          Products in correlations don't match products in planogram sections.
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          Debug: {totalMappedProducts} products mapped, {fixtureList.length} fixtures, {productCorrelations.length} correlations
                                         </div>
                                       </div>
                                     );
