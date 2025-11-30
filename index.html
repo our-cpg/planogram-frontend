@@ -563,6 +563,7 @@ const PlanogramProfitTracker = () => {
   const [productCorrelations, setProductCorrelations] = useState([]);
   const [correlationFixtureFilter, setCorrelationFixtureFilter] = useState('all'); // For Best Upsell Combinations filter
   const [correlationSortBy, setCorrelationSortBy] = useState('count_desc'); // Sort method
+  const [heatMapView, setHeatMapView] = useState('category'); // 'category' or 'planogram'
   const [salesExplorerDateRange, setSalesExplorerDateRange] = useState({ start: null, end: null }); // For Interactive Sales Explorer
   const [salesExplorerView, setSalesExplorerView] = useState('hourly'); // For Interactive Sales Explorer view toggle
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true); // Enabled by default
@@ -8452,11 +8453,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             {/* Strongest Combos */}
                             <div className="bg-white rounded-lg p-4 border border-green-200">
                               <h4 className="font-bold text-sm text-gray-800 mb-3">🔥 Most Frequent Combos</h4>
-                              <div className="space-y-2">
-                                {strongestCombos.map((combo, idx) => (
+                              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                                {strongestCombos.slice(0, 10).map((combo, idx) => (
                                   <div key={idx} className="text-xs border-b border-gray-100 pb-2 last:border-0">
-                                    <div className="font-semibold text-gray-700 truncate" title={`${combo.productA.name} + ${combo.productB.name}`}>
-                                      {combo.productA.name.substring(0, 20)}... + {combo.productB.name.substring(0, 20)}...
+                                    <div className="font-semibold text-gray-700 mb-1">
+                                      {combo.productA.name}
+                                    </div>
+                                    <div className="font-semibold text-gray-700 mb-1">
+                                      + {combo.productB.name}
                                     </div>
                                     <div className="text-gray-600 mt-1">
                                       <span className="font-bold text-green-600">{combo.timesBoughtTogether}x</span> bought together
@@ -8472,11 +8476,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             {/* Highest Revenue Combos */}
                             <div className="bg-white rounded-lg p-4 border border-green-200">
                               <h4 className="font-bold text-sm text-gray-800 mb-3">💵 Top Revenue Combos</h4>
-                              <div className="space-y-2">
-                                {highestRevenueCombos.map((combo, idx) => (
+                              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                                {highestRevenueCombos.slice(0, 10).map((combo, idx) => (
                                   <div key={idx} className="text-xs border-b border-gray-100 pb-2 last:border-0">
-                                    <div className="font-semibold text-gray-700 truncate" title={`${combo.productA.name} + ${combo.productB.name}`}>
-                                      {combo.productA.name.substring(0, 20)}... + {combo.productB.name.substring(0, 20)}...
+                                    <div className="font-semibold text-gray-700 mb-1">
+                                      {combo.productA.name}
+                                    </div>
+                                    <div className="font-semibold text-gray-700 mb-1">
+                                      + {combo.productB.name}
                                     </div>
                                     <div className="text-gray-600 mt-1">
                                       <span className="font-bold text-green-600">${combo.revenue.toFixed(2)}</span> total revenue
@@ -8492,11 +8499,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             {/* Premium Bundle Opportunities */}
                             <div className="bg-white rounded-lg p-4 border border-green-200">
                               <h4 className="font-bold text-sm text-gray-800 mb-3">👑 Premium Bundles</h4>
-                              <div className="space-y-2">
-                                {premiumCombos.map((combo, idx) => (
+                              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                                {premiumCombos.slice(0, 10).map((combo, idx) => (
                                   <div key={idx} className="text-xs border-b border-gray-100 pb-2 last:border-0">
-                                    <div className="font-semibold text-gray-700 truncate" title={`${combo.productA.name} + ${combo.productB.name}`}>
-                                      {combo.productA.name.substring(0, 20)}... + {combo.productB.name.substring(0, 20)}...
+                                    <div className="font-semibold text-gray-700 mb-1">
+                                      {combo.productA.name}
+                                    </div>
+                                    <div className="font-semibold text-gray-700 mb-1">
+                                      + {combo.productB.name}
                                     </div>
                                     <div className="text-gray-600 mt-1">
                                       <span className="font-bold text-green-600">${combo.bundlePrice.toFixed(2)}</span> bundle price
@@ -8575,12 +8585,44 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       // State for toggled categories (using React state wouldn't work here, so we'll use a simple approach)
                       return (
                         <div className="mb-4 p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg border border-blue-200">
-                          <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                            🗺️ Customer Movement Heat Map
-                            <span className="text-xs font-normal text-gray-600">(See which categories customers combine)</span>
-                          </h3>
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                              🗺️ Customer Movement Heat Map
+                              <span className="text-xs font-normal text-gray-600">
+                                {heatMapView === 'category' 
+                                  ? '(Product categories customers combine)' 
+                                  : '(Store layout with customer flows)'}
+                              </span>
+                            </h3>
+                            
+                            {/* Toggle Button */}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setHeatMapView('category')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                  heatMapView === 'category'
+                                    ? 'bg-blue-500 text-white shadow-lg'
+                                    : 'bg-white text-gray-600 hover:bg-blue-100 border border-blue-200'
+                                }`}
+                              >
+                                📊 Category Matrix
+                              </button>
+                              <button
+                                onClick={() => setHeatMapView('planogram')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                  heatMapView === 'planogram'
+                                    ? 'bg-blue-500 text-white shadow-lg'
+                                    : 'bg-white text-gray-600 hover:bg-blue-100 border border-blue-200'
+                                }`}
+                              >
+                                🏪 Store Flow Map
+                              </button>
+                            </div>
+                          </div>
                           
-                          <div className="bg-white rounded-lg p-4 border border-blue-200">
+                          {heatMapView === 'category' ? (
+                            /* CATEGORY HEAT MAP */
+                            <div className="bg-white rounded-lg p-4 border border-blue-200">
                             {/* Heat Map Grid */}
                             <div className="overflow-x-auto">
                               <table className="w-full text-xs">
@@ -8675,19 +8717,123 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             <div className="mt-3 text-xs text-gray-600 text-center italic">
                               💡 Hover over cells to see exact combo counts • Darker colors = stronger customer flows
                             </div>
-                            
-                            {/* Planogram Overlay Feature */}
-                            {fixtures && fixtures.length > 0 && (
-                              <div className="mt-4 p-3 bg-blue-100 border border-blue-300 rounded-lg text-center">
-                                <div className="text-sm font-bold text-blue-800 mb-1">
-                                  🗺️ Want to see this on your actual store layout?
-                                </div>
-                                <div className="text-xs text-blue-700">
-                                  Load your planogram to visualize customer paths between fixtures with heat-mapped arrows!
-                                </div>
-                              </div>
-                            )}
                           </div>
+                          ) : (
+                            /* PLANOGRAM FLOW MAP */
+                            <div className="bg-white rounded-lg p-4 border border-blue-200">
+                              {fixtures && fixtures.length > 0 ? (
+                                (() => {
+                                  // Calculate fixture-to-fixture flows
+                                  const fixtureFlows = {};
+                                  const fixtureNames = new Set();
+                                  
+                                  // Map products to their fixtures
+                                  const productToFixture = {};
+                                  fixtures.forEach(fixture => {
+                                    if (fixture.shelves) {
+                                      fixture.shelves.forEach(shelf => {
+                                        fixtureNames.add(shelf.name);
+                                        if (shelf.products) {
+                                          shelf.products.forEach(p => {
+                                            if (p.upc) {
+                                              productToFixture[p.upc] = shelf.name;
+                                            }
+                                          });
+                                        }
+                                      });
+                                    }
+                                  });
+                                  
+                                  // Calculate flows between fixtures
+                                  productCorrelations.forEach(corr => {
+                                    const fixtureA = productToFixture[corr.productA.upc];
+                                    const fixtureB = productToFixture[corr.productB.upc];
+                                    
+                                    if (fixtureA && fixtureB && fixtureA !== fixtureB) {
+                                      const key = fixtureA < fixtureB ? `${fixtureA}→${fixtureB}` : `${fixtureB}→${fixtureA}`;
+                                      fixtureFlows[key] = (fixtureFlows[key] || 0) + corr.timesBoughtTogether;
+                                    }
+                                  });
+                                  
+                                  const fixtureList = Array.from(fixtureNames).sort();
+                                  const maxFlow = Math.max(...Object.values(fixtureFlows), 1);
+                                  
+                                  return (
+                                    <div className="space-y-4">
+                                      {/* Simplified Fixture Flow Visualization */}
+                                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        {fixtureList.map(fixtureName => {
+                                          // Calculate total flow for this fixture
+                                          const totalFlow = Object.entries(fixtureFlows)
+                                            .filter(([key]) => key.includes(fixtureName))
+                                            .reduce((sum, [_, val]) => sum + val, 0);
+                                          
+                                          const intensity = totalFlow / maxFlow;
+                                          let bgColor = '#f3f4f6';
+                                          let borderColor = '#d1d5db';
+                                          
+                                          if (intensity > 0.7) {
+                                            bgColor = '#fee2e2';
+                                            borderColor = '#dc2626';
+                                          } else if (intensity > 0.4) {
+                                            bgColor = '#fed7aa';
+                                            borderColor = '#f97316';
+                                          } else if (intensity > 0.2) {
+                                            bgColor = '#fef3c7';
+                                            borderColor = '#fbbf24';
+                                          } else if (intensity > 0) {
+                                            bgColor = '#dbeafe';
+                                            borderColor = '#60a5fa';
+                                          }
+                                          
+                                          return (
+                                            <div
+                                              key={fixtureName}
+                                              className="p-4 rounded-lg border-2 transition-all hover:scale-105 cursor-pointer"
+                                              style={{ backgroundColor: bgColor, borderColor }}
+                                            >
+                                              <div className="font-bold text-sm text-gray-800 mb-1">{fixtureName}</div>
+                                              <div className="text-xs text-gray-600">
+                                                {totalFlow} cross-fixture combos
+                                              </div>
+                                              
+                                              {/* Top connections */}
+                                              <div className="mt-2 space-y-1">
+                                                {Object.entries(fixtureFlows)
+                                                  .filter(([key]) => key.includes(fixtureName))
+                                                  .sort((a, b) => b[1] - a[1])
+                                                  .slice(0, 3)
+                                                  .map(([key, count]) => {
+                                                    const otherFixture = key.replace(fixtureName, '').replace('→', '');
+                                                    return (
+                                                      <div key={key} className="text-xs text-gray-500">
+                                                        → {otherFixture}: <span className="font-semibold">{count}</span>
+                                                      </div>
+                                                    );
+                                                  })}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                      
+                                      <div className="text-xs text-gray-600 text-center italic mt-4">
+                                        💡 Click fixtures to filter combos • Redder = hotter customer flow path
+                                      </div>
+                                    </div>
+                                  );
+                                })()
+                              ) : (
+                                <div className="py-12 text-center">
+                                  <div className="text-4xl mb-3">🏪</div>
+                                  <div className="font-bold text-lg text-gray-700 mb-2">Load Your Planogram</div>
+                                  <div className="text-sm text-gray-600">
+                                    Upload your store layout to see customer movement between fixtures!
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
