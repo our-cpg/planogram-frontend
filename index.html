@@ -558,6 +558,9 @@ const PlanogramProfitTracker = () => {
     ordersByPeriod: { today: 0, week: 0, month: 0, year: 0 }
   });
   const [productCorrelations, setProductCorrelations] = useState([]);
+  const [correlationFixtureFilter, setCorrelationFixtureFilter] = useState('all'); // For Best Upsell Combinations filter
+  const [salesExplorerDateRange, setSalesExplorerDateRange] = useState({ start: null, end: null }); // For Interactive Sales Explorer
+  const [salesExplorerView, setSalesExplorerView] = useState('hourly'); // For Interactive Sales Explorer view toggle
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true); // Enabled by default
   const [showRefreshPrompt, setShowRefreshPrompt] = useState(false);
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -8211,8 +8214,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               <p className="text-sm text-gray-500 mb-4">Products actually bought together (from order data)</p>
               
               {(() => {
-                const [selectedFixture, setSelectedFixture] = React.useState('all');
-                
                 // Get all unique fixtures from planogram - with safety check
                 const allFixtures = fixtures && Array.isArray(fixtures) 
                   ? Array.from(new Set(
@@ -8222,13 +8223,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 
                 // Filter correlations by fixture
                 let filteredCorrelations = productCorrelations;
-                if (selectedFixture !== 'all' && fixtures && Array.isArray(fixtures)) {
+                if (correlationFixtureFilter !== 'all' && fixtures && Array.isArray(fixtures)) {
                   // Get all products in the selected fixture
                   const productsInFixture = new Set();
                   fixtures.forEach(fixture => {
                     if (fixture.shelves) {
                       fixture.shelves.forEach(shelf => {
-                        if (shelf.name === selectedFixture && shelf.products) {
+                        if (shelf.name === correlationFixtureFilter && shelf.products) {
                           shelf.products.forEach(p => {
                             if (p.upc) productsInFixture.add(p.upc);
                           });
@@ -8251,8 +8252,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       <div className="mb-4 flex items-center gap-3">
                         <label className="text-sm font-semibold text-gray-700">Filter by Fixture:</label>
                         <select
-                          value={selectedFixture}
-                          onChange={(e) => setSelectedFixture(e.target.value)}
+                          value={correlationFixtureFilter}
+                          onChange={(e) => setCorrelationFixtureFilter(e.target.value)}
                           className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="all">All Fixtures ({productCorrelations.length} pairs)</option>
@@ -8306,10 +8307,10 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         <div className="p-8 bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg border-2 border-purple-200 text-center">
                           <div className="text-4xl mb-3">🤝</div>
                           <div className="font-bold text-lg mb-2">
-                            {selectedFixture === 'all' ? 'No Correlation Data Yet' : `No Combinations Found in ${selectedFixture}`}
+                            {correlationFixtureFilter === 'all' ? 'No Correlation Data Yet' : `No Combinations Found in ${correlationFixtureFilter}`}
                           </div>
                           <div className="text-sm text-gray-600">
-                            {selectedFixture === 'all' 
+                            {correlationFixtureFilter === 'all' 
                               ? 'Click 🔥 Orders button to analyze which products are bought together'
                               : 'Try selecting a different fixture or "All Fixtures"'
                             }
@@ -8472,9 +8473,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               {/* 📊 INTERACTIVE SALES EXPLORER - Inside same card */}
               <div className="mt-8 pt-8 border-t-2 border-gray-200">
                 {(() => {
-                  const [dateRange, setDateRange] = React.useState({ start: null, end: null });
-                  const [selectedView, setSelectedView] = React.useState('hourly');
-                  
                   const ordersToAnalyze = orderAnalyticsData.allOrders || orderAnalyticsData.recentOrders || [];
                   
                   if (ordersToAnalyze.length === 0) {
@@ -8485,14 +8483,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   const minDate = new Date(Math.min(...allDates));
                   const maxDate = new Date(Math.max(...allDates));
                   
-                  if (!dateRange.start) {
-                    setDateRange({ start: minDate, end: maxDate });
+                  if (!salesExplorerDateRange.start) {
+                    setSalesExplorerDateRange({ start: minDate, end: maxDate });
                     return <div className="text-center text-gray-500">Loading interactive explorer...</div>;
                   }
                   
                   const filteredOrders = ordersToAnalyze.filter(order => {
                     const orderDate = new Date(order.created_at);
-                    return orderDate >= dateRange.start && orderDate <= dateRange.end;
+                    return orderDate >= salesExplorerDateRange.start && orderDate <= salesExplorerDateRange.end;
                   });
                   
                   const hourlyData = Array(24).fill(0).map((_, hour) => {
@@ -8525,7 +8523,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     new Date(a.date) - new Date(b.date)
                   );
                   
-                  const chartData = selectedView === 'hourly' ? hourlyData : dailyChartData;
+                  const chartData = salesExplorerView === 'hourly' ? hourlyData : dailyChartData;
                   
                   return (
                     <div>
@@ -8540,11 +8538,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             <h4 className="font-semibold text-gray-800">Date Range Filter</h4>
                             <p className="text-xs text-gray-500">
                               Analyzing {filteredOrders.length.toLocaleString()} orders from{' '}
-                              {dateRange.start.toLocaleDateString()} to {dateRange.end.toLocaleDateString()}
+                              {salesExplorerDateRange.start.toLocaleDateString()} to {salesExplorerDateRange.end.toLocaleDateString()}
                             </p>
                           </div>
                           <button
-                            onClick={() => setDateRange({ start: minDate, end: maxDate })}
+                            onClick={() => setSalesExplorerDateRange({ start: minDate, end: maxDate })}
                             className="text-xs px-3 py-1 bg-white hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
                           >
                             Reset
@@ -8557,7 +8555,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                               const end = new Date();
                               const start = new Date();
                               start.setDate(start.getDate() - 7);
-                              setDateRange({ start, end });
+                              setSalesExplorerDateRange({ start, end });
                             }}
                             className="text-xs px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg transition-colors"
                           >
@@ -8568,7 +8566,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                               const end = new Date();
                               const start = new Date();
                               start.setMonth(start.getMonth() - 1);
-                              setDateRange({ start, end });
+                              setSalesExplorerDateRange({ start, end });
                             }}
                             className="text-xs px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg transition-colors"
                           >
@@ -8579,7 +8577,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                               const end = new Date();
                               const start = new Date();
                               start.setMonth(start.getMonth() - 3);
-                              setDateRange({ start, end });
+                              setSalesExplorerDateRange({ start, end });
                             }}
                             className="text-xs px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg transition-colors"
                           >
@@ -8590,7 +8588,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                               const end = new Date();
                               const start = new Date();
                               start.setFullYear(start.getFullYear() - 1);
-                              setDateRange({ start, end });
+                              setSalesExplorerDateRange({ start, end });
                             }}
                             className="text-xs px-3 py-1.5 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-lg transition-colors"
                           >
@@ -8600,9 +8598,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         
                         <div className="flex gap-2 pt-4 border-t border-gray-300">
                           <button
-                            onClick={() => setSelectedView('hourly')}
+                            onClick={() => setSalesExplorerView('hourly')}
                             className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
-                              selectedView === 'hourly'
+                              salesExplorerView === 'hourly'
                                 ? 'bg-blue-500 text-white shadow-lg'
                                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
                             }`}
@@ -8610,9 +8608,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             📊 Hourly
                           </button>
                           <button
-                            onClick={() => setSelectedView('daily')}
+                            onClick={() => setSalesExplorerView('daily')}
                             className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
-                              selectedView === 'daily'
+                              salesExplorerView === 'daily'
                                 ? 'bg-blue-500 text-white shadow-lg'
                                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
                             }`}
@@ -8625,7 +8623,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       <div className="bg-gray-50 rounded-xl p-6">
                         <div className="mb-4">
                           <h4 className="font-semibold text-gray-800">
-                            {selectedView === 'hourly' ? '⏰ Orders by Hour' : '📆 Orders by Date'}
+                            {salesExplorerView === 'hourly' ? '⏰ Orders by Hour' : '📆 Orders by Date'}
                           </h4>
                           <p className="text-xs text-gray-500">Hover for details</p>
                         </div>
@@ -8648,7 +8646,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                               return (
                                 <div key={idx} className="flex-1 flex items-end gap-0.5 group relative" style={{ height: '100%' }}>
                                   <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl z-10 whitespace-nowrap">
-                                    <div className="font-semibold mb-1">{selectedView === 'hourly' ? item.hour : item.date}</div>
+                                    <div className="font-semibold mb-1">{salesExplorerView === 'hourly' ? item.hour : item.date}</div>
                                     <div className="text-blue-300">Orders: {item.orders}</div>
                                     <div className="text-green-300">Sales: ${item.sales.toFixed(2)}</div>
                                   </div>
@@ -8673,12 +8671,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                 key={idx} 
                                 className="flex-1 text-center text-xs text-gray-600 truncate"
                                 style={{ 
-                                  fontSize: selectedView === 'daily' ? '9px' : '11px',
-                                  transform: selectedView === 'daily' ? 'rotate(-45deg)' : 'none'
+                                  fontSize: salesExplorerView === 'daily' ? '9px' : '11px',
+                                  transform: salesExplorerView === 'daily' ? 'rotate(-45deg)' : 'none'
                                 }}
-                                title={selectedView === 'hourly' ? item.hour : item.date}
+                                title={salesExplorerView === 'hourly' ? item.hour : item.date}
                               >
-                                {selectedView === 'hourly' ? item.hour : item.date.split('/')[1] + '/' + item.date.split('/')[0]}
+                                {salesExplorerView === 'hourly' ? item.hour : item.date.split('/')[1] + '/' + item.date.split('/')[0]}
                               </div>
                             ))}
                           </div>
