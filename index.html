@@ -8728,6 +8728,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                   const fixtureFlows = {};
                                   const fixtureNames = new Set();
                                   
+                                  // DEBUG: Log sections to see structure
+                                  console.log('🔍 DEBUGGING SECTIONS:', sections);
+                                  console.log('🔍 First section example:', sections[0]);
+                                  if (sections[0]?.products) {
+                                    console.log('🔍 First product example:', sections[0].products[0]);
+                                  }
+                                  
+                                  // DEBUG: Log correlations to compare
+                                  console.log('🔍 DEBUGGING CORRELATIONS:', productCorrelations.slice(0, 3));
+                                  console.log('🔍 First correlation example:', productCorrelations[0]);
+                                  
                                   // Map products to their fixtures from sections
                                   const productToFixture = {};
                                   
