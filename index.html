@@ -5885,6 +5885,262 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       )}
 
       <div className="flex-1 flex flex-col">
+        <div className="px-3 py-1 flex items-center justify-between flex-wrap gap-1 toolbar-compact" style={{
+          minHeight: '44px'
+        }}>
+          <div className="flex items-center gap-2 flex-wrap">
+            {!showLibrary && (
+              <button onClick={() => setShowLibrary(true)} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">
+                Show Library
+              </button>
+            )}
+            
+         <button
+              onClick={() => setHeatMapMode(!heatMapMode)}
+              className={`px-3 py-2 rounded flex items-center gap-2 text-sm ${heatMapMode ? 'bg-orange-500 text-white' : 'bg-gray-200'}`}
+            >
+              <Icons.Flame />
+              Heat Map
+            </button>
+
+            {/* Heat Map Type Selector */}
+            {heatMapMode && (
+              <div className="flex items-center gap-2 bg-gradient-to-r from-red-50 to-orange-50 px-3 py-2 rounded-lg border border-red-200 relative">
+                <span className="text-sm font-semibold text-gray-700">Show:</span>
+                <select
+                  value={heatMapType}
+                  onChange={(e) => setHeatMapType(e.target.value)}
+                  className="px-2 py-1 bg-white border-2 border-red-300 rounded text-sm font-medium hover:border-red-500 focus:outline-none focus:border-red-600 cursor-pointer"
+                >
+                  <option value="profit">💰 Profit Density</option>
+                  <option value="velocity">📦 Sales Velocity</option>
+                  <option value="deadStock">🚨 Dead Stock</option>
+                  <option value="margin">💸 Profit Margin</option>
+                  <option value="stockHealth">❤️ Stock Health</option>
+                  <option value="aov">🔥 High AOV Products</option>
+                  <option value="returningCustomers">🔄 Returning Customer Favorites</option>
+                  <option value="shoppingPath">🛒 Shopping Path (Cart Position)</option>
+                </select>
+                
+                {/* Info Icon with Tooltip */}
+                <div 
+                  className="relative"
+                  onMouseEnter={() => setShowHeatMapGuide(true)}
+                  onMouseLeave={() => setShowHeatMapGuide(false)}
+                >
+                  <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold cursor-help">
+                    i
+                  </div>
+                  
+                  {showHeatMapGuide && (
+                    <div className="absolute left-0 top-8 z-[9999] w-96 bg-white rounded-lg shadow-2xl border-2 border-blue-500 p-4 text-xs">
+                      <div className="font-bold text-lg mb-3 text-blue-600">🔥 Heat Map Guide</div>
+                      
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        <div className="border-l-4 border-green-500 pl-2">
+                          <div className="font-bold">💰 Profit Density</div>
+                          <div className="text-gray-600">🟢 Green = High profit per sq ft | 🔴 Red = Low profit</div>
+                        </div>
+                        
+                        <div className="border-l-4 border-green-500 pl-2">
+                          <div className="font-bold">📦 Sales Velocity</div>
+                          <div className="text-gray-600">🟢 Fast-moving products | 🔴 Slow sellers</div>
+                        </div>
+                        
+                        <div className="border-l-4 border-red-500 pl-2">
+                          <div className="font-bold">🚨 Dead Stock</div>
+                          <div className="text-gray-600">🔴 Inventory with ZERO sales (clearance needed!) | 🟢 No dead stock</div>
+                        </div>
+                        
+                        <div className="border-l-4 border-green-500 pl-2">
+                          <div className="font-bold">💸 Profit Margin</div>
+                          <div className="text-gray-600">🟢 50%+ margin | 🔴 Under 15% margin</div>
+                        </div>
+                        
+                        <div className="border-l-4 border-green-500 pl-2">
+                          <div className="font-bold">❤️ Stock Health</div>
+                          <div className="text-gray-600">🟢 Perfect stock levels | 🔴 Out of stock or excess dead stock</div>
+                        </div>
+                        
+                        <div className="border-l-4 border-orange-500 pl-2 bg-orange-50">
+                          <div className="font-bold">🔥 High AOV Products</div>
+                          <div className="text-gray-600">🟢 Products in $150+ orders (BIG SPENDERS!) | 🔴 Low-value orders</div>
+                          <div className="text-xs italic mt-1">Requires order data - click 🔥 Orders button first!</div>
+                        </div>
+                        
+                        <div className="border-l-4 border-blue-500 pl-2 bg-blue-50">
+                          <div className="font-bold">🔄 Returning Customer Favorites</div>
+                          <div className="text-gray-600">🟢 Loyal customer favorites (70%+ returning) | 🟣 New customer products</div>
+                          <div className="text-xs italic mt-1">Shows what brings customers back!</div>
+                        </div>
+                        
+                        <div className="border-l-4 border-purple-500 pl-2 bg-purple-50">
+                          <div className="font-bold">🛒 Shopping Path (Cart Position)</div>
+                          <div className="text-gray-600">🟢 Grabbed FIRST (entry products) | 🔴 Grabbed LAST (checkout impulse)</div>
+                          <div className="text-xs italic mt-1">See HOW customers shop - what they look for vs add at checkout!</div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3 pt-3 border-t text-center text-gray-500 italic">
+                        💡 Use Period dropdown to change timeframe
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={saveToCloud}
+              className="px-3 py-2 bg-green-500 text-white rounded flex items-center gap-2 text-sm hover:bg-green-600"
+            >
+              <Icons.Save />
+              Save
+            </button>
+
+            {syncStatus && (
+              <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                {syncStatus}
+              </div>
+            )}
+
+            <input type="file" ref={fileInputRef} onChange={handleBackgroundUpload} accept="image/*" className="hidden" />
+            
+            <button onClick={() => fileInputRef.current?.click()} className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2 text-sm">
+              <Icons.Camera />
+              BG
+            </button>
+
+            {backgroundImage && (
+              <>
+                <button onClick={removeBackground} className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm">
+                  Remove
+                </button>
+                <button onClick={resetBackgroundPosition} className="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center gap-2 text-sm">
+                  <Icons.Move />
+                  Reset
+                </button>
+              </>
+            )}
+
+            <button onClick={exportLayout} className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2 text-sm">
+              <Icons.Download />
+              Export
+            </button>
+
+            <button onClick={() => setShowSettings(true)} className="px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm">
+              Shopify
+            </button>
+
+            {/* Time Period Filter */}
+            <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-purple-50 px-3 py-2 rounded-lg border border-blue-200">
+              <Icons.BarChart3 />
+              <span className="text-sm font-semibold text-gray-700">Period:</span>
+              <select
+                value={timePeriod}
+                onChange={(e) => setTimePeriod(e.target.value)}
+                className="px-2 py-1 bg-white border-2 border-blue-300 rounded text-sm font-medium hover:border-blue-500 focus:outline-none focus:border-blue-600 cursor-pointer"
+              >
+                <option value="day">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="quarter">This Quarter</option>
+                <option value="year">This Year</option>
+                <option value="all">All Time</option>
+                <option value="custom">Custom Range</option>
+              </select>
+            </div>
+
+            {/* Custom Date Range Picker */}
+            {timePeriod === 'custom' && (
+              <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-pink-50 px-3 py-2 rounded-lg border border-purple-300">
+                <input
+                  type="date"
+                  value={customDateRange.start}
+                  onChange={(e) => setCustomDateRange({...customDateRange, start: e.target.value})}
+                  className="px-2 py-1 border-2 border-purple-300 rounded text-sm focus:outline-none focus:border-purple-500"
+                />
+                <span className="text-sm font-semibold text-gray-600">to</span>
+                <input
+                  type="date"
+                  value={customDateRange.end}
+                  onChange={(e) => setCustomDateRange({...customDateRange, end: e.target.value})}
+                  className="px-2 py-1 border-2 border-purple-300 rounded text-sm focus:outline-none focus:border-purple-500"
+                />
+              </div>
+            )}
+
+            {shopifyConfig.connected && (
+              <div className="flex flex-col gap-2">
+                {/* Refresh buttons row */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded text-xs">
+                  <button
+                    onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+                    className={`px-2 py-1 rounded ${autoRefreshEnabled ? 'bg-green-500 text-white' : 'bg-gray-300'}`}
+                    title="Toggle auto-refresh"
+                  >
+                    {autoRefreshEnabled ? '🔄 Auto' : '⏸️ Paused'}
+                  </button>
+                  <button
+                    onClick={() => refreshSalesOnly()}
+                    className={`px-3 py-1 ${salesStatus.isStale ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'} text-white rounded hover:bg-green-600 font-semibold flex items-center gap-1`}
+                    title={`Refresh sales data only (fast!) - Last: ${salesStatus.message}`}
+                  >
+                    📊 Sales
+                    {salesStatus.isStale && <span className="text-xs">!</span>}
+                  </button>
+                  <button
+                    onClick={() => refreshProductCache(false)}
+                    className={`px-3 py-1 ${productsStatus.isStale ? 'bg-yellow-500 animate-pulse' : 'bg-blue-500'} text-white rounded hover:bg-blue-600 font-semibold flex items-center gap-1`}
+                    title={`Full refresh: products + sales (slow) - Products: ${productsStatus.message}`}
+                  >
+                    🔄 Full
+                    {productsStatus.isStale && <span className="text-xs">!</span>}
+                  </button>
+                  <button
+                    onClick={() => refreshOrders()}
+                    className={`px-3 py-1 ${ordersStatus.isStale ? 'bg-red-500 animate-pulse' : 'bg-orange-500'} text-white rounded hover:bg-orange-600 font-semibold flex items-center gap-1`}
+                    title={`🔥 Order Blitz: Import full order data for analytics! - Last: ${ordersStatus.message}`}
+                >
+                  🔥 Orders
+                  {ordersStatus.isStale && <span className="text-xs">!</span>}
+                </button>
+              </div>
+              
+              {/* Status row - shows last refresh times */}
+              <div className="flex items-center gap-3 px-3 py-1 bg-white/50 rounded text-xs">
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-600">Products:</span>
+                  <span className={productsStatus.isStale ? 'text-yellow-600 font-semibold' : 'text-green-600'}>
+                    {productsStatus.message}
+                  </span>
+                </div>
+                <span className="text-gray-400">|</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-600">Sales:</span>
+                  <span className={salesStatus.isStale ? 'text-yellow-600 font-semibold' : 'text-green-600'}>
+                    {salesStatus.message}
+                  </span>
+                </div>
+                <span className="text-gray-400">|</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-600">Orders:</span>
+                  <span className={ordersStatus.isStale ? 'text-red-600 font-semibold' : 'text-green-600'}>
+                    {ordersStatus.message}
+                  </span>
+                </div>
+              </div>
+            </div>
+            )}
+          </div>
+
+          {feedback && (
+            <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm">
+              {feedback}
+            </div>
+          )}
+        </div>
+
         <div 
           ref={canvasRef}
           className="flex-1 relative overflow-hidden bg-gray-50"
