@@ -930,33 +930,47 @@ const PlanogramProfitTracker = () => {
       return false;
     }
 
+    // Auto-timeout after 10 seconds
+    const timeoutId = setTimeout(() => {
+      console.error('⚠️ Comparison timed out after 10 seconds');
+      setLoadingLayouts(false);
+      alert('Comparison took too long. Please try again.');
+    }, 10000);
+
     try {
       setLoadingLayouts(true);
       console.log(`🔍 Comparing layout: ${layoutName}`);
-      console.time('Compare Layout'); // Track how long it takes
+      console.time('Compare Layout');
       
       const savedData = await window.firebaseService.loadPlanogram(layoutId);
       console.log('✅ Loaded saved data from Firebase');
       
       if (!savedData) {
+        clearTimeout(timeoutId);
         alert('Failed to load saved layout for comparison');
         setLoadingLayouts(false);
         return false;
       }
 
+      // Ensure sections and fixtures exist
+      const savedFixtures = savedData.fixtures || [];
+      const savedSections = savedData.sections || [];
+      
+      console.log(`Saved layout has ${savedFixtures.length} fixtures, ${savedSections.length} sections`);
+
       // Compare fixtures (fast)
       const currentFixtureIds = new Set(fixtures.map(f => f.id));
-      const savedFixtureIds = new Set((savedData.fixtures || []).map(f => f.id));
+      const savedFixtureIds = new Set(savedFixtures.map(f => f.id));
       
-      const addedFixtures = (savedData.fixtures || []).filter(f => !currentFixtureIds.has(f.id));
+      const addedFixtures = savedFixtures.filter(f => !currentFixtureIds.has(f.id));
       const removedFixtures = fixtures.filter(f => !savedFixtureIds.has(f.id));
-      const sameFixtures = (savedData.fixtures || []).filter(f => currentFixtureIds.has(f.id));
+      const sameFixtures = savedFixtures.filter(f => currentFixtureIds.has(f.id));
 
       // Compare sections (fast)
       const currentSectionNames = new Set(sections.map(s => s.name));
-      const savedSectionNames = new Set((savedData.sections || []).map(s => s.name));
+      const savedSectionNames = new Set(savedSections.map(s => s.name));
       
-      const addedSections = (savedData.sections || []).filter(s => !currentSectionNames.has(s.name));
+      const addedSections = savedSections.filter(s => !currentSectionNames.has(s.name));
       const removedSections = sections.filter(s => !savedSectionNames.has(s.name));
 
       // Count products (fast)
@@ -967,7 +981,7 @@ const PlanogramProfitTracker = () => {
         return sum + count;
       }, 0);
 
-      const savedProducts = (savedData.sections || []).reduce((sum, s) => {
+      const savedProducts = savedSections.reduce((sum, s) => {
         let count = 0;
         if (s.rows) s.rows.forEach(row => count += (row.products?.length || 0));
         count += (s.products?.length || 0);
@@ -984,8 +998,8 @@ const PlanogramProfitTracker = () => {
           products: currentProducts
         },
         saved: {
-          fixtures: (savedData.fixtures || []).length,
-          sections: (savedData.sections || []).length,
+          fixtures: savedFixtures.length,
+          sections: savedSections.length,
           products: savedProducts
         },
         changes: {
@@ -998,22 +1012,23 @@ const PlanogramProfitTracker = () => {
         }
       };
 
-      console.log('🔍 Comparison:', comparison);
+      console.log('🔍 Comparison complete:', comparison);
       console.timeEnd('Compare Layout');
       
-      // Small delay to show we're done processing
-      setTimeout(() => {
-        setCompareData(comparison);
-        setLoadingLayouts(false);
-        setShowCompareModal(true);
-        setShowLoadLayoutModal(false);
-      }, 100);
+      clearTimeout(timeoutId);
+      
+      // Update state
+      setCompareData(comparison);
+      setLoadingLayouts(false);
+      setShowCompareModal(true);
+      setShowLoadLayoutModal(false);
       
       return true;
     } catch (error) {
-      console.error('Compare failed:', error);
+      clearTimeout(timeoutId);
+      console.error('❌ Compare failed:', error);
+      setLoadingLayouts(false); // ALWAYS reset loading state
       alert('❌ Failed to compare layout: ' + error.message);
-      setLoadingLayouts(false);
       return false;
     }
   };
@@ -6329,11 +6344,30 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
       {/* LOADING OVERLAY - Shows while comparing */}
       {loadingLayouts && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[10000]">
-          <div className="bg-white rounded-xl shadow-2xl p-8 flex flex-col items-center gap-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[10000]"
+          onClick={() => {
+            setLoadingLayouts(false);
+            console.log('⚠️ Loading manually dismissed');
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl p-8 flex flex-col items-center gap-4 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                setLoadingLayouts(false);
+                console.log('⚠️ Loading manually closed');
+              }}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 font-bold text-xl"
+            >
+              ✕
+            </button>
             <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500"></div>
             <div className="text-xl font-bold text-gray-900">Comparing Layouts...</div>
             <div className="text-sm text-gray-600">Loading products and calculating differences</div>
+            <div className="text-xs text-gray-400 mt-2">Click anywhere to cancel</div>
           </div>
         </div>
       )}
