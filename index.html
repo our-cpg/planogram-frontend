@@ -4003,24 +4003,73 @@ const PlanogramProfitTracker = () => {
           const ordersData = await ordersResponse.json();
           console.log('✅ Got full order list:', ordersData.orders?.length, 'orders');
           
+          // RECALCULATE salesByPeriod on frontend to ensure accuracy
+          const orders = ordersData.orders || [];
+          const now = new Date();
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+          const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+          const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          weekStart.setHours(0, 0, 0, 0);
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+          const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+          
+          let totalSales = 0;
+          let salesToday = 0, salesWeek = 0, salesMonth = 0, salesYear = 0;
+          let ordersToday = 0, ordersWeek = 0, ordersMonth = 0, ordersYear = 0;
+          
+          orders.forEach(order => {
+            const orderDate = new Date(order.created_at);
+            const orderTotal = parseFloat(order.total_price || 0);
+            totalSales += orderTotal;
+            
+            if (orderDate >= todayStart && orderDate < todayEnd) {
+              salesToday += orderTotal;
+              ordersToday++;
+            }
+            if (orderDate >= weekStart) {
+              salesWeek += orderTotal;
+              ordersWeek++;
+            }
+            if (orderDate >= monthStart) {
+              salesMonth += orderTotal;
+              ordersMonth++;
+            }
+            if (orderDate >= yearStart) {
+              salesYear += orderTotal;
+              ordersYear++;
+            }
+          });
+          
+          console.log('📊 FRONTEND RECALCULATED:');
+          console.log(`  Today: ${ordersToday} orders, $${salesToday.toFixed(2)}`);
+          console.log(`  Week: ${ordersWeek} orders, $${salesWeek.toFixed(2)}`);
+          console.log(`  Month: ${ordersMonth} orders, $${salesMonth.toFixed(2)}`);
+          console.log(`  Year: ${ordersYear} orders, $${salesYear.toFixed(2)}`);
+          
           // Combine: use analytics data for recent orders (WITH line items),
-          // but use full order list for pattern analysis
+          // but use full order list for pattern analysis AND recalculated periods
           setOrderAnalyticsData({
-            totalOrders: analyticsData.totalOrders || ordersData.orders?.length || 0,
-            totalSales: analyticsData.totalSales || 0,
-            avgOrderValue: analyticsData.avgOrderValue || 0,
+            totalOrders: orders.length,
+            totalSales: totalSales,
+            avgOrderValue: totalSales / orders.length,
             uniqueCustomers: analyticsData.uniqueCustomers || 0,
             processingStatus: 'Complete',
             lastRefresh: new Date().toLocaleString(),
             status: 'Complete',
             recentOrders: analyticsData.recentOrders || [], // FROM ANALYTICS (has line items!)
-            allOrders: ordersData.orders || [], // FROM getOrders (for pattern analysis)
+            allOrders: orders, // FROM getOrders (for pattern analysis)
             topProducts: analyticsData.topProducts || [],
-            salesByPeriod: analyticsData.salesByPeriod || {
-              today: { orders: 0, sales: 0 },
-              week: { orders: 0, sales: 0 },
-              month: { orders: 0, sales: 0 },
-              year: { orders: 0, sales: 0 }
+            salesByPeriod: {
+              today: salesToday,
+              week: salesWeek,
+              month: salesMonth,
+              year: salesYear
+            },
+            ordersByPeriod: {
+              today: ordersToday,
+              week: ordersWeek,
+              month: ordersMonth,
+              year: ordersYear
             }
           });
           
@@ -11859,40 +11908,48 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
                     <div className="text-sm font-semibold text-gray-600 mb-1">Today</div>
                     <div className="text-2xl font-bold text-blue-600">
-                      ${(orderAnalyticsData.salesByPeriod?.today?.sales || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      ${(typeof orderAnalyticsData.salesByPeriod?.today === 'number' 
+                        ? orderAnalyticsData.salesByPeriod.today 
+                        : orderAnalyticsData.salesByPeriod?.today?.sales || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {orderAnalyticsData.salesByPeriod?.today?.orders || 0} orders
+                      {orderAnalyticsData.ordersByPeriod?.today || orderAnalyticsData.salesByPeriod?.today?.orders || 0} orders
                     </div>
                   </div>
 
                   <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
                     <div className="text-sm font-semibold text-gray-600 mb-1">This Week</div>
                     <div className="text-2xl font-bold text-green-600">
-                      ${(orderAnalyticsData.salesByPeriod?.week?.sales || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      ${(typeof orderAnalyticsData.salesByPeriod?.week === 'number' 
+                        ? orderAnalyticsData.salesByPeriod.week 
+                        : orderAnalyticsData.salesByPeriod?.week?.sales || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {orderAnalyticsData.salesByPeriod?.week?.orders || 0} orders
+                      {orderAnalyticsData.ordersByPeriod?.week || orderAnalyticsData.salesByPeriod?.week?.orders || 0} orders
                     </div>
                   </div>
 
                   <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
                     <div className="text-sm font-semibold text-gray-600 mb-1">This Month</div>
                     <div className="text-2xl font-bold text-purple-600">
-                      ${(orderAnalyticsData.salesByPeriod?.month?.sales || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      ${(typeof orderAnalyticsData.salesByPeriod?.month === 'number' 
+                        ? orderAnalyticsData.salesByPeriod.month 
+                        : orderAnalyticsData.salesByPeriod?.month?.sales || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {orderAnalyticsData.salesByPeriod?.month?.orders || 0} orders
+                      {orderAnalyticsData.ordersByPeriod?.month || orderAnalyticsData.salesByPeriod?.month?.orders || 0} orders
                     </div>
                   </div>
 
                   <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
                     <div className="text-sm font-semibold text-gray-600 mb-1">This Year</div>
                     <div className="text-2xl font-bold text-orange-600">
-                      ${(orderAnalyticsData.salesByPeriod?.year?.sales || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      ${(typeof orderAnalyticsData.salesByPeriod?.year === 'number' 
+                        ? orderAnalyticsData.salesByPeriod.year 
+                        : orderAnalyticsData.salesByPeriod?.year?.sales || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {orderAnalyticsData.salesByPeriod?.year?.orders || 0} orders
+                      {orderAnalyticsData.ordersByPeriod?.year || orderAnalyticsData.salesByPeriod?.year?.orders || 0} orders
                     </div>
                   </div>
                 </div>
