@@ -1069,9 +1069,23 @@ const PlanogramProfitTracker = () => {
     console.log('  Section:', section?.name);
     console.log('  Version:', versionName);
     
-    if (!window.firebaseService || !window.firebaseService.isAuthenticated()) {
-      console.log('❌ Firebase not ready');
-      alert('Firebase not ready');
+    // Detailed Firebase checks
+    console.log('🔍 Firebase Status Check:');
+    console.log('  window.firebaseService exists?', !!window.firebaseService);
+    if (window.firebaseService) {
+      console.log('  firebaseService.isAuthenticated?', window.firebaseService.isAuthenticated());
+      console.log('  firebaseService methods:', Object.keys(window.firebaseService));
+    }
+    
+    if (!window.firebaseService) {
+      console.log('❌ Firebase service not initialized');
+      alert('❌ Firebase service not initialized!\n\nPlease refresh the page and try again.');
+      return false;
+    }
+    
+    if (!window.firebaseService.isAuthenticated()) {
+      console.log('❌ Firebase not authenticated');
+      alert('❌ Firebase not authenticated!\n\nPlease check your Firebase connection in Settings.');
       return false;
     }
 
@@ -1081,12 +1095,14 @@ const PlanogramProfitTracker = () => {
       return false;
     }
 
-    // Auto-timeout after 10 seconds
+    // Auto-timeout after 15 seconds (increased from 10)
+    let timedOut = false;
     const timeoutId = setTimeout(() => {
-      console.error('⚠️ Save timed out after 10 seconds');
+      console.error('⚠️ Save timed out after 15 seconds');
+      timedOut = true;
       setSavingSectionVersion(false);
-      alert('⚠️ Save timed out!\n\nFirebase took too long to respond. Please try again.');
-    }, 10000);
+      alert('⚠️ Save timed out!\n\nFirebase took too long to respond (15+ seconds).\n\nPossible issues:\n- Slow internet connection\n- Firebase server issues\n- Large payload size\n\nPlease try again.');
+    }, 15000);
 
     try {
       console.log('🔵 Setting savingSectionVersion to true...');
@@ -1156,8 +1172,20 @@ const PlanogramProfitTracker = () => {
       }
       
       console.log('🔵 Calling Firebase savePlanogram...');
+      console.log('  Timestamp:', new Date().toISOString());
+      
+      const startTime = Date.now();
       const versionId = await window.firebaseService.savePlanogram(versionData);
+      const elapsed = Date.now() - startTime;
+      
       console.log(`✅ Firebase returned versionId: ${versionId}`);
+      console.log(`  Elapsed time: ${elapsed}ms`);
+      
+      // Check if timeout already fired
+      if (timedOut) {
+        console.log('⚠️ Save completed but timeout already fired');
+        return false;
+      }
       
       clearTimeout(timeoutId); // Clear timeout on success
       console.log(`✅ Section saved: ${versionId}`);
@@ -1170,8 +1198,20 @@ const PlanogramProfitTracker = () => {
       return true;
     } catch (error) {
       clearTimeout(timeoutId);
-      console.error('❌ Save failed:', error);
-      alert('❌ Failed to save: ' + error.message);
+      console.error('❌ Save failed with error:', error);
+      console.error('  Error name:', error.name);
+      console.error('  Error message:', error.message);
+      console.error('  Error stack:', error.stack);
+      
+      let errorMsg = 'Failed to save section';
+      if (error.message) {
+        errorMsg = error.message;
+      }
+      if (error.code) {
+        errorMsg += `\n\nError code: ${error.code}`;
+      }
+      
+      alert('❌ ' + errorMsg + '\n\nCheck console for details.');
       console.log('🔵 Setting savingSectionVersion to false (error path)...');
       setSavingSectionVersion(false);
       console.log('🔵 saveCurrentSection returning FALSE');
@@ -8139,6 +8179,16 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             {/* 💾 SAVE AND LOAD SECTIONS */}
             <button
               onClick={() => {
+                // Check Firebase before opening modal
+                if (!window.firebaseService) {
+                  alert('⚠️ Firebase not initialized!\n\nPlease refresh the page and check your Firebase settings.');
+                  return;
+                }
+                if (!window.firebaseService.isAuthenticated()) {
+                  alert('⚠️ Firebase not authenticated!\n\nPlease check your Firebase connection in Settings.');
+                  return;
+                }
+                console.log('✅ Firebase ready - opening Save Section modal');
                 setShowSaveLayoutModal(true);
               }}
               className="px-3 py-2 bg-purple-500 text-white rounded flex items-center gap-2 text-sm hover:bg-purple-600"
