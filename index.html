@@ -1562,10 +1562,13 @@ const PlanogramProfitTracker = () => {
       
       // Get ALL section versions (no filter by section name)
       console.log(`📚 Total items from Firebase: ${allPlanograms.length}`);
+      console.log('📚 ALL Firebase items:');
       allPlanograms.forEach((p, idx) => {
-        if (idx < 5) { // Log first 5 for debugging
-          console.log(`  [${idx}] ${p.name || 'Unnamed'} - isSectionVersion: ${p.isSectionVersion}, metadata.type: ${p.metadata?.type}`);
-        }
+        console.log(`  [${idx}] ID: ${p.id}`);
+        console.log(`      Name: ${p.name || 'Unnamed'}`);
+        console.log(`      isSectionVersion: ${p.isSectionVersion}`);
+        console.log(`      metadata.type: ${p.metadata?.type}`);
+        console.log(`      timestamp: ${p.timestamp}`);
       });
       
       const versions = allPlanograms
@@ -8338,7 +8341,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               className="px-3 py-2 bg-green-600 text-white rounded flex items-center gap-2 text-sm hover:bg-green-700"
               title="Save entire store layout (all fixtures + all sections)"
             >
-              <Icons.Save />
               💾 Save Layout
             </button>
 
