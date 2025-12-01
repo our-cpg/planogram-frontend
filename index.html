@@ -360,6 +360,11 @@ const PlanogramProfitTracker = () => {
   const [loadingSectionVersions, setLoadingSectionVersions] = useState(false);
   const [compareSectionVersions, setCompareSectionVersions] = useState(null); // {version1, version2}
   
+  // Firebase Cleanup
+  const [showCleanupModal, setShowCleanupModal] = useState(false);
+  const [allFirebaseItems, setAllFirebaseItems] = useState([]);
+  const [loadingFirebaseItems, setLoadingFirebaseItems] = useState(false);
+  
   const [layoutNameInput, setLayoutNameInput] = useState(''); // Input for layout name
   const [savingLayout, setSavingLayout] = useState(false); // Loading state for save
   const [loadingLayouts, setLoadingLayouts] = useState(false); // Loading state for load
@@ -1275,6 +1280,82 @@ const PlanogramProfitTracker = () => {
     } catch (error) {
       console.error('Delete section version failed:', error);
       alert('❌ Failed to delete version: ' + error.message);
+      return false;
+    }
+  };
+
+  // ========================================
+  // FIREBASE CLEANUP UTILITIES
+  // ========================================
+
+  // Load all items from Firebase and analyze them
+  const loadAllFirebaseItems = async () => {
+    if (!firebaseReady || !window.firebaseService) {
+      alert('Firebase not ready');
+      return;
+    }
+
+    try {
+      setLoadingFirebaseItems(true);
+      console.log('🔍 Loading all Firebase items...');
+      
+      const allItems = await window.firebaseService.listPlanograms();
+      
+      // Analyze each item
+      const analyzed = allItems.map(item => {
+        const itemStr = JSON.stringify(item);
+        const sizeKB = Math.round(itemStr.length / 1000);
+        
+        return {
+          id: item.id,
+          name: item.name || item.versionName || 'Unnamed',
+          timestamp: item.timestamp,
+          type: item.isSectionVersion ? 'Section Version' : 'Full Layout',
+          sectionName: item.sectionName || 'N/A',
+          sizeKB: sizeKB,
+          productCount: item.metadata?.productCount || 0,
+          fixtureCount: item.metadata?.fixtureCount || 0,
+          sectionCount: item.metadata?.sectionCount || 0,
+          data: item
+        };
+      }).sort((a, b) => b.sizeKB - a.sizeKB); // Sort by size, largest first
+      
+      console.log(`📊 Found ${analyzed.length} items in Firebase`);
+      console.log(`💾 Total size: ${Math.round(analyzed.reduce((sum, i) => sum + i.sizeKB, 0))}KB`);
+      
+      setAllFirebaseItems(analyzed);
+      setLoadingFirebaseItems(false);
+    } catch (error) {
+      console.error('Failed to load Firebase items:', error);
+      setLoadingFirebaseItems(false);
+      alert('Failed to load Firebase data: ' + error.message);
+    }
+  };
+
+  // Delete multiple items
+  const deleteFirebaseItems = async (itemIds) => {
+    if (!window.firebaseService || !window.firebaseService.isAuthenticated()) {
+      alert('Firebase not ready');
+      return false;
+    }
+
+    try {
+      console.log(`🗑️ Deleting ${itemIds.length} items...`);
+      
+      for (const id of itemIds) {
+        await window.firebaseService.deletePlanogram(id);
+        console.log(`✅ Deleted: ${id}`);
+      }
+      
+      // Refresh the list
+      await loadAllFirebaseItems();
+      
+      setFeedback(`✅ Deleted ${itemIds.length} items`);
+      setTimeout(() => setFeedback(''), 3000);
+      return true;
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('❌ Failed to delete items: ' + error.message);
       return false;
     }
   };
@@ -6353,27 +6434,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               )}
             </button>
             <button
-              onClick={() => changePage('savedLayouts')}
-              className={`px-4 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap ${
-                currentPage === 'savedLayouts'
-                  ? 'bg-blue-500 text-white shadow-md relative z-10'
-                  : 'text-gray-700 absolute opacity-0 group-hover:opacity-100 group-hover:relative transition-all duration-300'
-              }`}
-              style={{
-                letterSpacing: '-0.01em',
-                fontSize: '0.875rem',
-                fontWeight: currentPage === 'savedLayouts' ? '500' : '400',
-                background: currentPage !== 'savedLayouts' ? 'linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%)' : undefined
-              }}
-            >
-              💾 Saved Layouts
-              {savedLayouts.length > 0 && (
-                <span className="ml-2 bg-white text-blue-600 text-xs rounded-full px-2 py-0.5">
-                  {savedLayouts.length}
-                </span>
-              )}
-            </button>
-            <button
               onClick={() => changePage('badStock')}
               className={`px-4 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap relative ${
                 currentPage === 'badStock'
@@ -7227,6 +7287,176 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         </div>
       )}
 
+      {/* FIREBASE CLEANUP MODAL */}
+      {showCleanupModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-red-50 to-orange-50">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                🗑️ Firebase Storage Cleanup
+              </h2>
+              <p className="text-gray-600 mt-1">Review and delete old layouts and section versions</p>
+            </div>
+            
+            <div className="p-6">
+              {loadingFirebaseItems ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-red-500 mx-auto mb-4"></div>
+                  <div className="text-gray-600">Loading Firebase data...</div>
+                </div>
+              ) : allFirebaseItems.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">🎉</div>
+                  <div className="font-bold text-lg text-gray-900 mb-2">All Clean!</div>
+                  <div className="text-gray-600">No saved data in Firebase</div>
+                </div>
+              ) : (
+                <div>
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-4 gap-4 mb-6">
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 text-center">
+                      <div className="text-3xl font-bold text-blue-600">
+                        {allFirebaseItems.length}
+                      </div>
+                      <div className="text-sm text-blue-700">Total Items</div>
+                    </div>
+                    <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 text-center">
+                      <div className="text-3xl font-bold text-purple-600">
+                        {allFirebaseItems.filter(i => i.type === 'Section Version').length}
+                      </div>
+                      <div className="text-sm text-purple-700">Section Versions</div>
+                    </div>
+                    <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 text-center">
+                      <div className="text-3xl font-bold text-orange-600">
+                        {allFirebaseItems.filter(i => i.type === 'Full Layout').length}
+                      </div>
+                      <div className="text-sm text-orange-700">Full Layouts (OLD)</div>
+                    </div>
+                    <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 text-center">
+                      <div className="text-3xl font-bold text-red-600">
+                        {Math.round(allFirebaseItems.reduce((sum, i) => sum + i.sizeKB, 0))}KB
+                      </div>
+                      <div className="text-sm text-red-700">Total Storage</div>
+                    </div>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      onClick={() => {
+                        const fullLayouts = allFirebaseItems.filter(i => i.type === 'Full Layout');
+                        if (fullLayouts.length === 0) {
+                          alert('No full layouts to delete');
+                          return;
+                        }
+                        if (confirm(`Delete ALL ${fullLayouts.length} full layouts? (Keep section versions)\n\nThis will free up space since we only use section versions now.`)) {
+                          deleteFirebaseItems(fullLayouts.map(i => i.id));
+                        }
+                      }}
+                      className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-medium text-sm"
+                    >
+                      🔥 Delete All Full Layouts
+                    </button>
+                    <button
+                      onClick={() => {
+                        const largeItems = allFirebaseItems.filter(i => i.sizeKB > 100);
+                        if (largeItems.length === 0) {
+                          alert('No large items (>100KB) found');
+                          return;
+                        }
+                        if (confirm(`Delete ${largeItems.length} large items (>100KB)?`)) {
+                          deleteFirebaseItems(largeItems.map(i => i.id));
+                        }
+                      }}
+                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium text-sm"
+                    >
+                      💣 Delete Large Items (>100KB)
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`DELETE EVERYTHING?\n\nThis will delete all ${allFirebaseItems.length} items from Firebase.\n\nThis cannot be undone!`)) {
+                          deleteFirebaseItems(allFirebaseItems.map(i => i.id));
+                        }
+                      }}
+                      className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 font-medium text-sm"
+                    >
+                      ☠️ DELETE EVERYTHING
+                    </button>
+                  </div>
+
+                  {/* Items Table */}
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="text-left p-3 font-bold">Name</th>
+                          <th className="text-left p-3 font-bold">Type</th>
+                          <th className="text-left p-3 font-bold">Section</th>
+                          <th className="text-right p-3 font-bold">Size</th>
+                          <th className="text-right p-3 font-bold">Products</th>
+                          <th className="text-left p-3 font-bold">Date</th>
+                          <th className="text-center p-3 font-bold">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allFirebaseItems.map((item, idx) => (
+                          <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="p-3">{item.name}</td>
+                            <td className="p-3">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                item.type === 'Section Version' 
+                                  ? 'bg-purple-100 text-purple-700' 
+                                  : 'bg-orange-100 text-orange-700'
+                              }`}>
+                                {item.type}
+                              </span>
+                            </td>
+                            <td className="p-3 text-gray-600">{item.sectionName}</td>
+                            <td className="p-3 text-right">
+                              <span className={`font-mono ${item.sizeKB > 100 ? 'text-red-600 font-bold' : ''}`}>
+                                {item.sizeKB}KB
+                              </span>
+                            </td>
+                            <td className="p-3 text-right text-gray-600">{item.productCount || 0}</td>
+                            <td className="p-3 text-gray-600 text-xs">
+                              {new Date(item.timestamp).toLocaleDateString()}
+                            </td>
+                            <td className="p-3 text-center">
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Delete "${item.name}"?`)) {
+                                    deleteFirebaseItems([item.id]);
+                                  }
+                                }}
+                                className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-xs"
+                              >
+                                🗑️ Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 bg-gray-50 flex justify-end border-t">
+              <button
+                onClick={() => {
+                  setShowCleanupModal(false);
+                  setAllFirebaseItems([]);
+                }}
+                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* PAGE CONTENT */}
       {currentPage === 'planner' && (
         <>
@@ -7456,6 +7686,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               title="Save a section version for comparison"
             >
               💾 Save Section
+            </button>
+
+            <button
+              onClick={() => {
+                setShowCleanupModal(true);
+                loadAllFirebaseItems();
+              }}
+              className="px-3 py-2 bg-red-500 text-white rounded flex items-center gap-2 text-sm hover:bg-red-600"
+              title="Clean up Firebase storage"
+            >
+              🗑️ Cleanup Firebase
             </button>
 
             {syncStatus && (
@@ -13072,434 +13313,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       )}
 
       {/* 💾 SAVED LAYOUTS PAGE */}
-      {currentPage === 'savedLayouts' && (
-        <div className="flex-1 overflow-auto p-8 bg-gray-50">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">💾 Saved Layouts</h1>
-            <p className="text-gray-600">Manage and compare different store configurations</p>
-          </div>
-
-          {/* Save Current Layout Section */}
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4">Save Current Layout</h2>
-            <div className="flex gap-4">
-              <input
-                id="layout-name-input"
-                type="text"
-                placeholder="Layout name (e.g., 'Holiday 2025', 'Summer Refresh')"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    const name = e.target.value.trim();
-                    if (name) {
-                      saveCurrentLayout(name);
-                      e.target.value = '';
-                    }
-                  }
-                }}
-              />
-              <button
-                onClick={() => {
-                  const input = document.getElementById('layout-name-input');
-                  const name = input?.value?.trim() || '';
-                  if (name) {
-                    saveCurrentLayout(name);
-                    input.value = '';
-                  } else {
-                    setFeedback('⚠️ Please enter a layout name');
-                    setTimeout(() => setFeedback(''), 2000);
-                  }
-                }}
-                className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center gap-2"
-              >
-                <Icons.Save />
-                Save Layout
-              </button>
-            </div>
-            
-            {/* Current Layout Stats */}
-            <div className="mt-4 grid grid-cols-4 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <div className="text-sm text-gray-600">Products</div>
-                <div className="text-2xl font-bold text-blue-600">
-                  {sections.reduce((sum, s) => sum + (s.rows?.reduce((rs, r) => rs + (r.products?.reduce((ps, p) => ps + (p.quantity || 1), 0) || 0), 0) || 0), 0)}
-                </div>
-              </div>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <div className="text-sm text-gray-600">Total Revenue</div>
-                <div className="text-2xl font-bold text-green-600">
-                  ${sections.reduce((sum, s) => sum + (s.rows?.reduce((rs, r) => rs + (r.products?.reduce((ps, p) => ps + ((p.quantity || 1) * (p.price || 0)), 0) || 0), 0) || 0), 0).toFixed(2)}
-                </div>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <div className="text-sm text-gray-600">Total Area</div>
-                <div className="text-2xl font-bold text-purple-600">
-                  {(sections.reduce((sum, s) => sum + ((s.dimensions?.width || 0) * (s.dimensions?.depth || 0)), 0) / 144).toFixed(1)} sq ft
-                </div>
-              </div>
-              <div className="bg-orange-50 p-4 rounded-lg">
-                <div className="text-sm text-gray-600">Profit/Sq Ft</div>
-                <div className="text-2xl font-bold text-orange-600">
-                  ${(() => {
-                    const totalArea = sections.reduce((sum, s) => sum + ((s.dimensions?.width || 0) * (s.dimensions?.depth || 0)), 0) / 144;
-                    const totalRevenue = sections.reduce((sum, s) => sum + (s.rows?.reduce((rs, r) => rs + (r.products?.reduce((ps, p) => ps + ((p.quantity || 1) * (p.price || 0)), 0) || 0), 0) || 0), 0);
-                    return totalArea > 0 ? (totalRevenue / totalArea).toFixed(2) : '0.00';
-                  })()}
-                </div>
-              </div>
-            </div>
-
-            {/* Warning if no data */}
-            {sections.length === 0 || sections.reduce((sum, s) => sum + ((s.dimensions?.width || 0) * (s.dimensions?.depth || 0)), 0) === 0 ? (
-              <div className="mt-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 flex items-start gap-3">
-                <div className="text-2xl">⚠️</div>
-                <div>
-                  <div className="font-semibold text-yellow-800">Current layout has no dimensional data</div>
-                  <div className="text-sm text-yellow-700 mt-1">
-                    Go to the <strong>Store Planner</strong> and:
-                    <ul className="list-disc list-inside mt-2">
-                      <li>Create fixtures and sections</li>
-                      <li>Set dimensions (width × depth) for each section</li>
-                      <li>Add products to rows</li>
-                    </ul>
-                    Then come back here to save your layout!
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          {/* Saved Layouts Grid */}
-          {savedLayouts.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-12 text-center">
-              <div className="text-6xl mb-4">💾</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">No Saved Layouts Yet</h2>
-              <p className="text-gray-600">Save your first layout above to compare different store configurations</p>
-            </div>
-          ) : (
-            <>
-              {/* Layout Comparison Dashboard */}
-              <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <h2 className="text-xl font-bold mb-4">📊 Layout Comparison Dashboard</h2>
-                
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b-2 border-gray-300">
-                        <th className="text-left p-3 font-semibold">Layout Name</th>
-                        <th className="text-right p-3 font-semibold">Products</th>
-                        <th className="text-right p-3 font-semibold">Revenue</th>
-                        <th className="text-right p-3 font-semibold">Area (sq ft)</th>
-                        <th className="text-right p-3 font-semibold">$/Sq Ft</th>
-                        <th className="text-center p-3 font-semibold">Created</th>
-                        <th className="text-center p-3 font-semibold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {savedLayouts
-                        .sort((a, b) => b.metrics.profitPerSqFt - a.metrics.profitPerSqFt)
-                        .map((layout, index) => (
-                        <tr key={layout.id} className={`border-b hover:bg-gray-50 ${index === 0 ? 'bg-green-50' : ''}`}>
-                          <td className="p-3">
-                            <div className="font-semibold">{layout.name}</div>
-                            {layout.description && (
-                              <div className="text-sm text-gray-600">{layout.description}</div>
-                            )}
-                            {index === 0 && (
-                              <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">🏆 Best $/Sq Ft</span>
-                            )}
-                          </td>
-                          <td className="text-right p-3">{layout.metrics.productCount}</td>
-                          <td className="text-right p-3 font-semibold text-green-600">
-                            ${layout.metrics.totalRevenue.toFixed(2)}
-                          </td>
-                          <td className="text-right p-3">{layout.metrics.totalArea.toFixed(1)}</td>
-                          <td className="text-right p-3">
-                            <span className={`font-bold text-lg ${
-                              index === 0 ? 'text-green-600' :
-                              index === 1 ? 'text-blue-600' :
-                              'text-gray-700'
-                            }`}>
-                              ${layout.metrics.profitPerSqFt.toFixed(2)}
-                            </span>
-                          </td>
-                          <td className="text-center p-3 text-sm text-gray-600">
-                            {new Date(layout.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="text-center p-3">
-                            <div className="flex gap-2 justify-center">
-                              <button
-                                onClick={() => {
-                                  setShowLoadModal(true);
-                                  setSelectedRow({ type: 'preview', layout });
-                                }}
-                                className="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm flex items-center gap-1"
-                                title="Preview this layout"
-                              >
-                                <Icons.Eye />
-                                Preview
-                              </button>
-                              <button
-                                onClick={() => {
-                                  loadLayout(layout);
-                                  setCurrentPage('planner');
-                                }}
-                                className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-                                title="Load this layout"
-                              >
-                                Load
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (confirm(`Delete layout "${layout.name}"?`)) {
-                                    deleteLayout(layout.id);
-                                  }
-                                }}
-                                className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
-                                title="Delete layout"
-                              >
-                                <Icons.Trash2 />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Optimization Insights */}
-              <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg shadow p-6 text-white">
-                <h2 className="text-2xl font-bold mb-4">💡 Layout Optimization Insights</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Best Performer */}
-                  <div className="bg-white bg-opacity-20 backdrop-blur rounded-lg p-4">
-                    <div className="text-sm opacity-90 mb-1">🏆 Best Performer</div>
-                    <div className="text-xl font-bold">
-                      {savedLayouts.reduce((best, layout) => 
-                        layout.metrics.profitPerSqFt > (best?.metrics.profitPerSqFt || 0) ? layout : best
-                      , savedLayouts[0])?.name || 'N/A'}
-                    </div>
-                    <div className="text-sm opacity-75 mt-1">
-                      ${savedLayouts.reduce((best, layout) => 
-                        Math.max(best, layout.metrics.profitPerSqFt)
-                      , 0).toFixed(2)}/sq ft
-                    </div>
-                  </div>
-
-                  {/* Average Performance */}
-                  <div className="bg-white bg-opacity-20 backdrop-blur rounded-lg p-4">
-                    <div className="text-sm opacity-90 mb-1">📊 Average Performance</div>
-                    <div className="text-xl font-bold">
-                      ${(savedLayouts.reduce((sum, l) => sum + l.metrics.profitPerSqFt, 0) / savedLayouts.length).toFixed(2)}/sq ft
-                    </div>
-                    <div className="text-sm opacity-75 mt-1">
-                      Across {savedLayouts.length} layout{savedLayouts.length !== 1 ? 's' : ''}
-                    </div>
-                  </div>
-
-                  {/* Improvement Potential */}
-                  <div className="bg-white bg-opacity-20 backdrop-blur rounded-lg p-4">
-                    <div className="text-sm opacity-90 mb-1">📈 Improvement Potential</div>
-                    <div className="text-xl font-bold">
-                      {(() => {
-                        const best = Math.max(...savedLayouts.map(l => l.metrics.profitPerSqFt));
-                        const worst = Math.min(...savedLayouts.map(l => l.metrics.profitPerSqFt));
-                        const improvement = worst > 0 ? ((best - worst) / worst * 100) : 0;
-                        return `${improvement.toFixed(1)}%`;
-                      })()}
-                    </div>
-                    <div className="text-sm opacity-75 mt-1">
-                      From worst to best layout
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Tips */}
-                <div className="mt-6 bg-white bg-opacity-10 rounded-lg p-4">
-                  <div className="font-semibold mb-2">💡 Quick Tips:</div>
-                  <ul className="text-sm space-y-1 opacity-90">
-                    <li>• Compare layouts to identify which product placements drive the most revenue per square foot</li>
-                    <li>• Test seasonal configurations (holidays, back-to-school, etc.) and save the best performers</li>
-                    <li>• Use your best-performing layout as a baseline when planning new store sections</li>
-                    <li>• Consider loading underperforming layouts and optimizing specific sections</li>
-                  </ul>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Layout Preview Modal */}
-      {showLoadModal && selectedRow?.type === 'preview' && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={() => setShowLoadModal(false)}>
-          <div className="bg-white rounded-lg shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 flex items-center justify-between">
-              <div>
-                <h2 className="text-3xl font-bold">{selectedRow.layout.name}</h2>
-                {selectedRow.layout.description && (
-                  <p className="text-purple-100 mt-1">{selectedRow.layout.description}</p>
-                )}
-                <p className="text-sm text-purple-200 mt-1">
-                  Created {new Date(selectedRow.layout.createdAt).toLocaleDateString()} at {new Date(selectedRow.layout.createdAt).toLocaleTimeString()}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowLoadModal(false)}
-                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-              >
-                <Icons.X />
-              </button>
-            </div>
-
-            {/* Metrics Summary */}
-            <div className="grid grid-cols-4 gap-4 p-6 bg-gray-50 border-b">
-              <div className="text-center">
-                <div className="text-sm text-gray-600">Products</div>
-                <div className="text-3xl font-bold text-blue-600">{selectedRow.layout.metrics.productCount}</div>
-              </div>
-              <div className="text-center">
-                <div className="text-sm text-gray-600">Total Revenue</div>
-                <div className="text-3xl font-bold text-green-600">${selectedRow.layout.metrics.totalRevenue.toFixed(2)}</div>
-              </div>
-              <div className="text-center">
-                <div className="text-sm text-gray-600">Total Area</div>
-                <div className="text-3xl font-bold text-purple-600">{selectedRow.layout.metrics.totalArea.toFixed(1)} sq ft</div>
-              </div>
-              <div className="text-center">
-                <div className="text-sm text-gray-600">Profit per Sq Ft</div>
-                <div className="text-3xl font-bold text-orange-600">${selectedRow.layout.metrics.profitPerSqFt.toFixed(2)}</div>
-              </div>
-            </div>
-
-            {/* Visual Layout Preview */}
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-4">📐 Store Layout Visualization</h3>
-              
-              {/* Fixtures */}
-              {selectedRow.layout.fixtures && selectedRow.layout.fixtures.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="font-semibold mb-2 text-gray-700">Fixtures ({selectedRow.layout.fixtures.length})</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {selectedRow.layout.fixtures.map(fixture => (
-                      <div key={fixture.id} className="bg-gray-100 p-3 rounded-lg border border-gray-300">
-                        <div className="font-semibold text-sm">{fixture.name}</div>
-                        <div className="text-xs text-gray-600">
-                          {fixture.width}"W × {fixture.height}"H
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {selectedRow.layout.sections.filter(s => s.fixtureId === fixture.id).length} sections
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Sections Breakdown */}
-              <h4 className="font-semibold mb-2 text-gray-700">Sections ({selectedRow.layout.sections.length})</h4>
-              <div className="space-y-4">
-                {selectedRow.layout.sections.map(section => {
-                  const sectionRevenue = section.rows?.reduce((sum, row) => 
-                    sum + (row.products?.reduce((psum, p) => psum + ((p.quantity || 1) * (p.price || 0)), 0) || 0), 0
-                  ) || 0;
-                  const sectionArea = ((section.dimensions?.width || 0) * (section.dimensions?.depth || 0)) / 144;
-                  const sectionProfitPerSqFt = sectionArea > 0 ? sectionRevenue / sectionArea : 0;
-                  const sectionProducts = section.rows?.reduce((sum, row) => 
-                    sum + (row.products?.reduce((psum, p) => psum + (p.quantity || 1), 0) || 0), 0
-                  ) || 0;
-
-                  return (
-                    <div key={section.id} className="bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <div className="font-bold text-lg">{section.name}</div>
-                          {section.dimensions && (
-                            <div className="text-sm text-gray-600">
-                              {section.dimensions.width}" × {section.dimensions.depth}" ({sectionArea.toFixed(1)} sq ft)
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-600">Profit/Sq Ft</div>
-                          <div className="text-xl font-bold text-orange-600">${sectionProfitPerSqFt.toFixed(2)}</div>
-                        </div>
-                      </div>
-
-                      {/* Section Stats */}
-                      <div className="grid grid-cols-3 gap-2 mb-3">
-                        <div className="bg-blue-50 p-2 rounded text-center">
-                          <div className="text-xs text-gray-600">Products</div>
-                          <div className="font-bold text-blue-600">{sectionProducts}</div>
-                        </div>
-                        <div className="bg-green-50 p-2 rounded text-center">
-                          <div className="text-xs text-gray-600">Revenue</div>
-                          <div className="font-bold text-green-600">${sectionRevenue.toFixed(2)}</div>
-                        </div>
-                        <div className="bg-purple-50 p-2 rounded text-center">
-                          <div className="text-xs text-gray-600">Rows</div>
-                          <div className="font-bold text-purple-600">{section.rows?.length || 0}</div>
-                        </div>
-                      </div>
-
-                      {/* Rows */}
-                      {section.rows && section.rows.length > 0 && (
-                        <div className="space-y-2">
-                          {section.rows.slice(0, 3).map(row => (
-                            <div key={row.id} className="bg-gray-50 p-2 rounded text-sm">
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold">{row.name}</span>
-                                <span className="text-gray-600">{row.products?.length || 0} products</span>
-                              </div>
-                              {row.products && row.products.length > 0 && (
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {row.products.slice(0, 3).map(p => p.name).join(', ')}
-                                  {row.products.length > 3 && ` +${row.products.length - 3} more`}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                          {section.rows.length > 3 && (
-                            <div className="text-xs text-gray-500 text-center">
-                              +{section.rows.length - 3} more rows
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="sticky bottom-0 bg-gray-50 border-t p-6 flex gap-3">
-              <button
-                onClick={() => {
-                  loadLayout(selectedRow.layout);
-                  setCurrentPage('planner');
-                  setShowLoadModal(false);
-                }}
-                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-lg"
-              >
-                📥 Load This Layout
-              </button>
-              <button
-                onClick={() => setShowLoadModal(false)}
-                className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-semibold"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 💰 DISCOUNTS PAGE */}
       {currentPage === 'discounts' && (
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-7xl mx-auto">
