@@ -1066,34 +1066,41 @@ const PlanogramProfitTracker = () => {
       setSavingSectionVersion(true);
       console.log(`💾 Saving section version: ${section.name} - ${versionName}`);
 
-      // STRIP HEAVY DATA - only save essentials!
+      // ULTRA-MINIMAL product data - absolute essentials only!
       const stripProduct = (product) => ({
         id: product.id,
-        title: product.title,
+        title: product.title?.substring(0, 100), // Truncate title
         sku: product.sku,
         price: product.price,
-        inventory: product.inventory,
-        upc: product.upc,
-        cost: product.cost
-        // NO: images, description, vendor, etc.
+        upc: product.upc
+        // Removed: inventory, cost, and everything else
       });
+
+      // Count total products first
+      let totalProducts = 0;
+      if (section.rows) {
+        section.rows.forEach(row => {
+          totalProducts += (row.products?.length || 0);
+        });
+      }
+      totalProducts += (section.products?.length || 0);
+
+      console.log(`📊 Section has ${totalProducts} products`);
+
+      // HARD LIMIT: Max 100 products per section save
+      if (totalProducts > 100) {
+        alert(`⚠️ Too Many Products!\n\nThis section has ${totalProducts} products.\nFirebase limit: 100 products per section.\n\nTo save this section:\n1. Split it into smaller sections\n2. Or remove some products temporarily`);
+        setSavingSectionVersion(false);
+        return false;
+      }
 
       const lightweightRows = (section.rows || []).map(row => ({
         id: row.id,
         name: row.name,
-        products: (row.products || []).map(stripProduct)
+        products: (row.products || []).slice(0, 50).map(stripProduct) // Max 50 per row
       }));
 
-      const lightweightProducts = (section.products || []).map(stripProduct);
-
-      // Count products
-      let productCount = 0;
-      if (section.rows) {
-        section.rows.forEach(row => {
-          productCount += (row.products?.length || 0);
-        });
-      }
-      productCount += (section.products?.length || 0);
+      const lightweightProducts = (section.products || []).slice(0, 50).map(stripProduct);
 
       const versionData = {
         sectionName: section.name,
@@ -1101,7 +1108,7 @@ const PlanogramProfitTracker = () => {
         timestamp: new Date().toISOString(),
         isSectionVersion: true,
         
-        // Section structure (lightweight!)
+        // Minimal section data
         id: section.id,
         fixtureId: section.fixtureId,
         rows: lightweightRows,
@@ -1110,26 +1117,27 @@ const PlanogramProfitTracker = () => {
         layoutY: section.layoutY,
         layoutWidth: section.layoutWidth,
         layoutHeight: section.layoutHeight,
-        type: section.type,
         
         // Metadata
         metadata: {
-          productCount: productCount,
+          productCount: totalProducts,
           savedFrom: 'current'
         }
       };
 
-      console.log(`💾 Payload size: ${JSON.stringify(versionData).length} characters`);
-      
-      // Check if payload is too large (Firebase limit is ~256KB)
       const payloadSize = JSON.stringify(versionData).length;
+      console.log(`💾 Payload size: ${Math.round(payloadSize/1000)}KB (${payloadSize} bytes)`);
+      
+      // Firebase Real-time Database has a 256KB limit per location
+      // We use 200KB as safe limit
       if (payloadSize > 200000) {
-        alert(`⚠️ Section too large! (${Math.round(payloadSize/1000)}KB)\n\nThis section has too many products. Try:\n- Splitting into multiple sections\n- Removing some products first`);
+        const productAvg = Math.round(payloadSize / totalProducts);
+        alert(`⚠️ Section Still Too Large!\n\nSize: ${Math.round(payloadSize/1000)}KB\nLimit: 200KB\nProducts: ${totalProducts}\n\nThis section has too much data even after compression.\n\nOptions:\n1. Split into 2 smaller sections\n2. Current section averages ${productAvg} bytes per product`);
         setSavingSectionVersion(false);
         return false;
       }
       
-      console.log('💾 Saving version data (lightweight)');
+      console.log('💾 Saving lightweight version...');
       
       const versionId = await window.firebaseService.savePlanogram(versionData);
       
@@ -1146,7 +1154,14 @@ const PlanogramProfitTracker = () => {
       return true;
     } catch (error) {
       console.error('❌ Save section version failed:', error);
-      alert('❌ Failed to save section version: ' + error.message);
+      
+      // Show specific error message
+      if (error.message && error.message.includes('payload is too large')) {
+        alert('❌ FIREBASE ERROR: Payload too large\n\nEven after compression, this section has too much data.\n\nYou MUST split this section into 2-3 smaller sections to save it.');
+      } else {
+        alert('❌ Failed to save section version: ' + error.message);
+      }
+      
       setSavingSectionVersion(false);
       return false;
     }
@@ -6600,35 +6615,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         </div>
       )}
 
-      {/* LOADING OVERLAY - Shows while comparing */}
-      {loadingLayouts && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[10000]"
-          onClick={() => {
-            setLoadingLayouts(false);
-            console.log('⚠️ Loading manually dismissed');
-          }}
-        >
-          <div 
-            className="bg-white rounded-xl shadow-2xl p-8 flex flex-col items-center gap-4 relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => {
-                setLoadingLayouts(false);
-                console.log('⚠️ Loading manually closed');
-              }}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 font-bold text-xl"
-            >
-              ✕
-            </button>
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500"></div>
-            <div className="text-xl font-bold text-gray-900">Comparing Layouts...</div>
-            <div className="text-sm text-gray-600">Loading products and calculating differences</div>
-            <div className="text-xs text-gray-400 mt-2">Click anywhere to cancel</div>
-          </div>
-        </div>
-      )}
 
       {/* COMPARE LAYOUT MODAL - VISUAL SIDE-BY-SIDE WITH PRODUCTS */}
       {showCompareModal && compareData && (
