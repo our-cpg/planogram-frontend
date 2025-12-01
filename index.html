@@ -1378,6 +1378,54 @@ const PlanogramProfitTracker = () => {
     }
   };
 
+  // Get ALL section versions (no filter by section name)
+  const getAllSectionVersions = async () => {
+    if (!firebaseReady || !window.firebaseService) {
+      console.log('Firebase not ready');
+      return [];
+    }
+
+    try {
+      setLoadingSectionVersions(true);
+      console.log(`📚 Fetching ALL section versions`);
+      
+      let allPlanograms = [];
+      try {
+        allPlanograms = await window.firebaseService.listPlanograms();
+      } catch (fetchError) {
+        if (fetchError.message && fetchError.message.includes('payload is too large')) {
+          console.warn('⚠️ WARNING: Some items in Firebase are too large to load');
+          alert('⚠️ WARNING: Firebase has oversized items!\n\nCannot load section versions.');
+          setLoadingSectionVersions(false);
+          return [];
+        }
+        throw fetchError;
+      }
+      
+      // Get ALL section versions (no filter by section name)
+      const versions = allPlanograms
+        .filter(p => p.isSectionVersion === true)
+        .map(p => ({
+          id: p.id,
+          versionName: p.versionName,
+          sectionName: p.sectionName,
+          timestamp: p.timestamp,
+          metadata: p.metadata,
+          data: p // Keep full data for loading later
+        }))
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Newest first
+
+      console.log(`📚 Found ${versions.length} total section versions`);
+      setSectionVersions(versions);
+      setLoadingSectionVersions(false);
+      return versions;
+    } catch (error) {
+      console.error('Failed to load section versions:', error);
+      setLoadingSectionVersions(false);
+      return [];
+    }
+  };
+
   // Load a section version (replace current section)
   const loadSectionVersion = async (versionId, sectionName) => {
     if (!window.firebaseService || !window.firebaseService.isAuthenticated()) {
@@ -7497,55 +7545,22 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 📂 Load Section Version
               </h2>
               <p className="text-gray-600 mt-1">
-                Select a section to see its saved versions
+                All saved section versions
               </p>
             </div>
             
             <div className="p-6">
-              {/* Section Dropdown */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Section</label>
-                <select
-                  value={selectedSectionForHistory?.id || ''}
-                  onChange={(e) => {
-                    const section = sections.find(s => s.id === e.target.value);
-                    setSelectedSectionForHistory(section || null);
-                    if (section) {
-                      getSectionVersions(section.name);
-                    } else {
-                      setSectionVersions([]);
-                    }
-                  }}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-base"
-                  style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif' }}
-                >
-                  <option value="">-- Choose a section --</option>
-                  {sections.map(section => (
-                    <option key={section.id} value={section.id}>
-                      {section.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Versions List */}
               {loadingSectionVersions ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500 mx-auto mb-4"></div>
                   <div className="text-gray-600">Loading section versions...</div>
-                </div>
-              ) : !selectedSectionForHistory ? (
-                <div className="text-center py-8">
-                  <div className="text-6xl mb-4">👆</div>
-                  <div className="font-bold text-lg text-gray-900 mb-2">Select a Section</div>
-                  <div className="text-gray-600">Choose a section from the dropdown above</div>
                 </div>
               ) : sectionVersions.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-6xl mb-4">📭</div>
                   <div className="font-bold text-lg text-gray-900 mb-2">No Saved Versions</div>
                   <div className="text-gray-600">
-                    Use the 💾 Save Section button to save "{selectedSectionForHistory.name}"
+                    Use the 💾 Save Section button to save a section
                   </div>
                 </div>
               ) : (
@@ -7557,6 +7572,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold">
+                              {version.sectionName}
+                            </span>
+                          </div>
                           <div className="font-bold text-lg text-gray-900">{version.versionName}</div>
                           <div className="text-sm text-gray-600 mt-1">
                             {new Date(version.timestamp).toLocaleString()}
@@ -7571,13 +7591,12 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           <button
                             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
                             onClick={async () => {
-                              if (confirm(`Load "${version.versionName}"?\n\nThis will replace the current section.`)) {
-                                const success = await loadSectionVersionById(version.id, selectedSectionForHistory.name);
+                              if (confirm(`Load "${version.versionName}" into section "${version.sectionName}"?\n\nThis will replace the current section contents.`)) {
+                                const success = await loadSectionVersionById(version.id, version.sectionName);
                                 if (success) {
                                   setShowLoadModal(false);
-                                  setSelectedSectionForHistory(null);
                                   setSectionVersions([]);
-                                  setFeedback(`✅ Loaded: ${version.versionName}`);
+                                  setFeedback(`✅ Loaded: ${version.sectionName} - ${version.versionName}`);
                                   setTimeout(() => setFeedback(''), 3000);
                                 }
                               }
@@ -7597,7 +7616,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               <button
                 onClick={() => {
                   setShowLoadModal(false);
-                  setSelectedSectionForHistory(null);
                   setSectionVersions([]);
                 }}
                 className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
@@ -8015,6 +8033,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             <button
               onClick={() => {
                 setShowLoadModal(true);
+                getAllSectionVersions();
               }}
               className="px-3 py-2 bg-blue-500 text-white rounded flex items-center gap-2 text-sm hover:bg-blue-600"
               title="Load a saved section version"
@@ -11697,33 +11716,92 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 </div>
                 
                 {/* Refresh Button */}
-                <button
-                  onClick={refreshOrders}
-                  disabled={feedback.includes('Order Blitz') || feedback.includes('Importing')}
-                  className={`px-4 py-2 ${
-                    feedback.includes('Order Blitz') || feedback.includes('Importing')
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-orange-500 hover:bg-orange-600'
-                  } text-white rounded-lg font-semibold flex items-center gap-2 transition-all`}
-                  title="Import latest orders from Shopify"
-                >
-                  {feedback.includes('Order Blitz') || feedback.includes('Importing') ? (
-                    <>
-                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Refresh Orders
-                    </>
-                  )}
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={refreshOrders}
+                    disabled={feedback.includes('Order Blitz') || feedback.includes('Importing')}
+                    className={`px-4 py-2 ${
+                      feedback.includes('Order Blitz') || feedback.includes('Importing')
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-orange-500 hover:bg-orange-600'
+                    } text-white rounded-lg font-semibold flex items-center gap-2 transition-all`}
+                    title="Import latest orders from Shopify"
+                  >
+                    {feedback.includes('Order Blitz') || feedback.includes('Importing') ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Refresh Orders
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      console.log('🔍 DEBUG MONTH CALCULATION');
+                      const orders = orderAnalyticsData?.allOrders || [];
+                      console.log(`  Total orders in memory: ${orders.length}`);
+                      
+                      if (orders.length === 0) {
+                        console.log('❌ No orders loaded! Click Refresh Orders first.');
+                        alert('No orders loaded! Click Refresh Orders first.');
+                        return;
+                      }
+
+                      const now = new Date();
+                      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+                      
+                      console.log('📅 Date Debug:');
+                      console.log('  Current time (now):', now.toLocaleString());
+                      console.log('  now.getMonth():', now.getMonth(), '(0=Jan, 11=Dec)');
+                      console.log('  Current month name:', now.toLocaleString('en-US', { month: 'long' }));
+                      console.log('  Month start:', monthStart.toLocaleString());
+                      console.log('  Month start full:', monthStart.toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric' }));
+                      
+                      let salesMonth = 0;
+                      let ordersMonth = 0;
+                      const monthOrders = [];
+                      
+                      orders.forEach(order => {
+                        const orderDate = new Date(order.created_at);
+                        const orderTotal = parseFloat(order.total_price || 0);
+                        
+                        if (orderDate >= monthStart) {
+                          salesMonth += orderTotal;
+                          ordersMonth++;
+                          if (monthOrders.length < 10) {
+                            monthOrders.push({
+                              id: order.order_number || order.id,
+                              date: orderDate.toLocaleString(),
+                              created_at: order.created_at,
+                              total: orderTotal
+                            });
+                          }
+                        }
+                      });
+                      
+                      console.log(`📊 MONTH CALC RESULTS:`);
+                      console.log(`  Orders this month: ${ordersMonth}`);
+                      console.log(`  Sales this month: $${salesMonth.toFixed(2)}`);
+                      console.log(`  First 10 month orders:`, monthOrders);
+                      console.log(`\n🔍 COMPARE TO UI:`);
+                      console.log(`  UI shows: ${orderAnalyticsData?.ordersByPeriod?.month || 'unknown'} orders, $${orderAnalyticsData?.salesByPeriod?.month?.toFixed(2) || 'unknown'}`);
+                    }}
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold"
+                    title="Debug month calculation"
+                  >
+                    🔍 DEBUG MONTH
+                  </button>
+                </div>
               </div>
 
               {/* Loading Banner */}
