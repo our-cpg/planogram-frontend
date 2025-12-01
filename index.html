@@ -1065,17 +1065,31 @@ const PlanogramProfitTracker = () => {
 
   // ULTRA-LIGHTWEIGHT SECTION SAVE (IDs only!)
   const saveCurrentSection = async (section, versionName) => {
+    console.log('🔵 saveCurrentSection START');
+    console.log('  Section:', section?.name);
+    console.log('  Version:', versionName);
+    
     if (!window.firebaseService || !window.firebaseService.isAuthenticated()) {
+      console.log('❌ Firebase not ready');
       alert('Firebase not ready');
       return false;
     }
 
     if (!versionName || !versionName.trim()) {
+      console.log('❌ No version name');
       alert('Please enter a version name');
       return false;
     }
 
+    // Auto-timeout after 10 seconds
+    const timeoutId = setTimeout(() => {
+      console.error('⚠️ Save timed out after 10 seconds');
+      setSavingSectionVersion(false);
+      alert('⚠️ Save timed out!\n\nFirebase took too long to respond. Please try again.');
+    }, 10000);
+
     try {
+      console.log('🔵 Setting savingSectionVersion to true...');
       setSavingSectionVersion(true);
       console.log(`💾 Saving section: ${section.name} - ${versionName}`);
 
@@ -1087,15 +1101,19 @@ const PlanogramProfitTracker = () => {
         });
       }
       totalProducts += (section.products?.length || 0);
+      console.log(`📊 Total products: ${totalProducts}`);
 
       // HARD LIMIT: Max 100 products
       if (totalProducts > 100) {
+        console.log('❌ Too many products');
+        clearTimeout(timeoutId);
         alert(`❌ TOO MANY PRODUCTS!\n\nSection: ${section.name}\nProducts: ${totalProducts}\nLimit: 100\n\nSplit this section to save it.`);
         setSavingSectionVersion(false);
         return false;
       }
 
       // Save ONLY product IDs (not full data!)
+      console.log('🔵 Creating lightweight data...');
       const lightweightRows = (section.rows || []).map(row => ({
         id: row.id,
         name: row.name,
@@ -1130,23 +1148,33 @@ const PlanogramProfitTracker = () => {
       console.log(`💾 Payload: ${totalProducts} products, ${Math.round(payloadSize/1000)}KB`);
       
       if (payloadSize > 100000) { // 100KB limit for safety
+        console.log('❌ Payload too large');
+        clearTimeout(timeoutId);
         alert(`❌ Section too large: ${Math.round(payloadSize/1000)}KB\n\nLimit: 100KB\n\nTry a smaller section.`);
         setSavingSectionVersion(false);
         return false;
       }
       
+      console.log('🔵 Calling Firebase savePlanogram...');
       const versionId = await window.firebaseService.savePlanogram(versionData);
+      console.log(`✅ Firebase returned versionId: ${versionId}`);
       
+      clearTimeout(timeoutId); // Clear timeout on success
       console.log(`✅ Section saved: ${versionId}`);
       setFeedback(`✅ Saved: ${section.name} - ${versionName}`);
       setTimeout(() => setFeedback(''), 3000);
 
+      console.log('🔵 Setting savingSectionVersion to false...');
       setSavingSectionVersion(false);
+      console.log('🔵 saveCurrentSection returning TRUE');
       return true;
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error('❌ Save failed:', error);
       alert('❌ Failed to save: ' + error.message);
+      console.log('🔵 Setting savingSectionVersion to false (error path)...');
       setSavingSectionVersion(false);
+      console.log('🔵 saveCurrentSection returning FALSE');
       return false;
     }
   };
@@ -1158,6 +1186,13 @@ const PlanogramProfitTracker = () => {
       return false;
     }
 
+    // Auto-timeout after 10 seconds
+    const timeoutId = setTimeout(() => {
+      console.error('⚠️ Load timed out after 10 seconds');
+      setLoadingPlanogram(false);
+      alert('⚠️ Load timed out!\n\nFirebase took too long to respond. Please try again.');
+    }, 10000);
+
     try {
       setLoadingPlanogram(true);
       console.log(`📂 Loading section version: ${versionId}`);
@@ -1165,6 +1200,7 @@ const PlanogramProfitTracker = () => {
       const versionData = await window.firebaseService.loadPlanogram(versionId);
       
       if (!versionData) {
+        clearTimeout(timeoutId);
         alert('Section version not found');
         setLoadingPlanogram(false);
         return false;
@@ -1173,6 +1209,7 @@ const PlanogramProfitTracker = () => {
       // Find the current section
       const sectionIndex = sections.findIndex(s => s.name === sectionName);
       if (sectionIndex === -1) {
+        clearTimeout(timeoutId);
         alert(`Section "${sectionName}" not found in current layout`);
         setLoadingPlanogram(false);
         return false;
@@ -1201,11 +1238,13 @@ const PlanogramProfitTracker = () => {
       };
 
       setSections(updatedSections);
+      clearTimeout(timeoutId);
       setLoadingPlanogram(false);
       
       console.log(`✅ Loaded section version`);
       return true;
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error('❌ Load failed:', error);
       alert('❌ Failed to load: ' + error.message);
       setLoadingPlanogram(false);
@@ -3836,8 +3875,12 @@ const PlanogramProfitTracker = () => {
                   // Create date boundaries in LOCAL timezone
                   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
                   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-                  const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                  weekStart.setHours(0, 0, 0, 0);
+                  
+                  // Week starts on Monday
+                  const dayOfWeek = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+                  const daysBackToMonday = (dayOfWeek + 6) % 7; // Days back to most recent Monday
+                  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysBackToMonday, 0, 0, 0, 0);
+                  
                   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
                   const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
                   
@@ -4008,8 +4051,12 @@ const PlanogramProfitTracker = () => {
           const now = new Date();
           const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
           const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-          const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          weekStart.setHours(0, 0, 0, 0);
+          
+          // Week starts on Monday
+          const dayOfWeek = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+          const daysBackToMonday = (dayOfWeek + 6) % 7; // Days back to most recent Monday
+          const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysBackToMonday, 0, 0, 0, 0);
+          
           const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
           const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
           
@@ -4113,8 +4160,12 @@ const PlanogramProfitTracker = () => {
         // This ensures "today" means today in YOUR timezone, not UTC
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
         const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-        const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        weekStart.setHours(0, 0, 0, 0); // Start of that day
+        
+        // Week starts on Monday
+        const dayOfWeek = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+        const daysBackToMonday = (dayOfWeek + 6) % 7; // Days back to most recent Monday
+        const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysBackToMonday, 0, 0, 0, 0);
+        
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
         const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
         
@@ -6854,14 +6905,31 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </button>
               <button
                 onClick={async () => {
+                  console.log('🔘 Save button clicked');
+                  console.log('Selected section:', selectedSectionForHistory);
+                  console.log('Layout name:', layoutNameInput);
+                  
                   if (selectedSectionForHistory) {
-                    const success = await saveCurrentSection(selectedSectionForHistory, layoutNameInput);
-                    if (success) {
-                      setLayoutNameInput('');
-                      setShowSaveLayoutModal(false);
-                      setSelectedSectionForHistory(null);
+                    console.log('✅ Section selected, calling saveCurrentSection...');
+                    try {
+                      const success = await saveCurrentSection(selectedSectionForHistory, layoutNameInput);
+                      console.log('📊 saveCurrentSection returned:', success);
+                      
+                      if (success) {
+                        console.log('✅ Save successful, closing modal...');
+                        setLayoutNameInput('');
+                        setShowSaveLayoutModal(false);
+                        setSelectedSectionForHistory(null);
+                        console.log('✅ Modal closed');
+                      } else {
+                        console.log('❌ Save failed, keeping modal open');
+                      }
+                    } catch (error) {
+                      console.error('❌ Save error caught in button handler:', error);
+                      alert('Save failed: ' + error.message);
                     }
                   } else {
+                    console.log('❌ No section selected');
                     alert('Please select a section first');
                   }
                 }}
@@ -11792,63 +11860,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         Refresh Orders
                       </>
                     )}
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      console.log('🔍 DEBUG MONTH CALCULATION');
-                      const orders = orderAnalyticsData?.allOrders || [];
-                      console.log(`  Total orders in memory: ${orders.length}`);
-                      
-                      if (orders.length === 0) {
-                        console.log('❌ No orders loaded! Click Refresh Orders first.');
-                        alert('No orders loaded! Click Refresh Orders first.');
-                        return;
-                      }
-
-                      const now = new Date();
-                      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-                      
-                      console.log('📅 Date Debug:');
-                      console.log('  Current time (now):', now.toLocaleString());
-                      console.log('  now.getMonth():', now.getMonth(), '(0=Jan, 11=Dec)');
-                      console.log('  Current month name:', now.toLocaleString('en-US', { month: 'long' }));
-                      console.log('  Month start:', monthStart.toLocaleString());
-                      console.log('  Month start full:', monthStart.toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric' }));
-                      
-                      let salesMonth = 0;
-                      let ordersMonth = 0;
-                      const monthOrders = [];
-                      
-                      orders.forEach(order => {
-                        const orderDate = new Date(order.created_at);
-                        const orderTotal = parseFloat(order.total_price || 0);
-                        
-                        if (orderDate >= monthStart) {
-                          salesMonth += orderTotal;
-                          ordersMonth++;
-                          if (monthOrders.length < 10) {
-                            monthOrders.push({
-                              id: order.order_number || order.id,
-                              date: orderDate.toLocaleString(),
-                              created_at: order.created_at,
-                              total: orderTotal
-                            });
-                          }
-                        }
-                      });
-                      
-                      console.log(`📊 MONTH CALC RESULTS:`);
-                      console.log(`  Orders this month: ${ordersMonth}`);
-                      console.log(`  Sales this month: $${salesMonth.toFixed(2)}`);
-                      console.log(`  First 10 month orders:`, monthOrders);
-                      console.log(`\n🔍 COMPARE TO UI:`);
-                      console.log(`  UI shows: ${orderAnalyticsData?.ordersByPeriod?.month || 'unknown'} orders, $${orderAnalyticsData?.salesByPeriod?.month?.toFixed(2) || 'unknown'}`);
-                    }}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold"
-                    title="Debug month calculation"
-                  >
-                    🔍 DEBUG MONTH
                   </button>
                 </div>
               </div>
