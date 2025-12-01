@@ -469,11 +469,19 @@ const PlanogramProfitTracker = () => {
           if (!skipAutoLoad) {
             setTimeout(async () => {
               try {
+                console.log('🔄 Auto-loading most recent layout...');
                 const planograms = await window.firebaseService.listPlanograms();
+                console.log(`📂 Found ${planograms.length} total items in Firebase`);
                 
-                if (planograms.length > 0) {
-                  // Load the most recent one (first in list)
-                  const mostRecent = planograms[0];
+                // Filter for SAVED LAYOUTS only (not section versions)
+                const savedLayouts = planograms.filter(p => p.isSavedLayout === true);
+                console.log(`📂 Found ${savedLayouts.length} saved layouts`);
+                
+                if (savedLayouts.length > 0) {
+                  // Load the most recent saved layout
+                  const mostRecent = savedLayouts[0];
+                  console.log(`📂 Auto-loading: ${mostRecent.name || mostRecent.id}`);
+                  
                   const data = await window.firebaseService.loadPlanogram(mostRecent.id);
                 
                 if (data) {
@@ -511,12 +519,20 @@ const PlanogramProfitTracker = () => {
                     }));
                   }
                   
-                  console.log('✅ Auto-loaded from cloud:', mostRecent.name);
+                  console.log('✅ Auto-loaded from cloud:', mostRecent.name || mostRecent.id);
+                } else {
+                  console.log('⚠️ No data returned from Firebase');
                 }
+              } else {
+                console.log('⚠️ No saved layouts found in Firebase');
               }
             } catch (error) {
-              console.log('Auto-load skipped:', error.message);
-              alert('Could not auto-load planogram due to large data size. Use ?skipload=true in URL to skip auto-load and delete old data.');
+              console.error('❌ Auto-load failed:', error);
+              if (error.message && error.message.includes('payload is too large')) {
+                alert('⚠️ Auto-load failed: Firebase has oversized items!\n\nUse the cleanup tool in Settings to delete old data.\n\nOr add ?skipload=true to the URL to skip auto-load.');
+              } else {
+                console.log('Auto-load skipped:', error.message);
+              }
             }
           }, 1000); // Wait 1 second for Firebase to fully initialize
           } else {
@@ -1667,15 +1683,13 @@ const PlanogramProfitTracker = () => {
     }
   };
 
-  // Load saved layouts on mount - DISABLED to prevent Firebase overload
-  // Layouts will only be fetched when user opens Load Layout modal
-  /*
+  // Load saved layouts on mount
   useEffect(() => {
     if (firebaseReady) {
+      console.log('🔄 Auto-fetching saved layouts on mount...');
       getAllSavedLayouts();
     }
   }, [firebaseReady]);
-  */
   
  const [showLibrary, setShowLibrary] = useState(false);
   const [heatMapMode, setHeatMapMode] = useState(true); // Heat map ON by default
@@ -8247,6 +8261,28 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             >
               <Icons.Save />
               Save
+            </button>
+
+            {/* 📂 LOAD FULL LAYOUT */}
+            <button
+              onClick={() => {
+                // Check Firebase before opening modal
+                if (!window.firebaseService) {
+                  alert('⚠️ Firebase not initialized!\n\nPlease refresh the page and check your Firebase settings.');
+                  return;
+                }
+                if (!window.firebaseService.isAuthenticated()) {
+                  alert('⚠️ Firebase not authenticated!\n\nPlease check your Firebase connection in Settings.');
+                  return;
+                }
+                console.log('✅ Firebase ready - fetching saved layouts...');
+                getAllSavedLayouts(); // Manually trigger fetch
+                setShowLoadLayoutModal(true);
+              }}
+              className="px-3 py-2 bg-blue-600 text-white rounded flex items-center gap-2 text-sm hover:bg-blue-700"
+              title="Load a complete saved layout"
+            >
+              📂 Load Layout
             </button>
 
             {/* 💾 SAVE AND LOAD SECTIONS */}
