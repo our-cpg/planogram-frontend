@@ -933,8 +933,10 @@ const PlanogramProfitTracker = () => {
     try {
       setLoadingLayouts(true);
       console.log(`🔍 Comparing layout: ${layoutName}`);
+      console.time('Compare Layout'); // Track how long it takes
       
       const savedData = await window.firebaseService.loadPlanogram(layoutId);
+      console.log('✅ Loaded saved data from Firebase');
       
       if (!savedData) {
         alert('Failed to load saved layout for comparison');
@@ -942,7 +944,7 @@ const PlanogramProfitTracker = () => {
         return false;
       }
 
-      // Compare fixtures
+      // Compare fixtures (fast)
       const currentFixtureIds = new Set(fixtures.map(f => f.id));
       const savedFixtureIds = new Set((savedData.fixtures || []).map(f => f.id));
       
@@ -950,14 +952,14 @@ const PlanogramProfitTracker = () => {
       const removedFixtures = fixtures.filter(f => !savedFixtureIds.has(f.id));
       const sameFixtures = (savedData.fixtures || []).filter(f => currentFixtureIds.has(f.id));
 
-      // Compare sections
+      // Compare sections (fast)
       const currentSectionNames = new Set(sections.map(s => s.name));
       const savedSectionNames = new Set((savedData.sections || []).map(s => s.name));
       
       const addedSections = (savedData.sections || []).filter(s => !currentSectionNames.has(s.name));
       const removedSections = sections.filter(s => !savedSectionNames.has(s.name));
 
-      // Count products
+      // Count products (fast)
       const currentProducts = sections.reduce((sum, s) => {
         let count = 0;
         if (s.rows) s.rows.forEach(row => count += (row.products?.length || 0));
@@ -997,10 +999,16 @@ const PlanogramProfitTracker = () => {
       };
 
       console.log('🔍 Comparison:', comparison);
-      setCompareData(comparison);
-      setLoadingLayouts(false);
-      setShowCompareModal(true);
-      setShowLoadLayoutModal(false); // Close load modal
+      console.timeEnd('Compare Layout');
+      
+      // Small delay to show we're done processing
+      setTimeout(() => {
+        setCompareData(comparison);
+        setLoadingLayouts(false);
+        setShowCompareModal(true);
+        setShowLoadLayoutModal(false);
+      }, 100);
+      
       return true;
     } catch (error) {
       console.error('Compare failed:', error);
@@ -6269,9 +6277,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         <div className="flex gap-2 shrink-0">
                           <button
                             onClick={() => compareLayouts(layout.id, layout.name)}
-                            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-medium text-sm"
+                            disabled={loadingLayouts}
+                            className={`px-4 py-2 text-white rounded-lg font-medium text-sm ${
+                              loadingLayouts 
+                                ? 'bg-gray-400 cursor-not-allowed' 
+                                : 'bg-purple-500 hover:bg-purple-600'
+                            }`}
                           >
-                            🔍 Compare
+                            {loadingLayouts ? '⏳ Loading...' : '🔍 Compare'}
                           </button>
                           <button
                             onClick={() => {
@@ -6310,6 +6323,17 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* LOADING OVERLAY - Shows while comparing */}
+      {loadingLayouts && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[10000]">
+          <div className="bg-white rounded-xl shadow-2xl p-8 flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500"></div>
+            <div className="text-xl font-bold text-gray-900">Comparing Layouts...</div>
+            <div className="text-sm text-gray-600">Loading products and calculating differences</div>
           </div>
         </div>
       )}
