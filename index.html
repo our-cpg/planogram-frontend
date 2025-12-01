@@ -473,8 +473,20 @@ const PlanogramProfitTracker = () => {
                 const planograms = await window.firebaseService.listPlanograms();
                 console.log(`📂 Found ${planograms.length} total items in Firebase`);
                 
-                // Filter for SAVED LAYOUTS only (not section versions)
-                const savedLayouts = planograms.filter(p => p.isSavedLayout === true);
+                // Filter for SAVED LAYOUTS (including those without explicit flag)
+                // Accept: isSavedLayout === true OR (not a section version AND has fixtures/sections)
+                const savedLayouts = planograms.filter(p => {
+                  // Explicitly marked as saved layout
+                  if (p.isSavedLayout === true) return true;
+                  
+                  // Not a section version AND has content
+                  if (p.isSectionVersion !== true && (p.fixtures || p.sections)) {
+                    console.log(`✅ Including layout without flag: ${p.name || p.id}`);
+                    return true;
+                  }
+                  
+                  return false;
+                });
                 console.log(`📂 Found ${savedLayouts.length} saved layouts`);
                 
                 if (savedLayouts.length > 0) {
@@ -847,14 +859,24 @@ const PlanogramProfitTracker = () => {
         throw fetchError; // Re-throw if it's a different error
       }
       
-      // Filter for saved layouts (those marked with isSavedLayout: true)
+      // Filter for saved layouts (including those without explicit flag)
       const layouts = allPlanograms
         .filter(p => {
-          const isSaved = p.isSavedLayout === true;
-          if (!isSaved && p.name) {
-            console.log(`⏭️ Skipping "${p.name}" - isSavedLayout: ${p.isSavedLayout}`);
+          // Explicitly marked as saved layout
+          if (p.isSavedLayout === true) return true;
+          
+          // Not a section version AND has content
+          if (p.isSectionVersion !== true && (p.fixtures || p.sections)) {
+            console.log(`✅ Including layout without flag: ${p.name || p.id}`);
+            return true;
           }
-          return isSaved;
+          
+          // Skip section versions
+          if (p.isSectionVersion === true && p.name) {
+            console.log(`⏭️ Skipping section version: ${p.name}`);
+          }
+          
+          return false;
         })
         .map(p => ({
           id: p.id,
@@ -1111,14 +1133,14 @@ const PlanogramProfitTracker = () => {
       return false;
     }
 
-    // Auto-timeout after 15 seconds (increased from 10)
+    // Auto-timeout after 3 minutes (180 seconds) - Firebase can be very slow
     let timedOut = false;
     const timeoutId = setTimeout(() => {
-      console.error('⚠️ Save timed out after 15 seconds');
+      console.error('⚠️ Save timed out after 3 minutes (180 seconds)');
       timedOut = true;
       setSavingSectionVersion(false);
-      alert('⚠️ Save timed out!\n\nFirebase took too long to respond (15+ seconds).\n\nPossible issues:\n- Slow internet connection\n- Firebase server issues\n- Large payload size\n\nPlease try again.');
-    }, 15000);
+      alert('⚠️ Save timed out!\n\nFirebase took too long to respond (180+ seconds).\n\nThis usually means:\n- Firebase free tier throttling\n- Slow network connection\n- Firebase server in wrong region\n\nYour data might still save - check Firebase Console.');
+    }, 180000);
 
     try {
       console.log('🔵 Setting savingSectionVersion to true...');
