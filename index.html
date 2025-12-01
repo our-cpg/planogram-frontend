@@ -461,6 +461,38 @@ const PlanogramProfitTracker = () => {
           setFirebaseReady(true);
           console.log('Firebase ready');
           
+          // 🔧 FIX: Override broken listPlanograms() to return ALL children
+          const originalListPlanograms = window.firebaseService.listPlanograms;
+          window.firebaseService.listPlanograms = async function() {
+            try {
+              console.log('🔧 Using FIXED listPlanograms...');
+              const db = window.firebaseService.db;
+              const snapshot = await db.ref('planograms').once('value');
+              
+              if (!snapshot.exists()) {
+                console.log('📂 No planograms found in Firebase');
+                return [];
+              }
+              
+              const allData = snapshot.val();
+              console.log('📂 Raw Firebase data:', Object.keys(allData).length, 'items');
+              
+              // Convert object to array
+              const planograms = Object.entries(allData).map(([id, data]) => ({
+                id,
+                ...data
+              }));
+              
+              console.log('📂 FIXED listPlanograms returning:', planograms.length, 'items');
+              return planograms;
+            } catch (error) {
+              console.error('❌ FIXED listPlanograms error:', error);
+              // Fallback to original if fix fails
+              return originalListPlanograms.call(this);
+            }
+          };
+          console.log('✅ listPlanograms() patched successfully');
+          
           // Auto-load the most recent planogram from cloud
           // EMERGENCY FIX: Skip auto-load if URL has ?skipload=true
           const urlParams = new URLSearchParams(window.location.search);
@@ -470,7 +502,23 @@ const PlanogramProfitTracker = () => {
             setTimeout(async () => {
               try {
                 console.log('🔄 Auto-loading most recent layout...');
-                const planograms = await window.firebaseService.listPlanograms();
+                
+                // WORKAROUND: firebaseService.listPlanograms() is broken
+                // Use direct Firebase query instead
+                console.log('🔧 Using DIRECT Firebase query for auto-load...');
+                
+                let planograms = [];
+                const planogramsRef = window.firebaseService.db.ref('planograms');
+                const snapshot = await planogramsRef.once('value');
+                
+                if (snapshot.exists()) {
+                  const planogramsData = snapshot.val();
+                  planograms = Object.entries(planogramsData).map(([id, data]) => ({
+                    id,
+                    ...data
+                  }));
+                }
+                
                 console.log(`📂 Found ${planograms.length} total items in Firebase`);
                 
                 // Filter for SAVED LAYOUTS (including those without explicit flag)
@@ -846,8 +894,27 @@ const PlanogramProfitTracker = () => {
       
       let allPlanograms = [];
       try {
-        allPlanograms = await window.firebaseService.listPlanograms();
-        console.log(`📂 Got ${allPlanograms.length} total planograms`);
+        // WORKAROUND: firebaseService.listPlanograms() is broken
+        // Use direct Firebase query instead
+        console.log('🔧 Using DIRECT Firebase query (bypassing listPlanograms)...');
+        
+        const planogramsRef = window.firebaseService.db.ref('planograms');
+        const snapshot = await planogramsRef.once('value');
+        
+        if (snapshot.exists()) {
+          const planogramsData = snapshot.val();
+          console.log(`📂 Raw Firebase keys: ${Object.keys(planogramsData).length}`);
+          
+          // Convert to array format
+          allPlanograms = Object.entries(planogramsData).map(([id, data]) => ({
+            id,
+            ...data
+          }));
+          
+          console.log(`📂 Got ${allPlanograms.length} total planograms`);
+        } else {
+          console.log('📂 No planograms found in Firebase');
+        }
       } catch (fetchError) {
         if (fetchError.message && fetchError.message.includes('payload is too large')) {
           console.warn('⚠️ WARNING: Some items in Firebase are too large to load');
@@ -1549,7 +1616,27 @@ const PlanogramProfitTracker = () => {
       
       let allPlanograms = [];
       try {
-        allPlanograms = await window.firebaseService.listPlanograms();
+        // WORKAROUND: firebaseService.listPlanograms() is broken
+        // Use direct Firebase query instead
+        console.log('🔧 Using DIRECT Firebase query (bypassing listPlanograms)...');
+        
+        const planogramsRef = window.firebaseService.db.ref('planograms');
+        const snapshot = await planogramsRef.once('value');
+        
+        if (snapshot.exists()) {
+          const planogramsData = snapshot.val();
+          console.log(`📂 Raw Firebase keys: ${Object.keys(planogramsData).length}`);
+          
+          // Convert to array format
+          allPlanograms = Object.entries(planogramsData).map(([id, data]) => ({
+            id,
+            ...data
+          }));
+          
+          console.log(`📂 Converted to ${allPlanograms.length} planogram objects`);
+        } else {
+          console.log('📂 No planograms found in Firebase');
+        }
       } catch (fetchError) {
         if (fetchError.message && fetchError.message.includes('payload is too large')) {
           console.warn('⚠️ WARNING: Some items in Firebase are too large to load');
