@@ -7995,6 +7995,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             {/* 💾 SAVE AND LOAD SECTIONS */}
             <button
               onClick={async () => {
+                alert('🔍 TEST: Save Section button was clicked!');
                 console.log('💾 Save Section button clicked');
                 console.log('  selectedSection:', selectedSection);
                 
@@ -8022,15 +8023,15 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   console.log('  Save cancelled (no version name)');
                 }
               }}
-              className="px-3 py-2 bg-purple-500 text-white rounded flex items-center gap-2 text-sm hover:bg-purple-600"
+              className="px-3 py-2 bg-purple-500 text-white rounded flex items-center gap-2 text-sm hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Save current section"
-              disabled={!selectedSection}
             >
               💾 Save Section
             </button>
 
             <button
               onClick={() => {
+                alert('🔍 TEST: Load Section button was clicked!');
                 if (selectedSection) {
                   setShowLoadModal(true);
                   getSectionVersions(selectedSection.name);
@@ -8038,9 +8039,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   alert('Please select a section first');
                 }
               }}
-              className="px-3 py-2 bg-blue-500 text-white rounded flex items-center gap-2 text-sm hover:bg-blue-600"
+              className="px-3 py-2 bg-blue-500 text-white rounded flex items-center gap-2 text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Load a saved section version"
-              disabled={!selectedSection}
             >
               📂 Load Section
             </button>
