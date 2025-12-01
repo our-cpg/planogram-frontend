@@ -365,6 +365,10 @@ const PlanogramProfitTracker = () => {
   const [allFirebaseItems, setAllFirebaseItems] = useState([]);
   const [loadingFirebaseItems, setLoadingFirebaseItems] = useState(false);
   
+  // Load Modal
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [loadingPlanogram, setLoadingPlanogram] = useState(false);
+  
   const [layoutNameInput, setLayoutNameInput] = useState(''); // Input for layout name
   const [savingLayout, setSavingLayout] = useState(false); // Loading state for save
   const [loadingLayouts, setLoadingLayouts] = useState(false); // Loading state for load
@@ -1059,6 +1063,158 @@ const PlanogramProfitTracker = () => {
   // ========================================
   // SECTION VERSION CONTROL SYSTEM
   // ========================================
+
+  // ULTRA-LIGHTWEIGHT SECTION SAVE (IDs only!)
+  const saveCurrentSection = async (section, versionName) => {
+    if (!window.firebaseService || !window.firebaseService.isAuthenticated()) {
+      alert('Firebase not ready');
+      return false;
+    }
+
+    if (!versionName || !versionName.trim()) {
+      alert('Please enter a version name');
+      return false;
+    }
+
+    try {
+      setSavingSectionVersion(true);
+      console.log(`💾 Saving section: ${section.name} - ${versionName}`);
+
+      // Count products
+      let totalProducts = 0;
+      if (section.rows) {
+        section.rows.forEach(row => {
+          totalProducts += (row.products?.length || 0);
+        });
+      }
+      totalProducts += (section.products?.length || 0);
+
+      console.log(`📊 Section has ${totalProducts} products`);
+
+      // HARD LIMIT: Max 50 products
+      if (totalProducts > 50) {
+        alert(`❌ TOO MANY PRODUCTS!\n\nSection: ${section.name}\nProducts: ${totalProducts}\nLimit: 50\n\nSplit this section to save it.`);
+        setSavingSectionVersion(false);
+        return false;
+      }
+
+      // Save ONLY product IDs (not full data!)
+      const lightweightRows = (section.rows || []).map(row => ({
+        id: row.id,
+        name: row.name,
+        productIds: (row.products || []).map(p => p.id) // Just IDs!
+      }));
+
+      const lightweightProductIds = (section.products || []).map(p => p.id);
+
+      const versionData = {
+        sectionName: section.name,
+        versionName: versionName.trim(),
+        timestamp: new Date().toISOString(),
+        isSectionVersion: true,
+        
+        // Minimal section structure
+        id: section.id,
+        fixtureId: section.fixtureId,
+        rows: lightweightRows,
+        productIds: lightweightProductIds, // Just IDs!
+        layoutX: section.layoutX,
+        layoutY: section.layoutY,
+        layoutWidth: section.layoutWidth,
+        layoutHeight: section.layoutHeight,
+        
+        metadata: {
+          productCount: totalProducts,
+          savedFrom: 'current'
+        }
+      };
+
+      const payloadSize = JSON.stringify(versionData).length;
+      console.log(`💾 Payload size: ${Math.round(payloadSize/1000)}KB`);
+      
+      if (payloadSize > 50000) { // 50KB limit for safety
+        alert(`❌ Section still too large: ${Math.round(payloadSize/1000)}KB\n\nTry a smaller section.`);
+        setSavingSectionVersion(false);
+        return false;
+      }
+      
+      const versionId = await window.firebaseService.savePlanogram(versionData);
+      
+      console.log(`✅ Section saved: ${versionId}`);
+      setFeedback(`✅ Saved: ${section.name} - ${versionName}`);
+      setTimeout(() => setFeedback(''), 3000);
+
+      setSavingSectionVersion(false);
+      return true;
+    } catch (error) {
+      console.error('❌ Save failed:', error);
+      alert('❌ Failed to save: ' + error.message);
+      setSavingSectionVersion(false);
+      return false;
+    }
+  };
+
+  // Load section version (reconstruct products from IDs)
+  const loadSectionVersionById = async (versionId, sectionName) => {
+    if (!window.firebaseService || !window.firebaseService.isAuthenticated()) {
+      alert('Firebase not ready');
+      return false;
+    }
+
+    try {
+      setLoadingPlanogram(true);
+      console.log(`📂 Loading section version: ${versionId}`);
+      
+      const versionData = await window.firebaseService.loadPlanogram(versionId);
+      
+      if (!versionData) {
+        alert('Section version not found');
+        setLoadingPlanogram(false);
+        return false;
+      }
+
+      // Find the current section
+      const sectionIndex = sections.findIndex(s => s.name === sectionName);
+      if (sectionIndex === -1) {
+        alert(`Section "${sectionName}" not found in current layout`);
+        setLoadingPlanogram(false);
+        return false;
+      }
+
+      // Reconstruct products from IDs by looking them up in the products array
+      const reconstructedRows = (versionData.rows || []).map(row => ({
+        ...row,
+        products: (row.productIds || []).map(productId => {
+          const product = products.find(p => p.id === productId);
+          return product || { id: productId, title: 'Product not found', sku: '???' };
+        })
+      }));
+
+      const reconstructedProducts = (versionData.productIds || []).map(productId => {
+        const product = products.find(p => p.id === productId);
+        return product || { id: productId, title: 'Product not found', sku: '???' };
+      });
+
+      // Update the section
+      const updatedSections = [...sections];
+      updatedSections[sectionIndex] = {
+        ...updatedSections[sectionIndex],
+        rows: reconstructedRows,
+        products: reconstructedProducts
+      };
+
+      setSections(updatedSections);
+      setLoadingPlanogram(false);
+      
+      console.log(`✅ Loaded section version`);
+      return true;
+    } catch (error) {
+      console.error('❌ Load failed:', error);
+      alert('❌ Failed to load: ' + error.message);
+      setLoadingPlanogram(false);
+      return false;
+    }
+  };
 
   // Save current section as a version
   const saveSectionVersion = async (section, versionName) => {
@@ -3641,11 +3797,20 @@ const PlanogramProfitTracker = () => {
                   const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
                   
                   console.log('📅 Background Processing Date Debug:');
+                  console.log('  Current time (now):', now.toLocaleString());
+                  console.log('  now.getMonth():', now.getMonth(), '(0=Jan, 11=Dec)');
+                  console.log('  Current month name:', now.toLocaleString('en-US', { month: 'long' }));
                   console.log('  Today range:', todayStart.toLocaleString(), 'to', todayEnd.toLocaleString());
+                  console.log('  Week start:', weekStart.toLocaleString());
+                  console.log('  Month start:', monthStart.toLocaleString());
+                  console.log('  Month start month name:', monthStart.toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }));
+                  console.log('  Year start:', yearStart.toLocaleString());
                   
                   let totalSales = 0;
                   let salesToday = 0, salesWeek = 0, salesMonth = 0, salesYear = 0;
                   let ordersToday = 0, ordersWeek = 0, ordersMonth = 0, ordersYear = 0;
+                  
+                  const monthOrders = []; // Debug: track which orders count as "this month"
                   
                   orders.forEach(order => {
                     const orderDate = new Date(order.created_at);
@@ -3665,6 +3830,14 @@ const PlanogramProfitTracker = () => {
                     if (orderDate >= monthStart) {
                       salesMonth += orderTotal;
                       ordersMonth++;
+                      // Debug: save first 5 orders
+                      if (monthOrders.length < 5) {
+                        monthOrders.push({
+                          id: order.order_number || order.id,
+                          date: orderDate.toLocaleString(),
+                          total: orderTotal
+                        });
+                      }
                     }
                     if (orderDate >= yearStart) {
                       salesYear += orderTotal;
@@ -3673,6 +3846,8 @@ const PlanogramProfitTracker = () => {
                   });
                   
                   console.log(`  💰 Background calc: ${ordersToday} orders today, $${salesToday.toFixed(2)}`);
+                  console.log(`  📊 Month calc: ${ordersMonth} orders this month, $${salesMonth.toFixed(2)}`);
+                  console.log(`  📦 Sample month orders:`, monthOrders);
                   
                   setOrderAnalyticsData({
                     totalOrders: orders.length,
@@ -7314,6 +7489,94 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         </div>
       )}
 
+      {/* LOAD SECTION VERSION MODAL */}
+      {showLoadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                📂 Load Section Version
+              </h2>
+              <p className="text-gray-600 mt-1">
+                {selectedSection ? `Versions of: ${selectedSection.name}` : 'No section selected'}
+              </p>
+            </div>
+            
+            <div className="p-6">
+              {loadingSectionVersions ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500 mx-auto mb-4"></div>
+                  <div className="text-gray-600">Loading section versions...</div>
+                </div>
+              ) : !selectedSection ? (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">⚠️</div>
+                  <div className="font-bold text-lg text-gray-900 mb-2">No Section Selected</div>
+                  <div className="text-gray-600">Select a section from the sidebar first</div>
+                </div>
+              ) : sectionVersions.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">📭</div>
+                  <div className="font-bold text-lg text-gray-900 mb-2">No Saved Versions</div>
+                  <div className="text-gray-600">
+                    Use the 💾 Save Section button to save "{selectedSection.name}"
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sectionVersions.map((version) => (
+                    <div
+                      key={version.id}
+                      className="border-2 border-gray-200 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-all"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-bold text-lg text-gray-900">{version.versionName}</div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            {new Date(version.timestamp).toLocaleString()}
+                          </div>
+                          {version.metadata && (
+                            <div className="text-xs text-gray-500 mt-2">
+                              📦 {version.metadata.productCount} products
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-4">
+                          <button
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                            onClick={async () => {
+                              if (confirm(`Load "${version.versionName}"?\n\nThis will replace the current section.`)) {
+                                const success = await loadSectionVersionById(version.id, selectedSection.name);
+                                if (success) {
+                                  setShowLoadModal(false);
+                                  setFeedback(`✅ Loaded: ${version.versionName}`);
+                                  setTimeout(() => setFeedback(''), 3000);
+                                }
+                              }
+                            }}
+                          >
+                            📂 Load
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 bg-gray-50 flex justify-end border-t">
+              <button
+                onClick={() => setShowLoadModal(false)}
+                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* FIREBASE CLEANUP MODAL */}
       {showCleanupModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
@@ -7706,24 +7969,37 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               Save
             </button>
 
-            {/* 🆕 SECTION VERSION CONTROL */}
+            {/* 💾 SAVE AND LOAD SECTIONS */}
             <button
-              onClick={() => setShowSaveLayoutModal(true)}
+              onClick={() => {
+                if (selectedSection) {
+                  const versionName = prompt(`Save section "${selectedSection.name}"\n\nEnter version name:`);
+                  if (versionName) {
+                    saveCurrentSection(selectedSection, versionName);
+                  }
+                }
+              }}
               className="px-3 py-2 bg-purple-500 text-white rounded flex items-center gap-2 text-sm hover:bg-purple-600"
-              title="Save a section version for comparison"
+              title="Save current section"
+              disabled={!selectedSection}
             >
               💾 Save Section
             </button>
 
             <button
               onClick={() => {
-                setShowCleanupModal(true);
-                loadAllFirebaseItems();
+                if (selectedSection) {
+                  setShowLoadModal(true);
+                  getSectionVersions(selectedSection.name);
+                } else {
+                  alert('Please select a section first');
+                }
               }}
-              className="px-3 py-2 bg-red-500 text-white rounded flex items-center gap-2 text-sm hover:bg-red-600"
-              title="Clean up Firebase storage"
+              className="px-3 py-2 bg-blue-500 text-white rounded flex items-center gap-2 text-sm hover:bg-blue-600"
+              title="Load a saved section version"
+              disabled={!selectedSection}
             >
-              🗑️ Cleanup Firebase
+              📂 Load Section
             </button>
 
             {syncStatus && (
