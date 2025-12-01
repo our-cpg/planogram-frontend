@@ -6751,7 +6751,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               disabled={!selectedSectionForHistory}
               onKeyPress={(e) => {
                 if (e.key === 'Enter' && layoutNameInput.trim() && selectedSectionForHistory) {
-                  saveSectionVersion(selectedSectionForHistory, layoutNameInput).then(success => {
+                  console.log('  Enter key pressed, calling saveCurrentSection');
+                  saveCurrentSection(selectedSectionForHistory, layoutNameInput).then(success => {
                     if (success) {
                       setLayoutNameInput('');
                       setShowSaveLayoutModal(false);
@@ -6776,13 +6777,19 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </button>
               <button
                 onClick={async () => {
+                  console.log('💾 Modal Save Section clicked');
                   if (selectedSectionForHistory) {
-                    const success = await saveSectionVersion(selectedSectionForHistory, layoutNameInput);
+                    console.log('  Calling saveCurrentSection with:', selectedSectionForHistory.name, layoutNameInput);
+                    const success = await saveCurrentSection(selectedSectionForHistory, layoutNameInput);
+                    console.log('  Result:', success);
                     if (success) {
                       setLayoutNameInput('');
                       setShowSaveLayoutModal(false);
                       setSelectedSectionForHistory(null);
                     }
+                  } else {
+                    console.log('  No section selected!');
+                    alert('Please select a section first');
                   }
                 }}
                 disabled={!layoutNameInput.trim() || !selectedSectionForHistory || savingSectionVersion}
