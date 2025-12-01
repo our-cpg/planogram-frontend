@@ -1561,8 +1561,22 @@ const PlanogramProfitTracker = () => {
       }
       
       // Get ALL section versions (no filter by section name)
+      console.log(`📚 Total items from Firebase: ${allPlanograms.length}`);
+      allPlanograms.forEach((p, idx) => {
+        if (idx < 5) { // Log first 5 for debugging
+          console.log(`  [${idx}] ${p.name || 'Unnamed'} - isSectionVersion: ${p.isSectionVersion}, metadata.type: ${p.metadata?.type}`);
+        }
+      });
+      
       const versions = allPlanograms
-        .filter(p => p.isSectionVersion === true)
+        .filter(p => {
+          // Accept if explicitly marked OR if metadata.type is SECTION_VERSION
+          const isSection = p.isSectionVersion === true || p.metadata?.type === 'SECTION_VERSION';
+          if (isSection) {
+            console.log(`✅ Found section version: ${p.name || p.id}`);
+          }
+          return isSection;
+        })
         .map(p => ({
           id: p.id,
           versionName: p.versionName,
@@ -8371,6 +8385,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
             <button
               onClick={() => {
+                console.log('🔵 Load Section button clicked');
                 setShowLoadModal(true);
                 getAllSectionVersions();
               }}
