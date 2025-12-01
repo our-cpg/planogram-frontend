@@ -347,6 +347,8 @@ const PlanogramProfitTracker = () => {
   const [showLoadLayoutModal, setShowLoadLayoutModal] = useState(false); // Load modal
   const [showCompareModal, setShowCompareModal] = useState(false); // Compare modal
   const [compareData, setCompareData] = useState(null); // Comparison results
+  const [compareSelectedSection, setCompareSelectedSection] = useState(null); // Selected section in compare view
+  const [compareSearchTerm, setCompareSearchTerm] = useState(''); // Search products in compare
   const [layoutNameInput, setLayoutNameInput] = useState(''); // Input for layout name
   const [savingLayout, setSavingLayout] = useState(false); // Loading state for save
   const [loadingLayouts, setLoadingLayouts] = useState(false); // Loading state for load
@@ -6312,7 +6314,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         </div>
       )}
 
-      {/* COMPARE LAYOUT MODAL - VISUAL SIDE-BY-SIDE */}
+      {/* COMPARE LAYOUT MODAL - VISUAL SIDE-BY-SIDE WITH PRODUCTS */}
       {showCompareModal && compareData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
           <div className="bg-white rounded-lg shadow-2xl w-[98vw] h-[95vh] flex flex-col">
@@ -6322,13 +6324,23 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 <h2 className="text-xl font-bold text-gray-900">
                   🔍 Compare: {compareData.layoutName}
                 </h2>
-                <p className="text-sm text-gray-600">Click sections to see details • Scroll to zoom</p>
+                <p className="text-sm text-gray-600">Click sections to see products • Search to find items</p>
               </div>
               <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="🔎 Search products..."
+                  value={compareSearchTerm}
+                  onChange={(e) => setCompareSearchTerm(e.target.value)}
+                  className="px-3 py-2 border-2 border-gray-300 rounded focus:border-blue-500 focus:outline-none text-sm"
+                  style={{ width: '200px' }}
+                />
                 <button
                   onClick={() => {
                     setShowCompareModal(false);
                     setShowLoadLayoutModal(true);
+                    setCompareSelectedSection(null);
+                    setCompareSearchTerm('');
                   }}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium"
                 >
@@ -6339,6 +6351,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                     if (confirm(`Load "${compareData.layoutName}"? This will replace your current layout.`)) {
                       loadSavedLayout(compareData.layoutId);
                       setShowCompareModal(false);
+                      setCompareSelectedSection(null);
+                      setCompareSearchTerm('');
                     }
                   }}
                   className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium"
@@ -6382,163 +6396,302 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </div>
             </div>
 
-            {/* Side-by-Side Comparison */}
-            <div className="flex-1 grid grid-cols-2 gap-2 p-4 overflow-hidden">
-              {/* LEFT SIDE - CURRENT LAYOUT */}
-              <div className="flex flex-col border-2 border-blue-400 rounded-lg overflow-hidden bg-blue-50">
-                <div className="bg-blue-500 text-white px-4 py-2 font-bold text-center">
-                  📍 CURRENT LAYOUT
-                </div>
-                <div className="flex-1 overflow-auto p-4 bg-white">
-                  {fixtures.map((fixture, idx) => (
-                    <div key={fixture.id} className="mb-4">
-                      <div className="text-xs font-bold text-gray-700 mb-2 bg-gray-100 px-2 py-1 rounded">
-                        {fixture.name || `Fixture ${idx + 1}`} ({fixture.width}×{fixture.height})
-                      </div>
-                      <div 
-                        className="relative border-2 border-gray-300 bg-gray-100"
-                        style={{ 
-                          width: Math.min(fixture.width, 600), 
-                          height: Math.min(fixture.height, 400) 
-                        }}
-                      >
-                        {sections
-                          .filter(s => s.fixtureId === fixture.id)
-                          .map((section) => {
-                            const layoutX = section.layoutX !== undefined ? section.layoutX : 0;
-                            const layoutY = section.layoutY !== undefined ? section.layoutY : 0;
-                            const layoutWidth = section.layoutWidth !== undefined ? section.layoutWidth : 100;
-                            const layoutHeight = section.layoutHeight !== undefined ? section.layoutHeight : 100;
-                            
-                            const left = (layoutX / 100) * Math.min(fixture.width, 600);
-                            const top = (layoutY / 100) * Math.min(fixture.height, 400);
-                            const width = (layoutWidth / 100) * Math.min(fixture.width, 600);
-                            const height = (layoutHeight / 100) * Math.min(fixture.height, 400);
-                            
-                            const isRemoved = !compareData.savedData.sections?.some(s => s.name === section.name);
-                            
-                            return (
-                              <div
-                                key={section.id}
-                                style={{
-                                  position: 'absolute',
-                                  left: left,
-                                  top: top,
-                                  width: width,
-                                  height: height,
-                                  background: isRemoved 
-                                    ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
-                                    : 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
-                                  border: isRemoved ? '2px solid #991b1b' : '2px solid #1e40af',
-                                  borderRadius: '4px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: 'white',
-                                  fontSize: width < 60 ? '8px' : '10px',
-                                  fontWeight: 'bold',
-                                  padding: '4px',
-                                  textAlign: 'center',
-                                  overflow: 'hidden',
-                                  textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s'
-                                }}
-                                title={section.name}
-                              >
-                                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {isRemoved && '❌ '}
-                                  {section.name}
+            {/* Side-by-Side Comparison with Product Panel */}
+            <div className="flex-1 flex gap-2 p-4 overflow-hidden">
+              {/* Planogram Views */}
+              <div className="flex-1 grid grid-cols-2 gap-2">
+                {/* LEFT SIDE - CURRENT LAYOUT */}
+                <div className="flex flex-col border-2 border-blue-400 rounded-lg overflow-hidden bg-blue-50">
+                  <div className="bg-blue-500 text-white px-4 py-2 font-bold text-center">
+                    📍 CURRENT LAYOUT
+                  </div>
+                  <div className="flex-1 overflow-auto p-4 bg-white">
+                    {fixtures.map((fixture, idx) => (
+                      <div key={fixture.id} className="mb-4">
+                        <div className="text-xs font-bold text-gray-700 mb-2 bg-gray-100 px-2 py-1 rounded">
+                          {fixture.name || `Fixture ${idx + 1}`} ({fixture.width}×{fixture.height})
+                        </div>
+                        <div 
+                          className="relative border-2 border-gray-300 bg-gray-100"
+                          style={{ 
+                            width: Math.min(fixture.width, 500), 
+                            height: Math.min(fixture.height, 350) 
+                          }}
+                        >
+                          {sections
+                            .filter(s => s.fixtureId === fixture.id)
+                            .map((section) => {
+                              const layoutX = section.layoutX !== undefined ? section.layoutX : 0;
+                              const layoutY = section.layoutY !== undefined ? section.layoutY : 0;
+                              const layoutWidth = section.layoutWidth !== undefined ? section.layoutWidth : 100;
+                              const layoutHeight = section.layoutHeight !== undefined ? section.layoutHeight : 100;
+                              
+                              const left = (layoutX / 100) * Math.min(fixture.width, 500);
+                              const top = (layoutY / 100) * Math.min(fixture.height, 350);
+                              const width = (layoutWidth / 100) * Math.min(fixture.width, 500);
+                              const height = (layoutHeight / 100) * Math.min(fixture.height, 350);
+                              
+                              const isRemoved = !compareData.savedData.sections?.some(s => s.name === section.name);
+                              const metrics = calculateMetrics(section, timePeriod);
+                              
+                              // Check if section has search term
+                              let hasSearchMatch = false;
+                              if (compareSearchTerm) {
+                                const searchLower = compareSearchTerm.toLowerCase();
+                                if (section.rows) {
+                                  section.rows.forEach(row => {
+                                    if (row.products) {
+                                      row.products.forEach(p => {
+                                        if (p.title?.toLowerCase().includes(searchLower) || 
+                                            p.sku?.toLowerCase().includes(searchLower)) {
+                                          hasSearchMatch = true;
+                                        }
+                                      });
+                                    }
+                                  });
+                                }
+                              }
+                              
+                              const isSelected = compareSelectedSection?.side === 'current' && compareSelectedSection?.id === section.id;
+                              
+                              return (
+                                <div
+                                  key={section.id}
+                                  onClick={() => setCompareSelectedSection({ side: 'current', id: section.id, section: section })}
+                                  style={{
+                                    position: 'absolute',
+                                    left: left,
+                                    top: top,
+                                    width: width,
+                                    height: height,
+                                    background: isRemoved 
+                                      ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                                      : 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
+                                    border: isSelected ? '3px solid #ffeb3b' : (isRemoved ? '2px solid #991b1b' : '2px solid #1e40af'),
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: width < 60 ? '8px' : '10px',
+                                    fontWeight: 'bold',
+                                    padding: '4px',
+                                    textAlign: 'center',
+                                    overflow: 'hidden',
+                                    textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    boxShadow: hasSearchMatch ? '0 0 0 3px #ffeb3b' : (isSelected ? '0 0 10px rgba(255,235,59,0.5)' : 'none'),
+                                    transform: isSelected ? 'scale(1.02)' : 'scale(1)'
+                                  }}
+                                  title={`${section.name} - $${metrics.profitPerSqFt.toFixed(0)}/sqft`}
+                                >
+                                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
+                                    {isRemoved && '❌ '}
+                                    {section.name}
+                                  </div>
+                                  {width > 70 && height > 40 && (
+                                    <div style={{ fontSize: '9px', opacity: 0.9, marginTop: '2px' }}>
+                                      ${metrics.profitPerSqFt.toFixed(0)}/sqft
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                  {fixtures.length === 0 && (
-                    <div className="text-center text-gray-500 py-8">No fixtures in current layout</div>
-                  )}
+                    ))}
+                    {fixtures.length === 0 && (
+                      <div className="text-center text-gray-500 py-8">No fixtures in current layout</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* RIGHT SIDE - SAVED LAYOUT */}
+                <div className="flex flex-col border-2 border-green-400 rounded-lg overflow-hidden bg-green-50">
+                  <div className="bg-green-500 text-white px-4 py-2 font-bold text-center">
+                    💾 SAVED LAYOUT: {compareData.layoutName}
+                  </div>
+                  <div className="flex-1 overflow-auto p-4 bg-white">
+                    {(compareData.savedData.fixtures || []).map((fixture, idx) => (
+                      <div key={fixture.id} className="mb-4">
+                        <div className="text-xs font-bold text-gray-700 mb-2 bg-gray-100 px-2 py-1 rounded">
+                          {fixture.name || `Fixture ${idx + 1}`} ({fixture.width}×{fixture.height})
+                        </div>
+                        <div 
+                          className="relative border-2 border-gray-300 bg-gray-100"
+                          style={{ 
+                            width: Math.min(fixture.width, 500), 
+                            height: Math.min(fixture.height, 350) 
+                          }}
+                        >
+                          {(compareData.savedData.sections || [])
+                            .filter(s => s.fixtureId === fixture.id)
+                            .map((section) => {
+                              const layoutX = section.layoutX !== undefined ? section.layoutX : 0;
+                              const layoutY = section.layoutY !== undefined ? section.layoutY : 0;
+                              const layoutWidth = section.layoutWidth !== undefined ? section.layoutWidth : 100;
+                              const layoutHeight = section.layoutHeight !== undefined ? section.layoutHeight : 100;
+                              
+                              const left = (layoutX / 100) * Math.min(fixture.width, 500);
+                              const top = (layoutY / 100) * Math.min(fixture.height, 350);
+                              const width = (layoutWidth / 100) * Math.min(fixture.width, 500);
+                              const height = (layoutHeight / 100) * Math.min(fixture.height, 350);
+                              
+                              const isNew = !sections.some(s => s.name === section.name);
+                              const metrics = calculateMetrics(section, timePeriod);
+                              
+                              // Check if section has search term
+                              let hasSearchMatch = false;
+                              if (compareSearchTerm) {
+                                const searchLower = compareSearchTerm.toLowerCase();
+                                if (section.rows) {
+                                  section.rows.forEach(row => {
+                                    if (row.products) {
+                                      row.products.forEach(p => {
+                                        if (p.title?.toLowerCase().includes(searchLower) || 
+                                            p.sku?.toLowerCase().includes(searchLower)) {
+                                          hasSearchMatch = true;
+                                        }
+                                      });
+                                    }
+                                  });
+                                }
+                              }
+                              
+                              const isSelected = compareSelectedSection?.side === 'saved' && compareSelectedSection?.id === section.id;
+                              
+                              return (
+                                <div
+                                  key={section.id}
+                                  onClick={() => setCompareSelectedSection({ side: 'saved', id: section.id, section: section })}
+                                  style={{
+                                    position: 'absolute',
+                                    left: left,
+                                    top: top,
+                                    width: width,
+                                    height: height,
+                                    background: isNew 
+                                      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                                      : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
+                                    border: isSelected ? '3px solid #ffeb3b' : (isNew ? '2px solid #065f46' : '2px solid #047857'),
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: width < 60 ? '8px' : '10px',
+                                    fontWeight: 'bold',
+                                    padding: '4px',
+                                    textAlign: 'center',
+                                    overflow: 'hidden',
+                                    textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    boxShadow: hasSearchMatch ? '0 0 0 3px #ffeb3b' : (isSelected ? '0 0 10px rgba(255,235,59,0.5)' : 'none'),
+                                    transform: isSelected ? 'scale(1.02)' : 'scale(1)'
+                                  }}
+                                  title={`${section.name} - $${metrics.profitPerSqFt.toFixed(0)}/sqft`}
+                                >
+                                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
+                                    {isNew && '✨ '}
+                                    {section.name}
+                                  </div>
+                                  {width > 70 && height > 40 && (
+                                    <div style={{ fontSize: '9px', opacity: 0.9, marginTop: '2px' }}>
+                                      ${metrics.profitPerSqFt.toFixed(0)}/sqft
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    ))}
+                    {(compareData.savedData.fixtures || []).length === 0 && (
+                      <div className="text-center text-gray-500 py-8">No fixtures in saved layout</div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* RIGHT SIDE - SAVED LAYOUT */}
-              <div className="flex flex-col border-2 border-green-400 rounded-lg overflow-hidden bg-green-50">
-                <div className="bg-green-500 text-white px-4 py-2 font-bold text-center">
-                  💾 SAVED LAYOUT: {compareData.layoutName}
-                </div>
-                <div className="flex-1 overflow-auto p-4 bg-white">
-                  {(compareData.savedData.fixtures || []).map((fixture, idx) => (
-                    <div key={fixture.id} className="mb-4">
-                      <div className="text-xs font-bold text-gray-700 mb-2 bg-gray-100 px-2 py-1 rounded">
-                        {fixture.name || `Fixture ${idx + 1}`} ({fixture.width}×{fixture.height})
+              {/* Product Details Panel */}
+              {compareSelectedSection && (
+                <div className="w-80 flex flex-col border-2 border-yellow-400 rounded-lg overflow-hidden bg-yellow-50">
+                  <div className="bg-yellow-500 text-white px-4 py-2 font-bold text-sm flex justify-between items-center">
+                    <span>📋 {compareSelectedSection.section.name}</span>
+                    <button 
+                      onClick={() => setCompareSelectedSection(null)}
+                      className="text-white hover:bg-yellow-600 rounded px-2"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="p-3 bg-white border-b">
+                    <div className="text-xs space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Side:</span>
+                        <span className="font-bold">{compareSelectedSection.side === 'current' ? '📍 Current' : '💾 Saved'}</span>
                       </div>
-                      <div 
-                        className="relative border-2 border-gray-300 bg-gray-100"
-                        style={{ 
-                          width: Math.min(fixture.width, 600), 
-                          height: Math.min(fixture.height, 400) 
-                        }}
-                      >
-                        {(compareData.savedData.sections || [])
-                          .filter(s => s.fixtureId === fixture.id)
-                          .map((section) => {
-                            const layoutX = section.layoutX !== undefined ? section.layoutX : 0;
-                            const layoutY = section.layoutY !== undefined ? section.layoutY : 0;
-                            const layoutWidth = section.layoutWidth !== undefined ? section.layoutWidth : 100;
-                            const layoutHeight = section.layoutHeight !== undefined ? section.layoutHeight : 100;
-                            
-                            const left = (layoutX / 100) * Math.min(fixture.width, 600);
-                            const top = (layoutY / 100) * Math.min(fixture.height, 400);
-                            const width = (layoutWidth / 100) * Math.min(fixture.width, 600);
-                            const height = (layoutHeight / 100) * Math.min(fixture.height, 400);
-                            
-                            const isNew = !sections.some(s => s.name === section.name);
-                            
-                            return (
-                              <div
-                                key={section.id}
-                                style={{
-                                  position: 'absolute',
-                                  left: left,
-                                  top: top,
-                                  width: width,
-                                  height: height,
-                                  background: isNew 
-                                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                                    : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
-                                  border: isNew ? '2px solid #065f46' : '2px solid #047857',
-                                  borderRadius: '4px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: 'white',
-                                  fontSize: width < 60 ? '8px' : '10px',
-                                  fontWeight: 'bold',
-                                  padding: '4px',
-                                  textAlign: 'center',
-                                  overflow: 'hidden',
-                                  textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s'
-                                }}
-                                title={section.name}
-                              >
-                                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {isNew && '✨ '}
-                                  {section.name}
-                                </div>
-                              </div>
-                            );
-                          })}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Profit/sqft:</span>
+                        <span className="font-bold text-green-600">
+                          ${calculateMetrics(compareSelectedSection.section, timePeriod).profitPerSqFt.toFixed(2)}
+                        </span>
                       </div>
                     </div>
-                  ))}
-                  {(compareData.savedData.fixtures || []).length === 0 && (
-                    <div className="text-center text-gray-500 py-8">No fixtures in saved layout</div>
-                  )}
+                  </div>
+                  <div className="flex-1 overflow-auto p-3 bg-white">
+                    <div className="text-xs font-bold text-gray-700 mb-2">Products:</div>
+                    {(() => {
+                      const products = [];
+                      if (compareSelectedSection.section.rows) {
+                        compareSelectedSection.section.rows.forEach(row => {
+                          if (row.products) {
+                            products.push(...row.products);
+                          }
+                        });
+                      }
+                      
+                      const filteredProducts = compareSearchTerm 
+                        ? products.filter(p => 
+                            p.title?.toLowerCase().includes(compareSearchTerm.toLowerCase()) ||
+                            p.sku?.toLowerCase().includes(compareSearchTerm.toLowerCase())
+                          )
+                        : products;
+                      
+                      if (filteredProducts.length === 0) {
+                        return <div className="text-gray-500 text-xs italic">No products</div>;
+                      }
+                      
+                      return (
+                        <div className="space-y-2">
+                          {filteredProducts.map((product, idx) => (
+                            <div 
+                              key={idx} 
+                              className={`p-2 rounded border text-xs ${
+                                compareSearchTerm && (
+                                  product.title?.toLowerCase().includes(compareSearchTerm.toLowerCase()) ||
+                                  product.sku?.toLowerCase().includes(compareSearchTerm.toLowerCase())
+                                ) ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-50 border-gray-200'
+                              }`}
+                            >
+                              <div className="font-bold text-gray-900 mb-1">{product.title || 'Unnamed Product'}</div>
+                              <div className="text-gray-600 space-y-0.5">
+                                <div>SKU: {product.sku || 'N/A'}</div>
+                                <div>Price: ${product.price || '0'}</div>
+                                <div>Stock: {product.inventory || 0}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Legend */}
@@ -6552,12 +6705,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 <span>✨ Will be added</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)' }}></div>
-                <span>📍 Exists in current</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)' }}></div>
-                <span>💾 Exists in saved</span>
+                <div className="w-4 h-4 rounded border-2 border-yellow-400"></div>
+                <span>Selected / Search match</span>
               </div>
             </div>
           </div>
