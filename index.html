@@ -1176,30 +1176,48 @@ const PlanogramProfitTracker = () => {
 
       const lightweightProductIds = (section.products || []).map(p => p.id);
 
+      // Create proper structure for Firebase with correct metadata
       const versionData = {
+        // Top-level identification
+        name: `${section.name} - ${versionName.trim()}`,
         sectionName: section.name,
         versionName: versionName.trim(),
         timestamp: new Date().toISOString(),
         isSectionVersion: true,
         
-        // Minimal section structure
-        id: section.id,
-        fixtureId: section.fixtureId,
-        rows: lightweightRows,
-        productIds: lightweightProductIds,
-        layoutX: section.layoutX,
-        layoutY: section.layoutY,
-        layoutWidth: section.layoutWidth,
-        layoutHeight: section.layoutHeight,
+        // CRITICAL: Include single-item arrays so Firebase counts them as 1, not 0
+        fixtures: [{
+          id: section.fixtureId || 'unknown',
+          name: section.name,
+          type: 'section_version_placeholder'
+        }],
+        sections: [{
+          id: section.id,
+          name: section.name,
+          fixtureId: section.fixtureId,
+          rows: lightweightRows,
+          productIds: lightweightProductIds,
+          layoutX: section.layoutX,
+          layoutY: section.layoutY,
+          layoutWidth: section.layoutWidth,
+          layoutHeight: section.layoutHeight
+        }],
         
+        // Metadata for display/filtering
         metadata: {
+          isSectionVersion: true,
+          sectionName: section.name,
           productCount: totalProducts,
-          savedFrom: 'current'
+          rowCount: lightweightRows.length,
+          savedFrom: 'current',
+          versionName: versionName.trim(),
+          type: 'SECTION_VERSION' // Clear marker
         }
       };
 
       const payloadSize = JSON.stringify(versionData).length;
       console.log(`💾 Payload: ${totalProducts} products, ${Math.round(payloadSize/1000)}KB`);
+      console.log(`💾 Structure: fixtures[1], sections[1], metadata.type=${versionData.metadata.type}`);
       
       if (payloadSize > 100000) { // 100KB limit for safety
         console.log('❌ Payload too large');
@@ -1229,6 +1247,9 @@ const PlanogramProfitTracker = () => {
       console.log(`✅ Section saved: ${versionId}`);
       setFeedback(`✅ Saved: ${section.name} - ${versionName}`);
       setTimeout(() => setFeedback(''), 3000);
+      
+      // Show success message
+      alert(`✅ Section Saved Successfully!\n\nSection: ${section.name}\nVersion: ${versionName}\nProducts: ${totalProducts}\nTime: ${Math.round(elapsed/1000)}s\n\nID: ${versionId}`);
 
       console.log('🔵 Setting savingSectionVersion to false...');
       setSavingSectionVersion(false);
@@ -1264,12 +1285,12 @@ const PlanogramProfitTracker = () => {
       return false;
     }
 
-    // Auto-timeout after 10 seconds
+    // Auto-timeout after 3 minutes (180 seconds) - Firebase can be very slow
     const timeoutId = setTimeout(() => {
-      console.error('⚠️ Load timed out after 10 seconds');
+      console.error('⚠️ Load timed out after 3 minutes (180 seconds)');
       setLoadingPlanogram(false);
-      alert('⚠️ Load timed out!\n\nFirebase took too long to respond. Please try again.');
-    }, 10000);
+      alert('⚠️ Load timed out!\n\nFirebase took too long to respond (180+ seconds). Please try again.');
+    }, 180000);
 
     try {
       setLoadingPlanogram(true);
@@ -1293,8 +1314,26 @@ const PlanogramProfitTracker = () => {
         return false;
       }
 
+      // Handle multiple data structure formats:
+      // New format: data in versionData.sections[0]
+      // Previous format: data in versionData.sectionData
+      // Old format: data at root level of versionData
+      let sectionData;
+      if (versionData.sections && versionData.sections.length > 0) {
+        sectionData = versionData.sections[0]; // New format
+        console.log('📂 Using new format: sections[0]');
+      } else if (versionData.sectionData) {
+        sectionData = versionData.sectionData; // Previous format
+        console.log('📂 Using previous format: sectionData');
+      } else {
+        sectionData = versionData; // Old format
+        console.log('📂 Using old format: root level');
+      }
+      
+      console.log('📂 Section data structure:', sectionData.rows ? `Found ${sectionData.rows.length} rows` : 'No rows');
+
       // Reconstruct products from IDs by looking them up in the products array
-      const reconstructedRows = (versionData.rows || []).map(row => ({
+      const reconstructedRows = (sectionData.rows || []).map(row => ({
         ...row,
         products: (row.productIds || []).map(productId => {
           const product = products.find(p => p.id === productId);
@@ -1302,10 +1341,12 @@ const PlanogramProfitTracker = () => {
         })
       }));
 
-      const reconstructedProducts = (versionData.productIds || []).map(productId => {
+      const reconstructedProducts = (sectionData.productIds || []).map(productId => {
         const product = products.find(p => p.id === productId);
         return product || { id: productId, title: 'Product not found', sku: '???' };
       });
+
+      console.log(`📂 Reconstructed ${reconstructedRows.length} rows, ${reconstructedProducts.length} loose products`);
 
       // Update the section
       const updatedSections = [...sections];
