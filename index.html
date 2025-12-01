@@ -4681,42 +4681,23 @@ const PlanogramProfitTracker = () => {
           width: width,
           height: height,
           background: color,
-          backgroundImage: heatMapMode && section.type !== 'deadspace' ? 
-            (() => {
-              const intensity = metrics.profitPerSqFt / (metrics.maxProfit || 100);
-              if (intensity > 0.7) {
-                return 'linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(5, 150, 105) 100%)';
-              } else if (intensity > 0.5) {
-                return 'linear-gradient(135deg, rgb(251, 191, 36) 0%, rgb(245, 158, 11) 100%)';
-              } else if (intensity > 0.3) {
-                return 'linear-gradient(135deg, rgb(251, 146, 60) 0%, rgb(249, 115, 22) 100%)';
-              } else {
-                return 'linear-gradient(135deg, rgb(248, 113, 113) 0%, rgb(239, 68, 68) 100%)';
-              }
-            })() : 
-            color,
           border: isSelected 
-            ? '2px solid rgba(59, 130, 246, 0.6)' 
+            ? '2px solid #3b82f6' 
             : 'none',
           cursor: isDragging ? 'grabbing' : 'grab',
           pointerEvents: 'auto',
           display: 'flex',
-          flexDirection: width >= 100 && height < width * 0.8 ? 'row' : 'column', // Horizontal when wide!
           alignItems: 'center',
-          justifyContent: width >= 100 && height < width * 0.8 ? 'space-between' : 'center',
+          justifyContent: 'center',
+          fontSize: width > 60 && height > 40 ? '11px' : '9px',
           color: 'white',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif',
-          letterSpacing: '-0.01em',
-          textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+          fontWeight: 'bold',
+          textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
           zIndex: isSelected ? 60 : 40,
           overflow: 'hidden',
-          borderRadius: '6px',
-          boxShadow: isSelected 
-            ? '0 4px 6px rgba(0, 0, 0, 0.15)'
-            : '0 2px 4px rgba(0, 0, 0, 0.1)',
-          backdropFilter: 'none',
-          transition: 'all 0.15s ease',
-          padding: width > 80 ? '6px 10px' : '4px 6px'
+          borderRadius: '0',
+          boxShadow: 'none',
+          backdropFilter: 'none'
         }}
         onMouseDown={handleMouseDown}
         onClick={(e) => {
@@ -4726,72 +4707,30 @@ const PlanogramProfitTracker = () => {
           }
         }}
       >
-        {/* WIDE HORIZONTAL LAYOUT - Title left, price right */}
-        {width >= 100 && height < width * 0.8 && width > 30 && height > 20 && (
-          <>
-            {/* Left side - Title */}
-            <div style={{ 
-              fontSize: width < 150 ? '11px' : '13px',
-              lineHeight: '1.2',
-              fontWeight: '600',
-              overflow: 'hidden', 
-              textOverflow: 'ellipsis', 
-              whiteSpace: 'nowrap',
-              flex: '1',
-              minWidth: 0,
-              textAlign: 'left'
-            }}>
-              {section.name}
-            </div>
-            
-            {/* Right side - Price */}
-            {heatMapMode && (
-              <div style={{ 
-                fontSize: width < 150 ? '13px' : '16px',
-                fontWeight: '700',
-                lineHeight: '1',
-                whiteSpace: 'nowrap',
-                marginLeft: '8px'
-              }}>
-                ${metrics.profitPerSqFt.toFixed(0)}/sqft
-              </div>
-            )}
-          </>
-        )}
-
-        {/* VERTICAL LAYOUT - Stacked for narrow/tall sections */}
-        {(width < 100 || height >= width * 0.8) && width > 30 && height > 20 && (
+        {/* Only show label if section is big enough */}
+        {width > 30 && height > 20 && (
           <div 
-            className="text-center pointer-events-none" 
+            className="text-center pointer-events-none px-1" 
             style={{ 
               maxWidth: '95%', 
               overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: width > 80 ? '3px' : '2px',
+              fontSize: width < 50 ? '8px' : (width < 80 ? '10px' : '11px'),
+              lineHeight: width < 50 ? '10px' : '1.2',
               transform: height > width * 1.5 ? 'rotate(-90deg)' : 'none',
-              transformOrigin: 'center center'
+              transformOrigin: 'center center',
+              whiteSpace: 'nowrap'
             }}
           >
-            {/* Name */}
             <div style={{ 
-              fontSize: width < 50 ? '10px' : (width < 80 ? '12px' : '13px'),
-              lineHeight: '1.2',
-              fontWeight: width < 80 ? '600' : '500',
-              opacity: width < 80 ? 1 : 0.95,
               overflow: 'hidden', 
               textOverflow: 'ellipsis', 
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap' 
             }}>
               {section.name}
             </div>
-            
-            {/* Price */}
-            {heatMapMode && (
+            {heatMapMode && width > 60 && height > 35 && (
               <div style={{ 
-                fontSize: width < 60 ? '14px' : (width < 80 ? '16px' : '20px'),
-                fontWeight: '700',
-                lineHeight: '1.1',
+                fontSize: width < 80 ? '8px' : '9px',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap'
