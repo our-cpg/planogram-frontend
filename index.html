@@ -812,16 +812,21 @@ const PlanogramProfitTracker = () => {
     try {
       setLoadingLayouts(true);
       console.log('📂 Fetching all planograms...');
-      const allPlanograms = await window.firebaseService.listPlanograms();
-      console.log(`📂 Got ${allPlanograms.length} total planograms`);
       
-      // DEBUG: Log first few planograms to see structure
-      console.log('🔍 First 3 planograms:', allPlanograms.slice(0, 3).map(p => ({
-        id: p.id,
-        name: p.name,
-        isSavedLayout: p.isSavedLayout,
-        hasFlag: 'isSavedLayout' in p
-      })));
+      let allPlanograms = [];
+      try {
+        allPlanograms = await window.firebaseService.listPlanograms();
+        console.log(`📂 Got ${allPlanograms.length} total planograms`);
+      } catch (fetchError) {
+        if (fetchError.message && fetchError.message.includes('payload is too large')) {
+          console.warn('⚠️ WARNING: Some items in Firebase are too large to load');
+          console.warn('⚠️ Use the Cleanup tool to delete oversized items');
+          alert('⚠️ WARNING: Firebase has oversized items!\n\nSome saved data is too large to load.\n\nClick "🗑️ Cleanup Firebase" to delete oversized items.');
+          setLoadingLayouts(false);
+          return;
+        }
+        throw fetchError; // Re-throw if it's a different error
+      }
       
       // Filter for saved layouts (those marked with isSavedLayout: true)
       const layouts = allPlanograms
@@ -1183,7 +1188,18 @@ const PlanogramProfitTracker = () => {
       setLoadingSectionVersions(true);
       console.log(`📚 Fetching versions for section: ${sectionName}`);
       
-      const allPlanograms = await window.firebaseService.listPlanograms();
+      let allPlanograms = [];
+      try {
+        allPlanograms = await window.firebaseService.listPlanograms();
+      } catch (fetchError) {
+        if (fetchError.message && fetchError.message.includes('payload is too large')) {
+          console.warn('⚠️ WARNING: Some items in Firebase are too large to load');
+          alert('⚠️ WARNING: Firebase has oversized items!\n\nCannot load section versions.\n\nClick "🗑️ Cleanup Firebase" to delete oversized items.');
+          setLoadingSectionVersions(false);
+          return [];
+        }
+        throw fetchError;
+      }
       
       // Filter for this section's versions
       const versions = allPlanograms
@@ -1299,7 +1315,18 @@ const PlanogramProfitTracker = () => {
       setLoadingFirebaseItems(true);
       console.log('🔍 Loading all Firebase items...');
       
-      const allItems = await window.firebaseService.listPlanograms();
+      let allItems = [];
+      try {
+        allItems = await window.firebaseService.listPlanograms();
+      } catch (fetchError) {
+        if (fetchError.message && fetchError.message.includes('payload is too large')) {
+          console.error('❌ CRITICAL: Firebase has items too large to even LIST!');
+          alert('🚨 CRITICAL ERROR!\n\nFirebase has items SO LARGE that we cannot even list them!\n\nYou need to manually delete data in Firebase Console:\nhttps://console.firebase.google.com/\n\nGo to Realtime Database → planograms → Delete oversized items');
+          setLoadingFirebaseItems(false);
+          return;
+        }
+        throw fetchError;
+      }
       
       // Analyze each item
       const analyzed = allItems.map(item => {
