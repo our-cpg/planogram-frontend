@@ -1065,23 +1065,15 @@ const PlanogramProfitTracker = () => {
 
   // ULTRA-LIGHTWEIGHT SECTION SAVE (IDs only!)
   const saveCurrentSection = async (section, versionName) => {
-    console.log('🔧 saveCurrentSection called');
-    console.log('  section:', section);
-    console.log('  versionName:', versionName);
-    
     if (!window.firebaseService || !window.firebaseService.isAuthenticated()) {
-      console.error('❌ Firebase not ready');
       alert('Firebase not ready');
       return false;
     }
-    console.log('✅ Firebase is ready');
 
     if (!versionName || !versionName.trim()) {
-      console.error('❌ No version name provided');
       alert('Please enter a version name');
       return false;
     }
-    console.log('✅ Version name valid');
 
     try {
       setSavingSectionVersion(true);
@@ -1096,28 +1088,21 @@ const PlanogramProfitTracker = () => {
       }
       totalProducts += (section.products?.length || 0);
 
-      console.log(`📊 Section has ${totalProducts} products`);
-
       // HARD LIMIT: Max 50 products
       if (totalProducts > 50) {
-        console.error(`❌ Too many products: ${totalProducts}`);
         alert(`❌ TOO MANY PRODUCTS!\n\nSection: ${section.name}\nProducts: ${totalProducts}\nLimit: 50\n\nSplit this section to save it.`);
         setSavingSectionVersion(false);
         return false;
       }
-      console.log('✅ Product count within limit');
 
       // Save ONLY product IDs (not full data!)
       const lightweightRows = (section.rows || []).map(row => ({
         id: row.id,
         name: row.name,
-        productIds: (row.products || []).map(p => p.id) // Just IDs!
+        productIds: (row.products || []).map(p => p.id)
       }));
 
       const lightweightProductIds = (section.products || []).map(p => p.id);
-      
-      console.log(`  Lightweight rows:`, lightweightRows);
-      console.log(`  Product IDs:`, lightweightProductIds);
 
       const versionData = {
         sectionName: section.name,
@@ -1129,7 +1114,7 @@ const PlanogramProfitTracker = () => {
         id: section.id,
         fixtureId: section.fixtureId,
         rows: lightweightRows,
-        productIds: lightweightProductIds, // Just IDs!
+        productIds: lightweightProductIds,
         layoutX: section.layoutX,
         layoutY: section.layoutY,
         layoutWidth: section.layoutWidth,
@@ -1142,20 +1127,17 @@ const PlanogramProfitTracker = () => {
       };
 
       const payloadSize = JSON.stringify(versionData).length;
-      console.log(`💾 Payload size: ${Math.round(payloadSize/1000)}KB (${payloadSize} bytes)`);
+      console.log(`💾 Payload: ${totalProducts} products, ${Math.round(payloadSize/1000)}KB`);
       
-      if (payloadSize > 50000) { // 50KB limit for safety
-        console.error(`❌ Payload too large: ${payloadSize} bytes`);
-        alert(`❌ Section still too large: ${Math.round(payloadSize/1000)}KB\n\nTry a smaller section.`);
+      if (payloadSize > 50000) {
+        alert(`❌ Section too large: ${Math.round(payloadSize/1000)}KB\n\nTry a smaller section.`);
         setSavingSectionVersion(false);
         return false;
       }
-      console.log('✅ Payload size OK');
       
-      console.log('  Calling Firebase savePlanogram...');
       const versionId = await window.firebaseService.savePlanogram(versionData);
       
-      console.log(`✅ Section saved with ID: ${versionId}`);
+      console.log(`✅ Section saved: ${versionId}`);
       setFeedback(`✅ Saved: ${section.name} - ${versionName}`);
       setTimeout(() => setFeedback(''), 3000);
 
@@ -1163,7 +1145,6 @@ const PlanogramProfitTracker = () => {
       return true;
     } catch (error) {
       console.error('❌ Save failed:', error);
-      console.error('  Error details:', error.stack);
       alert('❌ Failed to save: ' + error.message);
       setSavingSectionVersion(false);
       return false;
@@ -6716,7 +6697,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               💾 Save Section Version
             </h2>
             <p className="text-sm mb-6" style={{ color: '#86868b' }}>
-              Select a section and save its current state for comparison later.
+              Select a section and save its current state for later comparison.
             </p>
             
             {/* Section Dropdown */}
@@ -6751,7 +6732,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               disabled={!selectedSectionForHistory}
               onKeyPress={(e) => {
                 if (e.key === 'Enter' && layoutNameInput.trim() && selectedSectionForHistory) {
-                  console.log('  Enter key pressed, calling saveCurrentSection');
                   saveCurrentSection(selectedSectionForHistory, layoutNameInput).then(success => {
                     if (success) {
                       setLayoutNameInput('');
@@ -6777,18 +6757,14 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </button>
               <button
                 onClick={async () => {
-                  console.log('💾 Modal Save Section clicked');
                   if (selectedSectionForHistory) {
-                    console.log('  Calling saveCurrentSection with:', selectedSectionForHistory.name, layoutNameInput);
                     const success = await saveCurrentSection(selectedSectionForHistory, layoutNameInput);
-                    console.log('  Result:', success);
                     if (success) {
                       setLayoutNameInput('');
                       setShowSaveLayoutModal(false);
                       setSelectedSectionForHistory(null);
                     }
                   } else {
-                    console.log('  No section selected!');
                     alert('Please select a section first');
                   }
                 }}
@@ -7994,53 +7970,27 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
             {/* 💾 SAVE AND LOAD SECTIONS */}
             <button
-              onClick={async () => {
-                alert('🔍 TEST: Save Section button was clicked!');
-                console.log('💾 Save Section button clicked');
-                console.log('  selectedSection:', selectedSection);
-                
-                if (!selectedSection) {
-                  alert('⚠️ No section selected!\n\nPlease select a section from the sidebar first.');
-                  return;
-                }
-                
-                console.log(`  Section name: ${selectedSection.name}`);
-                console.log(`  Section has ${selectedSection.rows?.length || 0} rows`);
-                
-                const versionName = prompt(`Save section "${selectedSection.name}"\n\nEnter version name:`);
-                console.log(`  Version name entered: "${versionName}"`);
-                
-                if (versionName && versionName.trim()) {
-                  console.log('  Calling saveCurrentSection...');
-                  try {
-                    const success = await saveCurrentSection(selectedSection, versionName);
-                    console.log(`  Save result: ${success ? 'SUCCESS' : 'FAILED'}`);
-                  } catch (err) {
-                    console.error('  Save error:', err);
-                    alert('❌ Save error: ' + err.message);
-                  }
-                } else {
-                  console.log('  Save cancelled (no version name)');
-                }
+              onClick={() => {
+                setShowSaveLayoutModal(true);
               }}
-              className="px-3 py-2 bg-purple-500 text-white rounded flex items-center gap-2 text-sm hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Save current section"
+              className="px-3 py-2 bg-purple-500 text-white rounded flex items-center gap-2 text-sm hover:bg-purple-600"
+              title="Save a section version"
             >
               💾 Save Section
             </button>
 
             <button
               onClick={() => {
-                alert('🔍 TEST: Load Section button was clicked!');
                 if (selectedSection) {
                   setShowLoadModal(true);
                   getSectionVersions(selectedSection.name);
                 } else {
-                  alert('Please select a section first');
+                  alert('Please select a section from the sidebar first');
                 }
               }}
               className="px-3 py-2 bg-blue-500 text-white rounded flex items-center gap-2 text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Load a saved section version"
+              title="Load a saved section version (select section first)"
+              disabled={!selectedSection}
             >
               📂 Load Section
             </button>
