@@ -8332,18 +8332,18 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </select>
             )}
 
+            {/* FULL LAYOUT BUTTONS - Green/Blue */}
             <button
               onClick={saveToCloud}
-              className="px-3 py-2 bg-green-500 text-white rounded flex items-center gap-2 text-sm hover:bg-green-600"
+              className="px-3 py-2 bg-green-600 text-white rounded flex items-center gap-2 text-sm hover:bg-green-700"
+              title="Save entire store layout (all fixtures + all sections)"
             >
               <Icons.Save />
-              Save
+              💾 Save Layout
             </button>
 
-            {/* 📂 LOAD FULL LAYOUT */}
             <button
               onClick={() => {
-                // Check Firebase before opening modal
                 if (!window.firebaseService) {
                   alert('⚠️ Firebase not initialized!\n\nPlease refresh the page and check your Firebase settings.');
                   return;
@@ -8353,19 +8353,18 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   return;
                 }
                 console.log('✅ Firebase ready - fetching saved layouts...');
-                getAllSavedLayouts(); // Manually trigger fetch
+                getAllSavedLayouts();
                 setShowLoadLayoutModal(true);
               }}
               className="px-3 py-2 bg-blue-600 text-white rounded flex items-center gap-2 text-sm hover:bg-blue-700"
-              title="Load a complete saved layout"
+              title="Load complete store layout"
             >
               📂 Load Layout
             </button>
 
-            {/* 💾 SAVE AND LOAD SECTIONS */}
+            {/* SECTION BUTTONS - Purple/Orange */}
             <button
               onClick={() => {
-                // Check Firebase before opening modal
                 if (!window.firebaseService) {
                   alert('⚠️ Firebase not initialized!\n\nPlease refresh the page and check your Firebase settings.');
                   return;
@@ -8377,8 +8376,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 console.log('✅ Firebase ready - opening Save Section modal');
                 setShowSaveLayoutModal(true);
               }}
-              className="px-3 py-2 bg-purple-500 text-white rounded flex items-center gap-2 text-sm hover:bg-purple-600"
-              title="Save a section version"
+              className="px-3 py-2 bg-purple-600 text-white rounded flex items-center gap-2 text-sm hover:bg-purple-700"
+              title="Save one section version (for comparison)"
             >
               💾 Save Section
             </button>
@@ -8389,8 +8388,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 setShowLoadModal(true);
                 getAllSectionVersions();
               }}
-              className="px-3 py-2 bg-blue-500 text-white rounded flex items-center gap-2 text-sm hover:bg-blue-600"
-              title="Load a saved section version"
+              className="px-3 py-2 bg-orange-600 text-white rounded flex items-center gap-2 text-sm hover:bg-orange-700"
+              title="Load one section version"
             >
               📂 Load Section
             </button>
