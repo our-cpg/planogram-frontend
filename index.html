@@ -1066,7 +1066,27 @@ const PlanogramProfitTracker = () => {
       setSavingSectionVersion(true);
       console.log(`💾 Saving section version: ${section.name} - ${versionName}`);
 
-      // Count products in this section
+      // STRIP HEAVY DATA - only save essentials!
+      const stripProduct = (product) => ({
+        id: product.id,
+        title: product.title,
+        sku: product.sku,
+        price: product.price,
+        inventory: product.inventory,
+        upc: product.upc,
+        cost: product.cost
+        // NO: images, description, vendor, etc.
+      });
+
+      const lightweightRows = (section.rows || []).map(row => ({
+        id: row.id,
+        name: row.name,
+        products: (row.products || []).map(stripProduct)
+      }));
+
+      const lightweightProducts = (section.products || []).map(stripProduct);
+
+      // Count products
       let productCount = 0;
       if (section.rows) {
         section.rows.forEach(row => {
@@ -1079,13 +1099,13 @@ const PlanogramProfitTracker = () => {
         sectionName: section.name,
         versionName: versionName.trim(),
         timestamp: new Date().toISOString(),
-        isSectionVersion: true, // Flag for filtering
+        isSectionVersion: true,
         
-        // Section data
+        // Section structure (lightweight!)
         id: section.id,
         fixtureId: section.fixtureId,
-        rows: section.rows || [],
-        products: section.products || [],
+        rows: lightweightRows,
+        products: lightweightProducts,
         layoutX: section.layoutX,
         layoutY: section.layoutY,
         layoutWidth: section.layoutWidth,
@@ -1099,7 +1119,18 @@ const PlanogramProfitTracker = () => {
         }
       };
 
-      console.log('💾 Saving version data:', versionData);
+      console.log(`💾 Payload size: ${JSON.stringify(versionData).length} characters`);
+      
+      // Check if payload is too large (Firebase limit is ~256KB)
+      const payloadSize = JSON.stringify(versionData).length;
+      if (payloadSize > 200000) {
+        alert(`⚠️ Section too large! (${Math.round(payloadSize/1000)}KB)\n\nThis section has too many products. Try:\n- Splitting into multiple sections\n- Removing some products first`);
+        setSavingSectionVersion(false);
+        return false;
+      }
+      
+      console.log('💾 Saving version data (lightweight)');
+      
       const versionId = await window.firebaseService.savePlanogram(versionData);
       
       console.log(`✅ Section version saved with ID: ${versionId}`);
@@ -1174,6 +1205,12 @@ const PlanogramProfitTracker = () => {
         return false;
       }
 
+      console.log('📂 Loaded lightweight version data');
+      
+      // NOTE: Loaded products only have basic fields (title, sku, price, inventory, upc, cost)
+      // Images and other heavy data were stripped during save to reduce payload size
+      // The products will work fine for display and calculations, but won't have images
+      
       // Find the current section with this name and replace it
       const updatedSections = sections.map(s => {
         if (s.name === sectionName) {
@@ -1194,6 +1231,7 @@ const PlanogramProfitTracker = () => {
       setFeedback(`✅ Loaded: ${versionData.versionName}`);
       setTimeout(() => setFeedback(''), 3000);
       console.log(`✅ Loaded section version: ${versionData.versionName}`);
+      console.log('ℹ️ Note: Products have basic data only (images/descriptions were stripped to save space)');
       return true;
     } catch (error) {
       console.error('Load section version failed:', error);
@@ -6377,31 +6415,54 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
         </div>
       </div>
 
-      {/* 🆕 SAVE LAYOUT MODAL */}
+      {/* 🆕 SAVE SECTION VERSION MODAL */}
       {showSaveLayoutModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
             <h2 className="text-2xl font-bold mb-4" style={{ color: '#1d1d1f', letterSpacing: '-0.02em' }}>
-              💾 Save Layout As...
+              💾 Save Section Version
             </h2>
             <p className="text-sm mb-6" style={{ color: '#86868b' }}>
-              Save your current store layout with a custom name for easy access later.
+              Select a section and save its current state for comparison later.
             </p>
             
+            {/* Section Dropdown */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Select Section</label>
+              <select
+                value={selectedSectionForHistory?.id || ''}
+                onChange={(e) => {
+                  const section = sections.find(s => s.id === e.target.value);
+                  setSelectedSectionForHistory(section || null);
+                }}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-base"
+                style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif' }}
+              >
+                <option value="">-- Choose a section --</option>
+                {sections.map(section => (
+                  <option key={section.id} value={section.id}>
+                    {section.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Version Name Input */}
             <input
               type="text"
               value={layoutNameInput}
               onChange={(e) => setLayoutNameInput(e.target.value)}
-              placeholder="Enter layout name (e.g., Summer 2024)"
+              placeholder="Version name (e.g., Summer 2024, After Remodel)"
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 mb-6 text-base"
               style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif' }}
-              autoFocus
+              disabled={!selectedSectionForHistory}
               onKeyPress={(e) => {
-                if (e.key === 'Enter' && layoutNameInput.trim()) {
-                  saveLayoutAs(layoutNameInput).then(success => {
+                if (e.key === 'Enter' && layoutNameInput.trim() && selectedSectionForHistory) {
+                  saveSectionVersion(selectedSectionForHistory, layoutNameInput).then(success => {
                     if (success) {
                       setLayoutNameInput('');
                       setShowSaveLayoutModal(false);
+                      setSelectedSectionForHistory(null);
                     }
                   });
                 }
@@ -6413,24 +6474,28 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 onClick={() => {
                   setShowSaveLayoutModal(false);
                   setLayoutNameInput('');
+                  setSelectedSectionForHistory(null);
                 }}
                 className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
-                disabled={savingLayout}
+                disabled={savingSectionVersion}
               >
                 Cancel
               </button>
               <button
                 onClick={async () => {
-                  const success = await saveLayoutAs(layoutNameInput);
-                  if (success) {
-                    setLayoutNameInput('');
-                    setShowSaveLayoutModal(false);
+                  if (selectedSectionForHistory) {
+                    const success = await saveSectionVersion(selectedSectionForHistory, layoutNameInput);
+                    if (success) {
+                      setLayoutNameInput('');
+                      setShowSaveLayoutModal(false);
+                      setSelectedSectionForHistory(null);
+                    }
                   }
                 }}
-                disabled={!layoutNameInput.trim() || savingLayout}
+                disabled={!layoutNameInput.trim() || !selectedSectionForHistory || savingSectionVersion}
                 className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {savingLayout ? 'Saving...' : '💾 Save Layout'}
+                {savingSectionVersion ? '💾 Saving...' : '💾 Save Section'}
               </button>
             </div>
           </div>
@@ -7398,30 +7463,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               Save
             </button>
 
-            {/* 🆕 SAVED LAYOUTS BUTTONS */}
+            {/* 🆕 SECTION VERSION CONTROL */}
             <button
               onClick={() => setShowSaveLayoutModal(true)}
               className="px-3 py-2 bg-purple-500 text-white rounded flex items-center gap-2 text-sm hover:bg-purple-600"
-              title="Save current layout with a custom name"
+              title="Save a section version for comparison"
             >
-              💾 Save Layout As...
-            </button>
-
-            <button
-              onClick={() => {
-                setShowLoadLayoutModal(true);
-                // Only fetch if we don't have any layouts yet
-                if (savedLayouts.length === 0) {
-                  console.log('📂 No layouts in state, fetching from Firebase...');
-                  getAllSavedLayouts();
-                } else {
-                  console.log(`📂 Using ${savedLayouts.length} layouts from state`);
-                }
-              }}
-              className="px-3 py-2 bg-indigo-500 text-white rounded flex items-center gap-2 text-sm hover:bg-indigo-600"
-              title="Load a previously saved layout"
-            >
-              📂 Load Layout
+              💾 Save Section
             </button>
 
             {syncStatus && (
@@ -7979,33 +8027,20 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                         </h3>
                       )}
                       
-                      {/* Section Version Control Buttons */}
+                      {/* Section Version Control */}
                       {selectedSection === section.id && (
-                        <div className="flex gap-1 ml-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedSectionForHistory(section);
-                              setShowSaveSectionModal(true);
-                            }}
-                            className="px-2 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 text-xs font-medium"
-                            title="Save this section as a version"
-                          >
-                            💾 Save Version
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedSectionForHistory(section);
-                              setShowSectionHistoryPanel(true);
-                              getSectionVersions(section.name);
-                            }}
-                            className="px-2 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600 text-xs font-medium"
-                            title="View version history for this section"
-                          >
-                            📚 History
-                          </button>
-                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedSectionForHistory(section);
+                            setShowSectionHistoryPanel(true);
+                            getSectionVersions(section.name);
+                          }}
+                          className="px-2 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600 text-xs font-medium ml-2"
+                          title="View version history for this section"
+                        >
+                          📚 History
+                        </button>
                       )}
                       
                       {/* Reorder buttons - on the right side */}
