@@ -6196,34 +6196,47 @@ const PlanogramProfitTracker = () => {
         {/* Only show label if section is big enough */}
         {width > 30 && height > 20 && (
           <div 
-            className="text-center pointer-events-none px-1" 
+            className="pointer-events-none" 
             style={{ 
               maxWidth: '95%', 
-              overflow: 'hidden',
-              fontSize: width < 50 ? '8px' : (width < 80 ? '10px' : '11px'),
-              lineHeight: width < 50 ? '10px' : '1.2',
+              overflow: 'visible',
               transform: height > width * 1.5 ? 'rotate(-90deg)' : 'none',
               transformOrigin: 'center center',
-              whiteSpace: 'nowrap'
             }}
           >
-            <div style={{ 
-              overflow: 'hidden', 
-              textOverflow: 'ellipsis', 
-              whiteSpace: 'nowrap' 
+            {/* Soft rounded background for text */}
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.6)',
+              backdropFilter: 'blur(4px)',
+              borderRadius: '6px',
+              padding: '4px 8px',
+              display: 'inline-block',
+              maxWidth: '100%'
             }}>
-              {section.name}
-            </div>
-            {heatMapMode && width > 60 && height > 35 && (
               <div style={{ 
-                fontSize: width < 80 ? '8px' : '9px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis', 
+                whiteSpace: 'nowrap',
+                color: 'white',
+                fontWeight: 'bold',
+                fontSize: width < 50 ? '8px' : (width < 80 ? '10px' : '11px'),
+                lineHeight: width < 50 ? '10px' : '1.2',
               }}>
-                ${metrics.profitPerSqFt.toFixed(0)}/sqft
+                {section.name}
               </div>
-            )}
+              {heatMapMode && width > 60 && height > 35 && (
+                <div style={{ 
+                  fontSize: width < 80 ? '8px' : '9px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  marginTop: '2px'
+                }}>
+                  ${metrics.profitPerSqFt.toFixed(0)}/sqft
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -9457,81 +9470,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 Reset
               </button>
             </div>
-            
-            {/* Color Palette Control - Only shown when heatmap is on */}
-            {heatMapMode && (
-              <div className="bg-white rounded-lg shadow-lg p-2">
-                <div className="text-center text-xs font-semibold mb-2 text-gray-700">Colors</div>
-                <div className="flex flex-col gap-1">
-                  <button
-                    onClick={() => setColorScheme('ocean')}
-                    className={`w-full px-2 py-2 rounded text-xs font-medium transition-all ${
-                      colorScheme === 'ocean' 
-                        ? 'bg-blue-500 text-white ring-2 ring-blue-300' 
-                        : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
-                    }`}
-                    title="Ocean Blues - Professional"
-                  >
-                    🌊 Ocean
-                  </button>
-                  <button
-                    onClick={() => setColorScheme('forest')}
-                    className={`w-full px-2 py-2 rounded text-xs font-medium transition-all ${
-                      colorScheme === 'forest' 
-                        ? 'bg-green-500 text-white ring-2 ring-green-300' 
-                        : 'bg-green-100 text-green-900 hover:bg-green-200'
-                    }`}
-                    title="Forest Greens"
-                  >
-                    🌲 Forest
-                  </button>
-                  <button
-                    onClick={() => setColorScheme('sunset')}
-                    className={`w-full px-2 py-2 rounded text-xs font-medium transition-all ${
-                      colorScheme === 'sunset' 
-                        ? 'bg-orange-500 text-white ring-2 ring-orange-300' 
-                        : 'bg-orange-100 text-orange-900 hover:bg-orange-200'
-                    }`}
-                    title="Sunset Warm"
-                  >
-                    🌅 Sunset
-                  </button>
-                  <button
-                    onClick={() => setColorScheme('purple')}
-                    className={`w-full px-2 py-2 rounded text-xs font-medium transition-all ${
-                      colorScheme === 'purple' 
-                        ? 'bg-purple-500 text-white ring-2 ring-purple-300' 
-                        : 'bg-purple-100 text-purple-900 hover:bg-purple-200'
-                    }`}
-                    title="Purple Elegance"
-                  >
-                    💜 Purple
-                  </button>
-                  <button
-                    onClick={() => setColorScheme('mint')}
-                    className={`w-full px-2 py-2 rounded text-xs font-medium transition-all ${
-                      colorScheme === 'mint' 
-                        ? 'bg-teal-500 text-white ring-2 ring-teal-300' 
-                        : 'bg-teal-100 text-teal-900 hover:bg-teal-200'
-                    }`}
-                    title="Mint Fresh"
-                  >
-                    🍃 Mint
-                  </button>
-                  <button
-                    onClick={() => setColorScheme('monochrome')}
-                    className={`w-full px-2 py-2 rounded text-xs font-medium transition-all ${
-                      colorScheme === 'monochrome' 
-                        ? 'bg-gray-600 text-white ring-2 ring-gray-400' 
-                        : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
-                    }`}
-                    title="Monochrome"
-                  >
-                    ⚫ Mono
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -14561,6 +14499,155 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   </div>
                 </div>
               )}
+            </div>
+            
+            {/* Heat Map Color Scheme */}
+            <div className="apple-card rounded-2xl p-6">
+              <h2 className="text-2xl font-semibold mb-2" style={{ 
+                color: '#1d1d1f',
+                letterSpacing: '-0.02em'
+              }}>🎨 Heat Map Color Scheme</h2>
+              <p className="text-sm mb-6" style={{ color: '#86868b', letterSpacing: '-0.01em' }}>
+                Choose your preferred color scheme for heat map visualization
+              </p>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <button
+                  onClick={() => setColorScheme('ocean')}
+                  className={`relative p-6 rounded-xl transition-all border-2 ${
+                    colorScheme === 'ocean' 
+                      ? 'border-blue-500 bg-blue-50 shadow-lg ring-2 ring-blue-200' 
+                      : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="text-4xl">🌊</div>
+                    <div className="font-semibold" style={{ color: '#1d1d1f' }}>Ocean Blues</div>
+                    <div className="flex gap-1 w-full">
+                      <div className="h-3 flex-1 rounded" style={{ background: '#bfdbfe' }}></div>
+                      <div className="h-3 flex-1 rounded" style={{ background: '#3b82f6' }}></div>
+                      <div className="h-3 flex-1 rounded" style={{ background: '#1d4ed8' }}></div>
+                    </div>
+                    {colorScheme === 'ocean' && (
+                      <div className="absolute top-2 right-2 text-blue-500 text-2xl">✓</div>
+                    )}
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setColorScheme('forest')}
+                  className={`relative p-6 rounded-xl transition-all border-2 ${
+                    colorScheme === 'forest' 
+                      ? 'border-green-500 bg-green-50 shadow-lg ring-2 ring-green-200' 
+                      : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="text-4xl">🌲</div>
+                    <div className="font-semibold" style={{ color: '#1d1d1f' }}>Forest Greens</div>
+                    <div className="flex gap-1 w-full">
+                      <div className="h-3 flex-1 rounded" style={{ background: '#a7f3d0' }}></div>
+                      <div className="h-3 flex-1 rounded" style={{ background: '#22c55e' }}></div>
+                      <div className="h-3 flex-1 rounded" style={{ background: '#16a34a' }}></div>
+                    </div>
+                    {colorScheme === 'forest' && (
+                      <div className="absolute top-2 right-2 text-green-500 text-2xl">✓</div>
+                    )}
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setColorScheme('sunset')}
+                  className={`relative p-6 rounded-xl transition-all border-2 ${
+                    colorScheme === 'sunset' 
+                      ? 'border-orange-500 bg-orange-50 shadow-lg ring-2 ring-orange-200' 
+                      : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="text-4xl">🌅</div>
+                    <div className="font-semibold" style={{ color: '#1d1d1f' }}>Sunset Warm</div>
+                    <div className="flex gap-1 w-full">
+                      <div className="h-3 flex-1 rounded" style={{ background: '#fed7aa' }}></div>
+                      <div className="h-3 flex-1 rounded" style={{ background: '#fb923c' }}></div>
+                      <div className="h-3 flex-1 rounded" style={{ background: '#c2410c' }}></div>
+                    </div>
+                    {colorScheme === 'sunset' && (
+                      <div className="absolute top-2 right-2 text-orange-500 text-2xl">✓</div>
+                    )}
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setColorScheme('purple')}
+                  className={`relative p-6 rounded-xl transition-all border-2 ${
+                    colorScheme === 'purple' 
+                      ? 'border-purple-500 bg-purple-50 shadow-lg ring-2 ring-purple-200' 
+                      : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="text-4xl">💜</div>
+                    <div className="font-semibold" style={{ color: '#1d1d1f' }}>Purple Elegance</div>
+                    <div className="flex gap-1 w-full">
+                      <div className="h-3 flex-1 rounded" style={{ background: '#e9d5ff' }}></div>
+                      <div className="h-3 flex-1 rounded" style={{ background: '#9333ea' }}></div>
+                      <div className="h-3 flex-1 rounded" style={{ background: '#6b21a8' }}></div>
+                    </div>
+                    {colorScheme === 'purple' && (
+                      <div className="absolute top-2 right-2 text-purple-500 text-2xl">✓</div>
+                    )}
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setColorScheme('mint')}
+                  className={`relative p-6 rounded-xl transition-all border-2 ${
+                    colorScheme === 'mint' 
+                      ? 'border-teal-500 bg-teal-50 shadow-lg ring-2 ring-teal-200' 
+                      : 'border-gray-200 hover:border-teal-300 hover:bg-teal-50'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="text-4xl">🍃</div>
+                    <div className="font-semibold" style={{ color: '#1d1d1f' }}>Mint Fresh</div>
+                    <div className="flex gap-1 w-full">
+                      <div className="h-3 flex-1 rounded" style={{ background: '#ccfbf1' }}></div>
+                      <div className="h-3 flex-1 rounded" style={{ background: '#14b8a6' }}></div>
+                      <div className="h-3 flex-1 rounded" style={{ background: '#0d9488' }}></div>
+                    </div>
+                    {colorScheme === 'mint' && (
+                      <div className="absolute top-2 right-2 text-teal-500 text-2xl">✓</div>
+                    )}
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setColorScheme('monochrome')}
+                  className={`relative p-6 rounded-xl transition-all border-2 ${
+                    colorScheme === 'monochrome' 
+                      ? 'border-gray-600 bg-gray-100 shadow-lg ring-2 ring-gray-400' 
+                      : 'border-gray-200 hover:border-gray-400 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="text-4xl">⚫</div>
+                    <div className="font-semibold" style={{ color: '#1d1d1f' }}>Monochrome</div>
+                    <div className="flex gap-1 w-full">
+                      <div className="h-3 flex-1 rounded" style={{ background: '#e5e7eb' }}></div>
+                      <div className="h-3 flex-1 rounded" style={{ background: '#6b7280' }}></div>
+                      <div className="h-3 flex-1 rounded" style={{ background: '#1f2937' }}></div>
+                    </div>
+                    {colorScheme === 'monochrome' && (
+                      <div className="absolute top-2 right-2 text-gray-600 text-2xl">✓</div>
+                    )}
+                  </div>
+                </button>
+              </div>
+
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg text-sm" style={{ color: '#86868b' }}>
+                💡 <strong>Tip:</strong> Color schemes apply when Heat Map mode is enabled in the planner. Higher contrast makes it easier to spot high-performing sections.
+              </div>
             </div>
             
             {/* Shopify Connection */}
