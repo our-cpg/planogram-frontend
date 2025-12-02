@@ -2345,6 +2345,7 @@ const PlanogramProfitTracker = () => {
   const [collapsedSections, setCollapsedSections] = useState(new Set()); // Track which sections are collapsed
   const sectionRefs = useRef({}); // Refs for scrolling to sections
   const [heatMapType, setHeatMapType] = useState('profit'); // profit, velocity, deadStock, margin, stockHealth
+  const [colorScheme, setColorScheme] = useState('ocean'); // ocean, forest, sunset, monochrome, purple, mint
   const [showHeatMapGuide, setShowHeatMapGuide] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(500); // Default 500px - balanced width
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
@@ -5722,41 +5723,96 @@ const PlanogramProfitTracker = () => {
   };
 
   const getHeatMapColor = (metrics) => {
-    // Smooth gradient helper - creates continuous color transitions
+    // Beautiful color schemes for heatmap
     const getGradientColor = (intensity) => {
       // Clamp intensity between 0 and 1
       intensity = Math.max(0, Math.min(1, intensity));
       
-      // Create smooth gradient from red (0) -> orange -> yellow -> green (1)
-      if (intensity < 0.25) {
-        // Red to Orange (0-25%)
-        const t = intensity / 0.25;
-        const r = 239;
-        const g = Math.floor(68 + (115 - 68) * t);
-        const b = 68;
-        return `rgba(${r}, ${g}, ${b}, 0.75)`;
-      } else if (intensity < 0.5) {
-        // Orange to Yellow (25-50%)
-        const t = (intensity - 0.25) / 0.25;
-        const r = Math.floor(249 - (249 - 234) * t);
-        const g = Math.floor(115 + (179 - 115) * t);
-        const b = Math.floor(22 - 14 * t);
-        return `rgba(${r}, ${g}, ${b}, 0.75)`;
-      } else if (intensity < 0.75) {
-        // Yellow to Light Green (50-75%)
-        const t = (intensity - 0.5) / 0.25;
-        const r = Math.floor(234 - (234 - 134) * t);
-        const g = Math.floor(179 + (197 - 179) * t);
-        const b = Math.floor(8 + (86 * t));
-        return `rgba(${r}, ${g}, ${b}, 0.75)`;
-      } else {
-        // Light Green to Dark Green (75-100%)
-        const t = (intensity - 0.75) / 0.25;
-        const r = Math.floor(134 - (134 - 34) * t);
-        const g = 197;
-        const b = Math.floor(94 - (94 - 94) * t);
-        return `rgba(${r}, ${g}, ${b}, 0.75)`;
-      }
+      // Color scheme definitions
+      const colorSchemes = {
+        ocean: {
+          // Light blue -> Deep blue (professional, easy on eyes)
+          colors: [
+            { r: 191, g: 219, b: 254 }, // Light blue (low)
+            { r: 147, g: 197, b: 253 }, // Sky blue
+            { r: 96, g: 165, b: 250 },  // Medium blue
+            { r: 59, g: 130, b: 246 },  // Blue
+            { r: 37, g: 99, b: 235 }    // Deep blue (high)
+          ]
+        },
+        forest: {
+          // Light green -> Dark green (nature-inspired)
+          colors: [
+            { r: 209, g: 250, b: 229 }, // Mint (low)
+            { r: 167, g: 243, b: 208 }, // Light green
+            { r: 110, g: 231, b: 183 }, // Green
+            { r: 52, g: 211, b: 153 },  // Emerald
+            { r: 16, g: 185, b: 129 }   // Forest (high)
+          ]
+        },
+        sunset: {
+          // Warm gradient (purple -> orange -> gold)
+          colors: [
+            { r: 254, g: 202, b: 202 }, // Light pink (low)
+            { r: 252, g: 165, b: 165 }, // Pink
+            { r: 251, g: 146, b: 60 },  // Orange
+            { r: 245, g: 158, b: 11 },  // Gold
+            { r: 217, g: 119, b: 6 }    // Amber (high)
+          ]
+        },
+        monochrome: {
+          // Gray scale (professional, minimal)
+          colors: [
+            { r: 243, g: 244, b: 246 }, // Light gray (low)
+            { r: 209, g: 213, b: 219 }, // Gray
+            { r: 156, g: 163, b: 175 }, // Medium gray
+            { r: 107, g: 114, b: 128 }, // Dark gray
+            { r: 55, g: 65, b: 81 }     // Charcoal (high)
+          ]
+        },
+        purple: {
+          // Purple gradient (elegant, modern)
+          colors: [
+            { r: 243, g: 232, b: 255 }, // Lavender (low)
+            { r: 221, g: 214, b: 254 }, // Light purple
+            { r: 196, g: 181, b: 253 }, // Purple
+            { r: 167, g: 139, b: 250 }, // Deep purple
+            { r: 124, g: 58, b: 237 }   // Royal purple (high)
+          ]
+        },
+        mint: {
+          // Mint/teal gradient (fresh, modern)
+          colors: [
+            { r: 204, g: 251, b: 241 }, // Light mint (low)
+            { r: 153, g: 246, b: 228 }, // Mint
+            { r: 94, g: 234, b: 212 },  // Teal
+            { r: 45, g: 212, b: 191 },  // Turquoise
+            { r: 20, g: 184, b: 166 }   // Deep teal (high)
+          ]
+        }
+      };
+      
+      const scheme = colorSchemes[colorScheme] || colorSchemes.ocean;
+      const colors = scheme.colors;
+      
+      // Calculate which color segment we're in
+      const segmentCount = colors.length - 1;
+      const segment = Math.floor(intensity * segmentCount);
+      const nextSegment = Math.min(segment + 1, segmentCount);
+      
+      // Calculate interpolation within segment
+      const segmentIntensity = (intensity * segmentCount) - segment;
+      
+      // Get colors for interpolation
+      const color1 = colors[segment];
+      const color2 = colors[nextSegment];
+      
+      // Interpolate between colors
+      const r = Math.floor(color1.r + (color2.r - color1.r) * segmentIntensity);
+      const g = Math.floor(color1.g + (color2.g - color1.g) * segmentIntensity);
+      const b = Math.floor(color1.b + (color2.b - color1.b) * segmentIntensity);
+      
+      return `rgba(${r}, ${g}, ${b}, 0.85)`;
     };
     
     // Calculate different metrics for different heat map types
@@ -9075,6 +9131,23 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 <option value="aov">🔥 High AOV Products</option>
                 <option value="returningCustomers">🔄 Returning Customer Favorites</option>
                 <option value="shoppingPath">🛒 Shopping Path</option>
+              </select>
+            )}
+
+            {/* Color Scheme Selector */}
+            {heatMapMode && (
+              <select
+                value={colorScheme}
+                onChange={(e) => setColorScheme(e.target.value)}
+                className="px-3 py-2 bg-blue-100 text-blue-900 border-2 border-blue-300 rounded hover:bg-blue-200 text-sm font-medium focus:outline-none focus:border-blue-500 cursor-pointer appearance-none"
+                style={{ minWidth: '160px' }}
+              >
+                <option value="ocean">🌊 Ocean Blues</option>
+                <option value="forest">🌲 Forest Greens</option>
+                <option value="sunset">🌅 Sunset Warm</option>
+                <option value="purple">💜 Purple Elegance</option>
+                <option value="mint">🍃 Mint Fresh</option>
+                <option value="monochrome">⚫ Monochrome</option>
               </select>
             )}
 
