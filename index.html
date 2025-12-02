@@ -467,7 +467,8 @@ const PlanogramProfitTracker = () => {
             try {
               console.log('🔧 Using FIXED listPlanograms...');
               const db = window.firebaseService.db;
-              const snapshot = await db.ref('planograms').once('value');
+              const userId = window.firebaseService.currentUser.uid;
+              const snapshot = await db.ref(`${userId}/planograms`).once('value');
               
               if (!snapshot.exists()) {
                 console.log('📂 No planograms found in Firebase');
@@ -508,7 +509,8 @@ const PlanogramProfitTracker = () => {
                 console.log('🔧 Using DIRECT Firebase query for auto-load...');
                 
                 let planograms = [];
-                const planogramsRef = window.firebaseService.db.ref('planograms');
+                const userId = window.firebaseService.currentUser.uid;
+                const planogramsRef = window.firebaseService.db.ref(`${userId}/planograms`);
                 const snapshot = await planogramsRef.once('value');
                 
                 if (snapshot.exists()) {
@@ -898,7 +900,8 @@ const PlanogramProfitTracker = () => {
         // Use direct Firebase query instead
         console.log('🔧 Using DIRECT Firebase query (bypassing listPlanograms)...');
         
-        const planogramsRef = window.firebaseService.db.ref('planograms');
+        const userId = window.firebaseService.currentUser.uid;
+        const planogramsRef = window.firebaseService.db.ref(`${userId}/planograms`);
         const snapshot = await planogramsRef.once('value');
         
         if (snapshot.exists()) {
@@ -1620,7 +1623,8 @@ const PlanogramProfitTracker = () => {
         // Use direct Firebase query instead
         console.log('🔧 Using DIRECT Firebase query (bypassing listPlanograms)...');
         
-        const planogramsRef = window.firebaseService.db.ref('planograms');
+        const userId = window.firebaseService.currentUser.uid;
+        const planogramsRef = window.firebaseService.db.ref(`${userId}/planograms`);
         const snapshot = await planogramsRef.once('value');
         
         if (snapshot.exists()) {
