@@ -5723,71 +5723,59 @@ const PlanogramProfitTracker = () => {
   };
 
   const getHeatMapColor = (metrics) => {
-    // Beautiful color schemes for heatmap
+    // HIGH CONTRAST color schemes for maximum visibility (like the inspiration!)
     const getGradientColor = (intensity) => {
       // Clamp intensity between 0 and 1
       intensity = Math.max(0, Math.min(1, intensity));
       
-      // Color scheme definitions
+      // HIGH CONTRAST Color scheme definitions - BOLD differences!
       const colorSchemes = {
         ocean: {
-          // Light blue -> Deep blue (professional, easy on eyes)
+          // HIGH CONTRAST Blues - Light → Medium → BOLD Dark
           colors: [
-            { r: 191, g: 219, b: 254 }, // Light blue (low)
-            { r: 147, g: 197, b: 253 }, // Sky blue
-            { r: 96, g: 165, b: 250 },  // Medium blue
-            { r: 59, g: 130, b: 246 },  // Blue
-            { r: 37, g: 99, b: 235 }    // Deep blue (high)
+            { r: 191, g: 219, b: 254 }, // Light blue (low) - very light
+            { r: 59, g: 130, b: 246 },  // Bright blue (medium) - JUMP
+            { r: 29, g: 78, b: 216 }    // Deep blue (high) - BOLD
           ]
         },
         forest: {
-          // Light green -> Dark green (nature-inspired)
+          // HIGH CONTRAST Greens
           colors: [
-            { r: 209, g: 250, b: 229 }, // Mint (low)
-            { r: 167, g: 243, b: 208 }, // Light green
-            { r: 110, g: 231, b: 183 }, // Green
-            { r: 52, g: 211, b: 153 },  // Emerald
-            { r: 16, g: 185, b: 129 }   // Forest (high)
+            { r: 167, g: 243, b: 208 }, // Light mint (low)
+            { r: 34, g: 197, b: 94 },   // Bright green (medium) - BIG JUMP
+            { r: 22, g: 163, b: 74 }    // Forest (high) - BOLD
           ]
         },
         sunset: {
-          // Warm gradient (purple -> orange -> gold)
+          // HIGH CONTRAST Warm - dramatic differences
           colors: [
-            { r: 254, g: 202, b: 202 }, // Light pink (low)
-            { r: 252, g: 165, b: 165 }, // Pink
-            { r: 251, g: 146, b: 60 },  // Orange
-            { r: 245, g: 158, b: 11 },  // Gold
-            { r: 217, g: 119, b: 6 }    // Amber (high)
+            { r: 254, g: 215, b: 170 }, // Peach (low) - light
+            { r: 251, g: 146, b: 60 },  // Bright orange (medium) - POP
+            { r: 194, g: 65, b: 12 }    // Deep orange (high) - BOLD
           ]
         },
         monochrome: {
-          // Gray scale (professional, minimal)
+          // HIGH CONTRAST Grayscale - black and white basically
           colors: [
-            { r: 243, g: 244, b: 246 }, // Light gray (low)
-            { r: 209, g: 213, b: 219 }, // Gray
-            { r: 156, g: 163, b: 175 }, // Medium gray
-            { r: 107, g: 114, b: 128 }, // Dark gray
-            { r: 55, g: 65, b: 81 }     // Charcoal (high)
+            { r: 229, g: 231, b: 235 }, // Light gray (low)
+            { r: 107, g: 114, b: 128 }, // Medium gray (medium) - BIG DROP
+            { r: 31, g: 41, b: 55 }     // Almost black (high) - DRAMATIC
           ]
         },
         purple: {
-          // Purple gradient (elegant, modern)
+          // HIGH CONTRAST Purple - royal vibes
           colors: [
-            { r: 243, g: 232, b: 255 }, // Lavender (low)
-            { r: 221, g: 214, b: 254 }, // Light purple
-            { r: 196, g: 181, b: 253 }, // Purple
-            { r: 167, g: 139, b: 250 }, // Deep purple
-            { r: 124, g: 58, b: 237 }   // Royal purple (high)
+            { r: 233, g: 213, b: 255 }, // Lavender (low)
+            { r: 147, g: 51, b: 234 },  // Bright purple (medium) - VIVID
+            { r: 107, g: 33, b: 168 }   // Royal purple (high) - DEEP
           ]
         },
         mint: {
-          // Mint/teal gradient (fresh, modern)
+          // HIGH CONTRAST Teal
           colors: [
-            { r: 204, g: 251, b: 241 }, // Light mint (low)
-            { r: 153, g: 246, b: 228 }, // Mint
-            { r: 94, g: 234, b: 212 },  // Teal
-            { r: 45, g: 212, b: 191 },  // Turquoise
-            { r: 20, g: 184, b: 166 }   // Deep teal (high)
+            { r: 204, g: 251, b: 241 }, // Pale mint (low)
+            { r: 20, g: 184, b: 166 },  // Bright teal (medium) - SATURATED
+            { r: 13, g: 148, b: 136 }   // Deep teal (high) - BOLD
           ]
         }
       };
@@ -5795,7 +5783,7 @@ const PlanogramProfitTracker = () => {
       const scheme = colorSchemes[colorScheme] || colorSchemes.ocean;
       const colors = scheme.colors;
       
-      // Calculate which color segment we're in
+      // Use 3-stop gradient for MAXIMUM contrast (not 5!)
       const segmentCount = colors.length - 1;
       const segment = Math.floor(intensity * segmentCount);
       const nextSegment = Math.min(segment + 1, segmentCount);
@@ -5812,7 +5800,7 @@ const PlanogramProfitTracker = () => {
       const g = Math.floor(color1.g + (color2.g - color1.g) * segmentIntensity);
       const b = Math.floor(color1.b + (color2.b - color1.b) * segmentIntensity);
       
-      return `rgba(${r}, ${g}, ${b}, 0.85)`;
+      return `rgba(${r}, ${g}, ${b}, 0.95)`; // Higher opacity for more boldness!
     };
     
     // Calculate different metrics for different heat map types
@@ -9134,23 +9122,6 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </select>
             )}
 
-            {/* Color Scheme Selector */}
-            {heatMapMode && (
-              <select
-                value={colorScheme}
-                onChange={(e) => setColorScheme(e.target.value)}
-                className="px-3 py-2 bg-blue-100 text-blue-900 border-2 border-blue-300 rounded hover:bg-blue-200 text-sm font-medium focus:outline-none focus:border-blue-500 cursor-pointer appearance-none"
-                style={{ minWidth: '160px' }}
-              >
-                <option value="ocean">🌊 Ocean Blues</option>
-                <option value="forest">🌲 Forest Greens</option>
-                <option value="sunset">🌅 Sunset Warm</option>
-                <option value="purple">💜 Purple Elegance</option>
-                <option value="mint">🍃 Mint Fresh</option>
-                <option value="monochrome">⚫ Monochrome</option>
-              </select>
-            )}
-
             {/* FULL LAYOUT BUTTONS - Green/Blue */}
             <button
               onClick={saveToCloud}
@@ -9486,6 +9457,81 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 Reset
               </button>
             </div>
+            
+            {/* Color Palette Control - Only shown when heatmap is on */}
+            {heatMapMode && (
+              <div className="bg-white rounded-lg shadow-lg p-2">
+                <div className="text-center text-xs font-semibold mb-2 text-gray-700">Colors</div>
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={() => setColorScheme('ocean')}
+                    className={`w-full px-2 py-2 rounded text-xs font-medium transition-all ${
+                      colorScheme === 'ocean' 
+                        ? 'bg-blue-500 text-white ring-2 ring-blue-300' 
+                        : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
+                    }`}
+                    title="Ocean Blues - Professional"
+                  >
+                    🌊 Ocean
+                  </button>
+                  <button
+                    onClick={() => setColorScheme('forest')}
+                    className={`w-full px-2 py-2 rounded text-xs font-medium transition-all ${
+                      colorScheme === 'forest' 
+                        ? 'bg-green-500 text-white ring-2 ring-green-300' 
+                        : 'bg-green-100 text-green-900 hover:bg-green-200'
+                    }`}
+                    title="Forest Greens"
+                  >
+                    🌲 Forest
+                  </button>
+                  <button
+                    onClick={() => setColorScheme('sunset')}
+                    className={`w-full px-2 py-2 rounded text-xs font-medium transition-all ${
+                      colorScheme === 'sunset' 
+                        ? 'bg-orange-500 text-white ring-2 ring-orange-300' 
+                        : 'bg-orange-100 text-orange-900 hover:bg-orange-200'
+                    }`}
+                    title="Sunset Warm"
+                  >
+                    🌅 Sunset
+                  </button>
+                  <button
+                    onClick={() => setColorScheme('purple')}
+                    className={`w-full px-2 py-2 rounded text-xs font-medium transition-all ${
+                      colorScheme === 'purple' 
+                        ? 'bg-purple-500 text-white ring-2 ring-purple-300' 
+                        : 'bg-purple-100 text-purple-900 hover:bg-purple-200'
+                    }`}
+                    title="Purple Elegance"
+                  >
+                    💜 Purple
+                  </button>
+                  <button
+                    onClick={() => setColorScheme('mint')}
+                    className={`w-full px-2 py-2 rounded text-xs font-medium transition-all ${
+                      colorScheme === 'mint' 
+                        ? 'bg-teal-500 text-white ring-2 ring-teal-300' 
+                        : 'bg-teal-100 text-teal-900 hover:bg-teal-200'
+                    }`}
+                    title="Mint Fresh"
+                  >
+                    🍃 Mint
+                  </button>
+                  <button
+                    onClick={() => setColorScheme('monochrome')}
+                    className={`w-full px-2 py-2 rounded text-xs font-medium transition-all ${
+                      colorScheme === 'monochrome' 
+                        ? 'bg-gray-600 text-white ring-2 ring-gray-400' 
+                        : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+                    }`}
+                    title="Monochrome"
+                  >
+                    ⚫ Mono
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
