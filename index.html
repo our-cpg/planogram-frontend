@@ -1846,6 +1846,94 @@ const PlanogramProfitTracker = () => {
     }
   };
 
+  // Compare a saved version to the current live section
+  const compareToCurrentSection = async (savedVersion, currentSectionName) => {
+    console.log('🔍 Comparing saved version to current section...');
+    console.log('Saved Version:', savedVersion);
+    console.log('Current Section Name:', currentSectionName);
+    
+    try {
+      // Get the current live section from sections state
+      const currentSection = sections.find(s => s.name === currentSectionName);
+      
+      if (!currentSection) {
+        alert('⚠️ Current section not found in planogram');
+        return;
+      }
+      
+      // Get saved version data
+      const savedData = savedVersion.data.sections?.[0];
+      
+      if (!savedData) {
+        alert('⚠️ Missing section data in saved version');
+        return;
+      }
+      
+      // Extract product IDs from saved version
+      const savedProductIds = new Set();
+      (savedData.rows || []).forEach(row => {
+        (row.productIds || []).forEach(id => savedProductIds.add(id));
+      });
+      (savedData.productIds || []).forEach(id => savedProductIds.add(id));
+      
+      // Extract product IDs from current live section
+      const currentProductIds = new Set();
+      (currentSection.rows || []).forEach(row => {
+        (row.products || []).forEach(product => {
+          if (product.id) currentProductIds.add(product.id);
+        });
+      });
+      
+      // Calculate differences
+      const added = [...currentProductIds].filter(id => !savedProductIds.has(id));
+      const removed = [...savedProductIds].filter(id => !currentProductIds.has(id));
+      const unchanged = [...savedProductIds].filter(id => currentProductIds.has(id));
+      
+      // Get product details from inventory
+      const getProductDetails = (productIds) => {
+        return productIds.map(id => {
+          const product = inventory.find(p => p.id === id);
+          return product || { id, name: 'Unknown Product', upc: 'N/A' };
+        });
+      };
+      
+      // Count current products
+      let currentProductCount = 0;
+      (currentSection.rows || []).forEach(row => {
+        currentProductCount += (row.products || []).length;
+      });
+      
+      const comparison = {
+        version1: {
+          name: savedVersion.versionName,
+          timestamp: savedVersion.timestamp,
+          productCount: savedProductIds.size,
+          rows: savedData.rows || []
+        },
+        version2: {
+          name: 'Current Live Version',
+          timestamp: new Date().toISOString(),
+          productCount: currentProductCount,
+          rows: currentSection.rows || []
+        },
+        changes: {
+          added: getProductDetails(added),
+          removed: getProductDetails(removed),
+          unchanged: unchanged.length,
+          totalChanges: added.length + removed.length
+        }
+      };
+      
+      console.log('📊 Comparison result:', comparison);
+      setSectionComparisonResult(comparison);
+      setShowSectionCompareModal(true);
+      
+    } catch (error) {
+      console.error('❌ Comparison to current failed:', error);
+      alert('Failed to compare to current section: ' + error.message);
+    }
+  };
+
   // ========================================
   // FIREBASE CLEANUP UTILITIES
   // ========================================
@@ -7964,6 +8052,15 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                           <div className="flex gap-2 shrink-0">
                             <button
                               onClick={() => {
+                                compareToCurrentSection(version, selectedSectionForHistory.name);
+                              }}
+                              className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-medium text-sm"
+                              title="Compare this version to current section"
+                            >
+                              🔄 Compare to Current
+                            </button>
+                            <button
+                              onClick={() => {
                                 if (confirm(`Load "${version.versionName}"? This will replace the current section.`)) {
                                   loadSectionVersion(version.id, selectedSectionForHistory.name);
                                   setShowSectionHistoryPanel(false);
@@ -8209,7 +8306,16 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                             </div>
                           )}
                         </div>
-                        <div className="ml-4">
+                        <div className="ml-4 flex gap-2">
+                          <button
+                            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-medium"
+                            onClick={() => {
+                              compareToCurrentSection(version, version.sectionName);
+                            }}
+                            title="Compare to current section"
+                          >
+                            🔄 Compare
+                          </button>
                           <button
                             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
                             onClick={async () => {
