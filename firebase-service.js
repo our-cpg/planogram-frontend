@@ -55,48 +55,35 @@ window.firebaseService = {
       const userId = this.currentUser.uid;
       const planogramId = data.id || `planogram_${Date.now()}`;
       
-      // Split data into metadata and sections
-      const metadata = {
+      // CRITICAL: Preserve all metadata fields
+      const planogramData = {
         id: planogramId,
         name: data.name || 'Untitled Planogram',
         storeName: data.storeName || 'My Store',
         lastModified: Date.now(),
         version: 2,
         fixturesCount: data.fixtures ? data.fixtures.length : 0,
-        sectionsCount: data.sections ? data.sections.length : 0
+        sectionsCount: data.sections ? data.sections.length : 0,
+        
+        // PRESERVE SECTION VERSION MARKERS
+        isSectionVersion: data.isSectionVersion || false,
+        isSavedLayout: data.isSavedLayout || false,
+        sectionName: data.sectionName || null,
+        versionName: data.versionName || null,
+        timestamp: data.timestamp || new Date().toISOString(),
+        
+        // Include actual data
+        fixtures: data.fixtures || [],
+        sections: data.sections || [],
+        metadata: data.metadata || {},
+        shopifyConfig: data.shopifyConfig || null,
+        unknownProducts: data.unknownProducts || []
       };
 
-      // Save to user-specific path: /users/{userId}/planograms/{planogramId}
+      // Save to /users/{userId}/planograms/{planogramId}
       const basePath = `users/${userId}/planograms/${planogramId}`;
-
-      // Save metadata first
-      await this.db.ref(`${basePath}/metadata`).set(metadata);
-
-      // Save fixtures separately
-      if (data.fixtures && data.fixtures.length > 0) {
-        await this.db.ref(`${basePath}/fixtures`).set(data.fixtures);
-      }
-
-      // Save sections in smaller chunks to avoid payload limit
-      if (data.sections && data.sections.length > 0) {
-        // Save each section individually
-        for (let i = 0; i < data.sections.length; i++) {
-          // Clean undefined values
-          const cleanSection = JSON.parse(JSON.stringify(data.sections[i], (key, value) => {
-            return value === undefined ? null : value;
-          }));
-          await this.db.ref(`${basePath}/sections/${i}`).set(cleanSection);
-        }
-      }
-
-      // Save other configuration data
-      if (data.shopifyConfig) {
-        await this.db.ref(`${basePath}/shopifyConfig`).set(data.shopifyConfig);
-      }
-
-      if (data.unknownProducts) {
-        await this.db.ref(`${basePath}/unknownProducts`).set(data.unknownProducts);
-      }
+      
+      await this.db.ref(basePath).set(planogramData);
       
       console.log('Planogram saved successfully:', planogramId);
       return planogramId;
@@ -106,30 +93,9 @@ window.firebaseService = {
     }
   },
 
-  // Load specific planogram from user-specific location or root (temporary fix)
+  // Load specific planogram
   async loadPlanogram(planogramId) {
     try {
-      // If it's the special root planogram, load from root
-      if (planogramId === 'root_planogram') {
-        const rootSnapshot = await this.db.ref('/').once('value');
-        if (rootSnapshot.exists()) {
-          const data = rootSnapshot.val();
-          // Clean up the data structure to match expected format
-          return {
-            id: 'root_planogram',
-            name: data.storeName || 'My Store Layout',
-            storeName: data.storeName || 'My Store Layout', 
-            fixtures: data.fixtures || [],
-            sections: data.sections || [],
-            shopifyConfig: data.shopifyConfig || null,
-            unknownProducts: data.unknownProducts || [],
-            lastModified: Date.now()
-          };
-        }
-        return null;
-      }
-
-      // Original per-user loading logic
       if (!this.isAuthenticated()) {
         throw new Error('User not authenticated');
       }
@@ -137,43 +103,18 @@ window.firebaseService = {
       const userId = this.currentUser.uid;
       const basePath = `users/${userId}/planograms/${planogramId}`;
 
-      // Load metadata first
-      const metadataSnapshot = await this.db.ref(`${basePath}/metadata`).once('value');
+      const snapshot = await this.db.ref(basePath).once('value');
       
-      if (!metadataSnapshot.exists()) {
-        console.warn('Planogram not found at user-specific path');
+      if (!snapshot.exists()) {
+        console.warn('Planogram not found:', planogramId);
         return null;
       }
       
-      const metadata = metadataSnapshot.val();
-      
-      // Load fixtures
-      const fixturesSnapshot = await this.db.ref(`${basePath}/fixtures`).once('value');
-      const fixtures = fixturesSnapshot.exists() ? fixturesSnapshot.val() : [];
-      
-      // Load sections individually to avoid payload limit
-      const sectionsSnapshot = await this.db.ref(`${basePath}/sections`).once('value');
-      const sections = [];
-      
-      if (sectionsSnapshot.exists()) {
-        sectionsSnapshot.forEach((child) => {
-          sections.push(child.val());
-        });
-      }
-      
-      // Load other config
-      const shopifyConfigSnapshot = await this.db.ref(`${basePath}/shopifyConfig`).once('value');
-      const shopifyConfig = shopifyConfigSnapshot.exists() ? shopifyConfigSnapshot.val() : null;
-      
-      const unknownProductsSnapshot = await this.db.ref(`${basePath}/unknownProducts`).once('value');
-      const unknownProducts = unknownProductsSnapshot.exists() ? unknownProductsSnapshot.val() : [];
+      const data = snapshot.val();
       
       return {
-        ...metadata,
-        fixtures,
-        sections,
-        shopifyConfig,
-        unknownProducts
+        id: planogramId,
+        ...data
       };
     } catch (error) {
       console.error('Load planogram error:', error);
@@ -187,60 +128,54 @@ window.firebaseService = {
     }
   },
 
-  // List all planograms from root level (temporary fix)
+  // List all planograms from user-specific location
   async listPlanograms() {
     try {
-      // Check if there's a planogram directly at root level
-      const rootSnapshot = await this.db.ref('/').once('value');
-      
-      if (rootSnapshot.exists()) {
-        const rootData = rootSnapshot.val();
-        
-        // Check if this looks like a planogram (has fixtures, sections, etc.)
-        if (rootData.fixtures && rootData.sections) {
-          return [{
-            id: 'root_planogram',
-            name: rootData.storeName || 'My Store Layout',
-            lastModified: Date.now(),
-            sectionsCount: rootData.sections ? rootData.sections.length : 0,
-            fixturesCount: rootData.fixtures ? rootData.fixtures.length : 0
-          }];
-        }
-      }
-      
-      // Fallback to user-specific location
       if (!this.isAuthenticated()) {
+        console.warn('Not authenticated, returning empty list');
         return [];
       }
 
       const userId = this.currentUser.uid;
-      const snapshot = await this.db.ref(`users/${userId}/planograms`).once('value');
+      console.log('🔍 Listing planograms for user:', userId);
       
-      if (!snapshot.exists()) {
+      // Query the /users/{userId}/planograms/ path
+      const planogramsSnapshot = await this.db.ref(`users/${userId}/planograms`).once('value');
+      
+      if (!planogramsSnapshot.exists()) {
+        console.log('📂 No planograms found in /users/' + userId + '/planograms/');
         return [];
       }
 
       const planograms = [];
+      const planogramsData = planogramsSnapshot.val();
       
-      snapshot.forEach((child) => {
-        const planogramId = child.key;
-        
-        // Check if using new structure (has metadata child)
-        if (child.hasChild('metadata')) {
-          const metadata = child.child('metadata').val();
-          planograms.push({
-            id: planogramId,
-            name: metadata.name || 'Untitled',
-            lastModified: metadata.lastModified || Date.now(),
-            sectionsCount: metadata.sectionsCount || 0,
-            fixturesCount: metadata.fixturesCount || 0
-          });
-        }
+      // Convert object to array
+      Object.entries(planogramsData).forEach(([id, data]) => {
+        planograms.push({
+          id: id,
+          name: data.name || 'Untitled',
+          storeName: data.storeName || 'My Store',
+          lastModified: data.lastModified || Date.now(),
+          sectionsCount: data.sectionsCount || (data.sections ? data.sections.length : 0),
+          fixturesCount: data.fixturesCount || (data.fixtures ? data.fixtures.length : 0),
+          timestamp: data.timestamp || null,
+          isSectionVersion: data.isSectionVersion || false,
+          isSavedLayout: data.isSavedLayout || false,
+          sectionName: data.sectionName || null,
+          versionName: data.versionName || null,
+          metadata: data.metadata || {}
+        });
       });
 
       // Sort by most recent first
-      planograms.sort((a, b) => b.lastModified - a.lastModified);
+      planograms.sort((a, b) => {
+        const timeA = a.lastModified || 0;
+        const timeB = b.lastModified || 0;
+        return timeB - timeA;
+      });
       
+      console.log(`📂 Found ${planograms.length} planograms`);
       return planograms;
     } catch (error) {
       console.error('List planograms error:', error);
@@ -248,7 +183,7 @@ window.firebaseService = {
     }
   },
 
-  // Delete planogram from user-specific location
+  // Delete planogram
   async deletePlanogram(planogramId) {
     try {
       if (!this.isAuthenticated()) {
