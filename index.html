@@ -263,6 +263,30 @@ const FIXTURE_TYPES = {
     color: '#ff1493',
     defaultWidth: 200,
     defaultHeight: 220
+  },
+  DOOR_SINGLE: {
+    id: 'door_single',
+    name: '🚪 Single Door',
+    icon: 'DoorClosed',
+    color: '#8b7355',
+    defaultWidth: 36,  // 36 inches (standard door)
+    defaultHeight: 80  // 80 inches (standard door height)
+  },
+  DOOR_DOUBLE: {
+    id: 'door_double',
+    name: '🚪 Double Door',
+    icon: 'DoorOpen',
+    color: '#6b5444',
+    defaultWidth: 72,  // 72 inches (double door)
+    defaultHeight: 80
+  },
+  DOOR_EXIT: {
+    id: 'door_exit',
+    name: '🚨 Emergency Exit',
+    icon: 'DoorOpen',
+    color: '#dc2626',
+    defaultWidth: 42,  // 42 inches (exit door)
+    defaultHeight: 84
   }
 };
 
@@ -9473,6 +9497,110 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           </div>
         </div>
       </div>
+
+      {/* Floating Color Scheme Selector - Bottom Left (only when heatmap is on) */}
+      {heatMapMode && (
+        <div 
+          className="absolute bottom-4 left-4 z-[1000] transition-all duration-300 group"
+          style={{ pointerEvents: 'auto' }}
+        >
+          {/* Compact view - shows current selection */}
+          <div className="bg-white rounded-xl shadow-2xl overflow-hidden transition-all duration-300 group-hover:w-64">
+            {/* Current Selection - Always Visible */}
+            <div className="p-4 cursor-pointer flex items-center gap-3 min-w-[160px]">
+              <span className="text-2xl">
+                {colorScheme === 'ocean' && '🌊'}
+                {colorScheme === 'forest' && '🌲'}
+                {colorScheme === 'sunset' && '🌅'}
+                {colorScheme === 'purple' && '💜'}
+                {colorScheme === 'mint' && '🍃'}
+                {colorScheme === 'monochrome' && '⚫'}
+              </span>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-gray-700">Colors</div>
+                <div className="text-xs text-gray-500 capitalize">{colorScheme === 'monochrome' ? 'Mono' : colorScheme}</div>
+              </div>
+            </div>
+
+            {/* Expanded Options - Show on Hover */}
+            <div className="max-h-0 group-hover:max-h-96 overflow-hidden transition-all duration-300">
+              <div className="border-t border-gray-200 p-2 space-y-1">
+                <button
+                  onClick={() => setColorScheme('ocean')}
+                  className={`w-full px-3 py-2 rounded-lg text-left transition-all flex items-center gap-2 ${
+                    colorScheme === 'ocean' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'hover:bg-blue-50 text-gray-700'
+                  }`}
+                >
+                  <span className="text-xl">🌊</span>
+                  <span className="text-sm font-medium">Ocean</span>
+                </button>
+
+                <button
+                  onClick={() => setColorScheme('forest')}
+                  className={`w-full px-3 py-2 rounded-lg text-left transition-all flex items-center gap-2 ${
+                    colorScheme === 'forest' 
+                      ? 'bg-green-500 text-white' 
+                      : 'hover:bg-green-50 text-gray-700'
+                  }`}
+                >
+                  <span className="text-xl">🌲</span>
+                  <span className="text-sm font-medium">Forest</span>
+                </button>
+
+                <button
+                  onClick={() => setColorScheme('sunset')}
+                  className={`w-full px-3 py-2 rounded-lg text-left transition-all flex items-center gap-2 ${
+                    colorScheme === 'sunset' 
+                      ? 'bg-orange-500 text-white' 
+                      : 'hover:bg-orange-50 text-gray-700'
+                  }`}
+                >
+                  <span className="text-xl">🌅</span>
+                  <span className="text-sm font-medium">Sunset</span>
+                </button>
+
+                <button
+                  onClick={() => setColorScheme('purple')}
+                  className={`w-full px-3 py-2 rounded-lg text-left transition-all flex items-center gap-2 ${
+                    colorScheme === 'purple' 
+                      ? 'bg-purple-500 text-white' 
+                      : 'hover:bg-purple-50 text-gray-700'
+                  }`}
+                >
+                  <span className="text-xl">💜</span>
+                  <span className="text-sm font-medium">Purple</span>
+                </button>
+
+                <button
+                  onClick={() => setColorScheme('mint')}
+                  className={`w-full px-3 py-2 rounded-lg text-left transition-all flex items-center gap-2 ${
+                    colorScheme === 'mint' 
+                      ? 'bg-teal-500 text-white' 
+                      : 'hover:bg-teal-50 text-gray-700'
+                  }`}
+                >
+                  <span className="text-xl">🍃</span>
+                  <span className="text-sm font-medium">Mint</span>
+                </button>
+
+                <button
+                  onClick={() => setColorScheme('monochrome')}
+                  className={`w-full px-3 py-2 rounded-lg text-left transition-all flex items-center gap-2 ${
+                    colorScheme === 'monochrome' 
+                      ? 'bg-gray-600 text-white' 
+                      : 'hover:bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  <span className="text-xl">⚫</span>
+                  <span className="text-sm font-medium">Mono</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedFixture && (
         <div 
