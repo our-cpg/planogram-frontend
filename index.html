@@ -468,7 +468,7 @@ const PlanogramProfitTracker = () => {
               console.log('🔧 Using FIXED listPlanograms...');
               const db = window.firebaseService.db;
               const userId = window.firebaseService.currentUser.uid;
-              const snapshot = await db.ref(`${userId}/planograms`).once('value');
+              const snapshot = await db.ref(`users/${userId}/planograms`).once('value');
               
               if (!snapshot.exists()) {
                 console.log('📂 No planograms found in Firebase');
@@ -510,7 +510,7 @@ const PlanogramProfitTracker = () => {
                 
                 let planograms = [];
                 const userId = window.firebaseService.currentUser.uid;
-                const planogramsRef = window.firebaseService.db.ref(`${userId}/planograms`);
+                const planogramsRef = window.firebaseService.db.ref(`users/${userId}/planograms`);
                 const snapshot = await planogramsRef.once('value');
                 
                 if (snapshot.exists()) {
@@ -901,7 +901,7 @@ const PlanogramProfitTracker = () => {
         console.log('🔧 Using DIRECT Firebase query (bypassing listPlanograms)...');
         
         const userId = window.firebaseService.currentUser.uid;
-        const planogramsRef = window.firebaseService.db.ref(`${userId}/planograms`);
+        const planogramsRef = window.firebaseService.db.ref(`users/${userId}/planograms`);
         const snapshot = await planogramsRef.once('value');
         
         if (snapshot.exists()) {
@@ -1624,7 +1624,7 @@ const PlanogramProfitTracker = () => {
         console.log('🔧 Using DIRECT Firebase query (bypassing listPlanograms)...');
         
         const userId = window.firebaseService.currentUser.uid;
-        const planogramsRef = window.firebaseService.db.ref(`${userId}/planograms`);
+        const planogramsRef = window.firebaseService.db.ref(`users/${userId}/planograms`);
         const snapshot = await planogramsRef.once('value');
         
         if (snapshot.exists()) {
