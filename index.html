@@ -1241,10 +1241,10 @@ const PlanogramProfitTracker = () => {
       const lightweightRows = (section.rows || []).map(row => ({
         id: row.id,
         name: row.name,
-        productIds: (row.products || []).map(p => p.id)
+        productIds: (row.products || []).map(p => p.id).filter(id => id != null) // Remove undefined/null
       }));
 
-      const lightweightProductIds = (section.products || []).map(p => p.id);
+      const lightweightProductIds = (section.products || []).map(p => p.id).filter(id => id != null); // Remove undefined/null
 
       // Create proper structure for Firebase with correct metadata
       const versionData = {
