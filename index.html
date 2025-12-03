@@ -533,43 +533,45 @@ const PlanogramProfitTracker = () => {
               try {
                 console.log('🔄 Auto-loading most recent layout...');
                 
-                // WORKAROUND: firebaseService.listPlanograms() is broken
-                // Use direct Firebase query instead
-                console.log('🔧 Using DIRECT Firebase query for auto-load...');
+                // FIX: Don't load ALL planograms at once - Firebase payload too large
+                // Instead, use shallow query to get just the list, then load individual items
+                console.log('🔧 Using LIMITED Firebase query for auto-load...');
                 
-                let planograms = [];
                 const userId = window.firebaseService.currentUser.uid;
                 const planogramsRef = window.firebaseService.db.ref(`users/${userId}/planograms`);
-                const snapshot = await planogramsRef.once('value');
                 
+                // Get list with metadata only (shallow = true)
+                const snapshot = await planogramsRef.orderByChild('timestamp').limitToLast(20).once('value');
+                
+                let planograms = [];
                 if (snapshot.exists()) {
                   const planogramsData = snapshot.val();
                   planograms = Object.entries(planogramsData).map(([id, data]) => ({
                     id,
-                    ...data
+                    name: data.name,
+                    timestamp: data.timestamp,
+                    isSavedLayout: data.isSavedLayout,
+                    isSectionVersion: data.isSectionVersion,
+                    metadata: data.metadata
                   }));
                 }
                 
-                console.log(`📂 Found ${planograms.length} total items in Firebase`);
+                console.log(`📂 Found ${planograms.length} recent items (limited to 20)`);
                 
-                // Filter for SAVED LAYOUTS (including those without explicit flag)
-                // Accept: isSavedLayout === true OR (not a section version AND has fixtures/sections)
+                // Filter for SAVED LAYOUTS
                 const savedLayouts = planograms.filter(p => {
-                  // Explicitly marked as saved layout
                   if (p.isSavedLayout === true) return true;
-                  
-                  // Not a section version AND has content
-                  if (p.isSectionVersion !== true && (p.fixtures || p.sections)) {
-                    console.log(`✅ Including layout without flag: ${p.name || p.id}`);
-                    return true;
-                  }
-                  
+                  if (p.isSectionVersion !== true && p.metadata) return true;
                   return false;
                 });
+                
+                // Sort by timestamp descending
+                savedLayouts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
                 console.log(`📂 Found ${savedLayouts.length} saved layouts`);
                 
                 if (savedLayouts.length > 0) {
-                  // Load the most recent saved layout
+                  // Load the most recent saved layout (THIS is now a single small query)
                   const mostRecent = savedLayouts[0];
                   console.log(`📂 Auto-loading: ${mostRecent.name || mostRecent.id}`);
                   
@@ -921,37 +923,43 @@ const PlanogramProfitTracker = () => {
 
     try {
       setLoadingLayouts(true);
-      console.log('📂 Fetching all planograms...');
+      console.log('📂 Fetching planogram list (metadata only)...');
       
       let allPlanograms = [];
       try {
-        // WORKAROUND: firebaseService.listPlanograms() is broken
-        // Use direct Firebase query instead
-        console.log('🔧 Using DIRECT Firebase query (bypassing listPlanograms)...');
+        // FIX: Don't load full planogram data - just get metadata for the list
+        console.log('🔧 Using LIMITED Firebase query (metadata only)...');
         
         const userId = window.firebaseService.currentUser.uid;
         const planogramsRef = window.firebaseService.db.ref(`users/${userId}/planograms`);
-        const snapshot = await planogramsRef.once('value');
+        
+        // Limit to recent 50 items to avoid payload issues
+        const snapshot = await planogramsRef.orderByChild('timestamp').limitToLast(50).once('value');
         
         if (snapshot.exists()) {
           const planogramsData = snapshot.val();
           console.log(`📂 Raw Firebase keys: ${Object.keys(planogramsData).length}`);
           
-          // Convert to array format
+          // Convert to array format - ONLY extract metadata fields
           allPlanograms = Object.entries(planogramsData).map(([id, data]) => ({
             id,
-            ...data
+            name: data.name,
+            timestamp: data.timestamp,
+            isSavedLayout: data.isSavedLayout,
+            isSectionVersion: data.isSectionVersion,
+            metadata: data.metadata
+            // Don't include fixtures, sections, or other large data!
           }));
           
-          console.log(`📂 Got ${allPlanograms.length} total planograms`);
+          console.log(`📂 Got ${allPlanograms.length} planograms (limited to 50 most recent)`);
         } else {
           console.log('📂 No planograms found in Firebase');
         }
       } catch (fetchError) {
         if (fetchError.message && fetchError.message.includes('payload is too large')) {
-          console.warn('⚠️ WARNING: Some items in Firebase are too large to load');
-          console.warn('⚠️ Use the Cleanup tool to delete oversized items');
-          alert('⚠️ WARNING: Firebase has oversized items!\n\nSome saved data is too large to load.\n\nClick "🗑️ Cleanup Firebase" to delete oversized items.');
+          console.warn('⚠️ WARNING: Firebase payload still too large even with limits');
+          console.warn('⚠️ Use the Cleanup tool to delete old items');
+          alert('⚠️ WARNING: Too much data in Firebase!\n\nEven with limits, the data is too large.\n\nClick "🗑️ Cleanup Firebase" to delete old items.');
           setLoadingLayouts(false);
           return;
         }
@@ -964,15 +972,14 @@ const PlanogramProfitTracker = () => {
           // Explicitly marked as saved layout
           if (p.isSavedLayout === true) return true;
           
-          // Not a section version AND has content
-          if (p.isSectionVersion !== true && (p.fixtures || p.sections)) {
-            console.log(`✅ Including layout without flag: ${p.name || p.id}`);
+          // Not a section version AND has metadata
+          if (p.isSectionVersion !== true && p.metadata) {
             return true;
           }
           
           // Skip section versions
-          if (p.isSectionVersion === true && p.name) {
-            console.log(`⏭️ Skipping section version: ${p.name}`);
+          if (p.isSectionVersion === true) {
+            console.log(`⏭️ Skipping section version: ${p.name || p.id}`);
           }
           
           return false;
