@@ -2599,7 +2599,24 @@ const PlanogramProfitTracker = () => {
   // Load correlations when connected to Shopify
   useEffect(() => {
     if (shopifyConfig.connected) {
-      fetchCorrelations();
+      // Try to load saved correlations from localStorage first
+      const savedCorrelations = localStorage.getItem('planogram_product_correlations');
+      if (savedCorrelations) {
+        try {
+          const correlations = JSON.parse(savedCorrelations);
+          setProductCorrelations(correlations);
+          console.log(`✅ Loaded ${correlations.length} product correlations from localStorage`);
+        } catch (e) {
+          console.warn('Failed to load saved correlations:', e);
+        }
+      }
+      
+      // If we have order data but no correlations, calculate them
+      const hasOrderData = localStorage.getItem('planogram_order_data');
+      if (hasOrderData && (!savedCorrelations || savedCorrelations === '[]')) {
+        console.log('📊 Have order data but no correlations - calculating now...');
+        calculateCorrelationsFromOrders();
+      }
     }
   }, [shopifyConfig.connected]);
 
@@ -4632,8 +4649,8 @@ const PlanogramProfitTracker = () => {
                 setLastOrdersRefresh(new Date(statusData.lastCompleted));
                 localStorage.setItem('planogram_last_orders_refresh', statusData.lastCompleted);
                 
-                // Fetch correlations after orders are processed
-                fetchCorrelations();
+                // Calculate correlations from order data (CLIENT-SIDE)
+                calculateCorrelationsFromOrders();
                 
                 setFeedback(`✅ COMPLETE: ${statusData.lastResult.ordersProcessed} orders, ${statusData.lastResult.itemsProcessed} items analyzed!`);
                 setTimeout(() => setFeedback(''), 8000);
@@ -4658,8 +4675,8 @@ const PlanogramProfitTracker = () => {
             localStorage.setItem('planogram_order_analytics', JSON.stringify(data.analytics));
           }
           
-          // Fetch correlations after orders are processed
-          fetchCorrelations();
+          // Calculate correlations from order data (CLIENT-SIDE)
+          calculateCorrelationsFromOrders();
           
           setFeedback(`✅ Order Blitz: ${data.ordersProcessed || '?'} orders, ${data.itemsProcessed || '?'} items analyzed!`);
           setTimeout(() => setFeedback(''), 8000);
@@ -5012,6 +5029,113 @@ const PlanogramProfitTracker = () => {
     } catch (error) {
       console.error('Failed to fetch correlations:', error);
     }
+  };
+
+  // Calculate product correlations from order data (CLIENT-SIDE)
+  const calculateCorrelationsFromOrders = () => {
+    console.log('🔄 Calculating product correlations from order data...');
+    
+    // Get order data from localStorage
+    const ordersJson = localStorage.getItem('planogram_order_data');
+    if (!ordersJson) {
+      console.log('⚠️ No order data found in localStorage');
+      return;
+    }
+    
+    let orders = [];
+    try {
+      orders = JSON.parse(ordersJson);
+    } catch (e) {
+      console.error('Failed to parse order data:', e);
+      return;
+    }
+    
+    if (!orders || orders.length === 0) {
+      console.log('⚠️ No orders to analyze');
+      return;
+    }
+    
+    console.log(`📦 Analyzing ${orders.length} orders for product correlations...`);
+    
+    // Map to track product pairs and their frequency
+    const pairMap = new Map();
+    
+    // Process each order
+    orders.forEach(order => {
+      if (!order.line_items || order.line_items.length < 2) {
+        return; // Skip orders with 0 or 1 item (no pairs possible)
+      }
+      
+      // Get all product IDs in this order
+      const productIds = order.line_items
+        .filter(item => item.product_id)
+        .map(item => item.product_id.toString());
+      
+      // Generate all pairs (combinations) from this order
+      for (let i = 0; i < productIds.length; i++) {
+        for (let j = i + 1; j < productIds.length; j++) {
+          const idA = productIds[i];
+          const idB = productIds[j];
+          
+          // Create a sorted pair key (so A-B and B-A are the same)
+          const pairKey = [idA, idB].sort().join('-');
+          
+          // Increment counter for this pair
+          pairMap.set(pairKey, (pairMap.get(pairKey) || 0) + 1);
+        }
+      }
+    });
+    
+    console.log(`📊 Found ${pairMap.size} unique product pairs`);
+    
+    // Convert map to array and enrich with product data
+    const correlations = [];
+    const allProducts = products; // Use products from state
+    
+    pairMap.forEach((count, pairKey) => {
+      const [idA, idB] = pairKey.split('-');
+      
+      const productA = allProducts.find(p => p.id === idA);
+      const productB = allProducts.find(p => p.id === idB);
+      
+      // Only include if we have both products
+      if (productA && productB) {
+        correlations.push({
+          productA: {
+            id: productA.id,
+            name: productA.title,
+            price: parseFloat(productA.variants?.[0]?.price || 0),
+            sku: productA.variants?.[0]?.sku || ''
+          },
+          productB: {
+            id: productB.id,
+            name: productB.title,
+            price: parseFloat(productB.variants?.[0]?.price || 0),
+            sku: productB.variants?.[0]?.sku || ''
+          },
+          timesBoughtTogether: count
+        });
+      }
+    });
+    
+    // Sort by frequency (most common first)
+    correlations.sort((a, b) => b.timesBoughtTogether - a.timesBoughtTogether);
+    
+    console.log(`✅ Calculated ${correlations.length} product correlations`);
+    console.log(`  Top combo: ${correlations[0]?.productA.name} + ${correlations[0]?.productB.name} (${correlations[0]?.timesBoughtTogether}x)`);
+    
+    // Update state
+    setProductCorrelations(correlations);
+    
+    // Save to localStorage for persistence
+    try {
+      localStorage.setItem('planogram_product_correlations', JSON.stringify(correlations));
+      console.log('💾 Saved correlations to localStorage');
+    } catch (e) {
+      console.warn('Failed to save correlations to localStorage:', e);
+    }
+    
+    return correlations;
   };
 
 
