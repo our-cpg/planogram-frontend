@@ -2614,11 +2614,16 @@ const PlanogramProfitTracker = () => {
       // If we have order data but no correlations, calculate them
       const hasOrderData = localStorage.getItem('planogram_order_data');
       if (hasOrderData && (!savedCorrelations || savedCorrelations === '[]')) {
-        console.log('📊 Have order data but no correlations - calculating now...');
-        calculateCorrelationsFromOrders(products);
+        // Only calculate if products are loaded
+        if (products && products.length > 0) {
+          console.log('📊 Have order data but no correlations - calculating now...');
+          calculateCorrelationsFromOrders(products);
+        } else {
+          console.log('⏳ Waiting for products to load before calculating correlations...');
+        }
       }
     }
-  }, [shopifyConfig.connected]);
+  }, [shopifyConfig.connected, products.length]); // Added products.length as dependency
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -4671,7 +4676,11 @@ const PlanogramProfitTracker = () => {
                 localStorage.setItem('planogram_last_orders_refresh', statusData.lastCompleted);
                 
                 // Calculate correlations from order data (CLIENT-SIDE)
-                calculateCorrelationsFromOrders(products);
+                if (products && products.length > 0) {
+                  calculateCorrelationsFromOrders(products);
+                } else {
+                  console.warn('⚠️ Products not loaded yet, skipping correlation calculation');
+                }
                 
                 setFeedback(`✅ COMPLETE: ${statusData.lastResult.ordersProcessed} orders, ${statusData.lastResult.itemsProcessed} items analyzed!`);
                 setTimeout(() => setFeedback(''), 8000);
@@ -4708,7 +4717,11 @@ const PlanogramProfitTracker = () => {
           }
           
           // Calculate correlations from order data (CLIENT-SIDE)
-          calculateCorrelationsFromOrders(products);
+          if (products && products.length > 0) {
+            calculateCorrelationsFromOrders(products);
+          } else {
+            console.warn('⚠️ Products not loaded yet, skipping correlation calculation');
+          }
           
           setFeedback(`✅ Order Blitz: ${data.ordersProcessed || '?'} orders, ${data.itemsProcessed || '?'} items analyzed!`);
           setTimeout(() => setFeedback(''), 8000);
@@ -5118,11 +5131,12 @@ const PlanogramProfitTracker = () => {
     
     console.log(`📦 Analyzing ${orders.length} orders for product correlations...`);
     
-    // Check if we have product data
-    console.log(`📦 Products passed to function: ${productsArray.length}`);
+    // Use the passed-in products array (defaults to empty array if not provided)
+    console.log(`📦 Products provided: ${productsArray.length}`);
     if (productsArray.length === 0) {
       console.warn('⚠️ WARNING: No products provided!');
-      console.warn('⚠️ Correlations may not have product details');
+      console.warn('⚠️ Correlations will not have product details');
+      console.warn('⚠️ Make sure products are loaded before calculating correlations');
     }
     
     // Map to track product pairs and their frequency
@@ -5172,7 +5186,7 @@ const PlanogramProfitTracker = () => {
     
     // Convert map to array and enrich with product data
     const correlations = [];
-    const allProducts = productsArray; // Use products passed as parameter
+    const allProducts = productsArray; // Use products from parameter
     
     console.log(`🔍 Enriching pairs with product data...`);
     let matchedPairs = 0;
@@ -12001,6 +12015,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 <button
                   onClick={() => {
                     console.log('🔘 Manual correlation calculation triggered');
+                    if (!products || products.length === 0) {
+                      setFeedback('⚠️ Products not loaded yet. Please wait or refresh products from Settings.');
+                      setTimeout(() => setFeedback(''), 5000);
+                      return;
+                    }
                     const result = calculateCorrelationsFromOrders(products);
                     if (result && result.length > 0) {
                       setFeedback(`✅ Calculated ${result.length} product correlations!`);
