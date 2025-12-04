@@ -5050,12 +5050,15 @@ const PlanogramProfitTracker = () => {
 
   // Calculate product correlations from order data (CLIENT-SIDE)
   const calculateCorrelationsFromOrders = () => {
-    console.log('🔄 Calculating product correlations from order data...');
+    console.log('🔄 ═══════════════════════════════════════════════');
+    console.log('🔄 CALCULATING PRODUCT CORRELATIONS');
+    console.log('🔄 ═══════════════════════════════════════════════');
     
     // Get order data from localStorage
     const ordersJson = localStorage.getItem('planogram_order_data');
     if (!ordersJson) {
       console.log('⚠️ No order data found in localStorage');
+      console.log('⚠️ Run Order Blitz first to load order data');
       return;
     }
     
@@ -5063,19 +5066,28 @@ const PlanogramProfitTracker = () => {
     try {
       orders = JSON.parse(ordersJson);
     } catch (e) {
-      console.error('Failed to parse order data:', e);
+      console.error('❌ Failed to parse order data:', e);
       return;
     }
     
     if (!orders || orders.length === 0) {
-      console.log('⚠️ No orders to analyze');
+      console.log('⚠️ No orders to analyze (orders array is empty)');
       return;
     }
     
     console.log(`📦 Analyzing ${orders.length} orders for product correlations...`);
     
+    // Check if we have product data
+    console.log(`📦 Products in state: ${products.length}`);
+    if (products.length === 0) {
+      console.warn('⚠️ WARNING: No products loaded in state!');
+      console.warn('⚠️ Correlations may not have product details');
+    }
+    
     // Map to track product pairs and their frequency
     const pairMap = new Map();
+    let ordersWithMultipleItems = 0;
+    let totalPairsFound = 0;
     
     // Process each order
     orders.forEach(order => {
@@ -5083,10 +5095,14 @@ const PlanogramProfitTracker = () => {
         return; // Skip orders with 0 or 1 item (no pairs possible)
       }
       
+      ordersWithMultipleItems++;
+      
       // Get all product IDs in this order
       const productIds = order.line_items
         .filter(item => item.product_id)
         .map(item => item.product_id.toString());
+      
+      if (productIds.length < 2) return;
       
       // Generate all pairs (combinations) from this order
       for (let i = 0; i < productIds.length; i++) {
@@ -5099,15 +5115,27 @@ const PlanogramProfitTracker = () => {
           
           // Increment counter for this pair
           pairMap.set(pairKey, (pairMap.get(pairKey) || 0) + 1);
+          totalPairsFound++;
         }
       }
     });
     
-    console.log(`📊 Found ${pairMap.size} unique product pairs`);
+    console.log(`📊 Orders with 2+ items: ${ordersWithMultipleItems}`);
+    console.log(`📊 Total pair instances found: ${totalPairsFound}`);
+    console.log(`📊 Unique product pairs: ${pairMap.size}`);
+    
+    if (pairMap.size === 0) {
+      console.warn('⚠️ No product pairs found! All orders have only 1 item.');
+      return;
+    }
     
     // Convert map to array and enrich with product data
     const correlations = [];
     const allProducts = products; // Use products from state
+    
+    console.log(`🔍 Enriching pairs with product data...`);
+    let matchedPairs = 0;
+    let unmatchedPairs = 0;
     
     pairMap.forEach((count, pairKey) => {
       const [idA, idB] = pairKey.split('-');
@@ -5117,6 +5145,7 @@ const PlanogramProfitTracker = () => {
       
       // Only include if we have both products
       if (productA && productB) {
+        matchedPairs++;
         correlations.push({
           productA: {
             id: productA.id,
@@ -5132,25 +5161,53 @@ const PlanogramProfitTracker = () => {
           },
           timesBoughtTogether: count
         });
+      } else {
+        unmatchedPairs++;
+        if (unmatchedPairs <= 5) { // Only log first 5 to avoid spam
+          console.warn(`⚠️ Could not find products for pair: ${idA} + ${idB}`);
+          if (!productA) console.warn(`   Missing product A: ${idA}`);
+          if (!productB) console.warn(`   Missing product B: ${idB}`);
+        }
       }
     });
+    
+    console.log(`✅ Matched ${matchedPairs} pairs with product details`);
+    console.log(`⚠️ Unmatched ${unmatchedPairs} pairs (products not in catalog)`);
     
     // Sort by frequency (most common first)
     correlations.sort((a, b) => b.timesBoughtTogether - a.timesBoughtTogether);
     
-    console.log(`✅ Calculated ${correlations.length} product correlations`);
-    console.log(`  Top combo: ${correlations[0]?.productA.name} + ${correlations[0]?.productB.name} (${correlations[0]?.timesBoughtTogether}x)`);
+    console.log(`✅ ═══════════════════════════════════════════════`);
+    console.log(`✅ CALCULATED ${correlations.length} PRODUCT CORRELATIONS`);
+    console.log(`✅ ═══════════════════════════════════════════════`);
+    
+    if (correlations.length > 0) {
+      console.log(`🏆 Top 3 combos:`);
+      correlations.slice(0, 3).forEach((corr, idx) => {
+        console.log(`   ${idx + 1}. ${corr.productA.name} + ${corr.productB.name} (${corr.timesBoughtTogether}x)`);
+      });
+    } else {
+      console.warn('⚠️ No correlations found! Check if:');
+      console.warn('   1. Products exist in your catalog');
+      console.warn('   2. Orders have 2+ line items');
+      console.warn('   3. Product IDs match between orders and catalog');
+    }
     
     // Update state
     setProductCorrelations(correlations);
+    console.log(`📌 Updated state with ${correlations.length} correlations`);
     
     // Save to localStorage for persistence
     try {
       localStorage.setItem('planogram_product_correlations', JSON.stringify(correlations));
       console.log('💾 Saved correlations to localStorage');
     } catch (e) {
-      console.warn('Failed to save correlations to localStorage:', e);
+      console.warn('❌ Failed to save correlations to localStorage:', e);
     }
+    
+    console.log('🔄 ═══════════════════════════════════════════════');
+    console.log(`🔄 CORRELATION CALCULATION COMPLETE`);
+    console.log('🔄 ═══════════════════════════════════════════════');
     
     return correlations;
   };
@@ -11895,8 +11952,28 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
             {/* 🤝 Best Upsell Combinations */}
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-bold mb-2">🤝 Best Upsell Combinations</h2>
-              <p className="text-sm text-gray-500 mb-4">Products actually bought together (from order data)</p>
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h2 className="text-xl font-bold">🤝 Best Upsell Combinations</h2>
+                  <p className="text-sm text-gray-500 mt-1">Products actually bought together (from order data)</p>
+                </div>
+                <button
+                  onClick={() => {
+                    console.log('🔘 Manual correlation calculation triggered');
+                    const result = calculateCorrelationsFromOrders();
+                    if (result && result.length > 0) {
+                      setFeedback(`✅ Calculated ${result.length} product correlations!`);
+                    } else {
+                      setFeedback('⚠️ No correlations found. Check console for details.');
+                    }
+                    setTimeout(() => setFeedback(''), 5000);
+                  }}
+                  className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-semibold flex items-center gap-2"
+                  title="Manually calculate correlations from order data"
+                >
+                  🔄 Calculate Now
+                </button>
+              </div>
               
               {(() => {
                 // Get all unique fixtures from planogram - with safety check
