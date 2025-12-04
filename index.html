@@ -2624,17 +2624,7 @@ const PlanogramProfitTracker = () => {
         }
       }
       
-      // If we have order data but no correlations, calculate them
-      const hasOrderData = localStorage.getItem('planogram_order_data');
-      if (hasOrderData && (!savedCorrelations || savedCorrelations === '[]')) {
-        // Only calculate if products are loaded
-        if (products && products.length > 0) {
-          console.log('📊 Have order data but no correlations - calculating now...');
-          calculateCorrelationsFromOrders(products);
-        } else {
-          console.log('⏳ Waiting for products to load before calculating correlations...');
-        }
-      }
+      // Note: Order data now stored in Firebase, correlations calculated on-demand
     }
   }, [shopifyConfig.connected, products.length]); // Added products.length as dependency
 
@@ -4612,14 +4602,9 @@ const PlanogramProfitTracker = () => {
                 if (statusData.lastResult.orders) {
                   const orders = statusData.lastResult.orders;
                   
-                  // CRITICAL: Save orders to localStorage for correlation calculation
-                  console.log(`💾 Saving ${orders.length} orders to localStorage...`);
-                  try {
-                    localStorage.setItem('planogram_order_data', JSON.stringify(orders));
-                    console.log('✅ Orders saved to localStorage');
-                  } catch (e) {
-                    console.error('❌ Failed to save orders to localStorage:', e);
-                  }
+                  // CRITICAL: Save orders to Firebase (no localStorage limits!)
+                  console.log(`💾 Saving ${orders.length} orders to Firebase...`);
+                  await saveOrdersToFirebase(orders);
                   
                   const now = new Date();
                   
@@ -4739,15 +4724,10 @@ const PlanogramProfitTracker = () => {
             localStorage.setItem('planogram_order_analytics', JSON.stringify(data.analytics));
           }
           
-          // CRITICAL: Save orders to localStorage if provided
+          // CRITICAL: Save orders to Firebase (no localStorage limits!)
           if (data.orders) {
-            console.log(`💾 Saving ${data.orders.length} orders to localStorage...`);
-            try {
-              localStorage.setItem('planogram_order_data', JSON.stringify(data.orders));
-              console.log('✅ Orders saved to localStorage');
-            } catch (e) {
-              console.error('❌ Failed to save orders to localStorage:', e);
-            }
+            console.log(`💾 Saving ${data.orders.length} orders to Firebase...`);
+            await saveOrdersToFirebase(data.orders);
           }
           
           // Calculate correlations from order data (will load products if needed)
@@ -4793,9 +4773,9 @@ const PlanogramProfitTracker = () => {
       console.log(`✅ Got ${data.orders.length} orders from database`);
       console.log(`📅 Last synced: ${data.lastSync}`);
       
-      // Save orders to localStorage for correlations
-      localStorage.setItem('planogram_order_data', JSON.stringify(data.orders));
-      console.log(`💾 Saved ${data.orders.length} orders to localStorage`);
+      // Save orders to Firebase (no localStorage limits!)
+      await saveOrdersToFirebase(data.orders);
+      console.log(`💾 Saved ${data.orders.length} orders to Firebase`);
       
       // Calculate analytics
       const now = new Date();
@@ -4975,14 +4955,9 @@ const PlanogramProfitTracker = () => {
           console.log(`  Month: ${ordersMonth} orders, $${salesMonth.toFixed(2)}`);
           console.log(`  Year: ${ordersYear} orders, $${salesYear.toFixed(2)}`);
           
-          // CRITICAL: Save orders to localStorage for correlation calculation
-          console.log(`💾 Saving ${orders.length} orders to localStorage...`);
-          try {
-            localStorage.setItem('planogram_order_data', JSON.stringify(orders));
-            console.log('✅ Orders saved to localStorage');
-          } catch (e) {
-            console.error('❌ Failed to save orders to localStorage:', e);
-          }
+          // CRITICAL: Save orders to Firebase (no localStorage limits!)
+          console.log(`💾 Saving ${orders.length} orders to Firebase...`);
+          await saveOrdersToFirebase(orders);
           
           // Combine: use analytics data for recent orders (WITH line items),
           // but use full order list for pattern analysis AND recalculated periods
@@ -5018,15 +4993,10 @@ const PlanogramProfitTracker = () => {
       }
       
       // If getOrders failed, just use analytics data
-      // BUT save the recentOrders for correlation calculation
+      // BUT save the recentOrders to Firebase for correlation calculation
       if (analyticsData.recentOrders && analyticsData.recentOrders.length > 0) {
-        console.log(`💾 Saving ${analyticsData.recentOrders.length} recent orders to localStorage...`);
-        try {
-          localStorage.setItem('planogram_order_data', JSON.stringify(analyticsData.recentOrders));
-          console.log('✅ Recent orders saved to localStorage');
-        } catch (e) {
-          console.error('❌ Failed to save orders to localStorage:', e);
-        }
+        console.log(`💾 Saving ${analyticsData.recentOrders.length} recent orders to Firebase...`);
+        await saveOrdersToFirebase(analyticsData.recentOrders);
       }
       
       setOrderAnalyticsData({
@@ -5253,7 +5223,7 @@ const PlanogramProfitTracker = () => {
     // Check if products are already loaded
     if (products && products.length > 0) {
       console.log(`✅ Products already loaded (${products.length} products)`);
-      calculateCorrelationsFromOrders(products);
+      await calculateCorrelationsFromOrders(products);
       return;
     }
     
@@ -5273,9 +5243,9 @@ const PlanogramProfitTracker = () => {
       setProducts(productsData);
       setAllDatabaseProducts(productsData);
       
-      // Now calculate correlations
+      // Now calculate correlations (will fetch orders from Firebase)
       if (productsData.length > 0) {
-        calculateCorrelationsFromOrders(productsData);
+        await calculateCorrelationsFromOrders(productsData);
       } else {
         console.warn('⚠️ No products found in database');
       }
@@ -5284,31 +5254,109 @@ const PlanogramProfitTracker = () => {
     }
   };
 
+  // 📦 FIREBASE ORDER MANAGEMENT - No more localStorage limits!
+  const saveOrdersToFirebase = async (orders) => {
+    if (!dbRef.current) {
+      console.warn('⚠️ Firebase not initialized');
+      return false;
+    }
+
+    try {
+      console.log(`💾 Saving ${orders.length} orders to Firebase...`);
+      const startTime = Date.now();
+      
+      // Save to Firebase at root level (matching your existing structure)
+      await dbRef.current.ref('orders').set({
+        orders: orders,
+        lastSync: new Date().toISOString(),
+        count: orders.length
+      });
+      
+      const duration = Date.now() - startTime;
+      console.log(`✅ Saved ${orders.length} orders to Firebase in ${duration}ms`);
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to save orders to Firebase:', error);
+      return false;
+    }
+  };
+
+  // Load full orders from Firebase (for analytics)
+  const getOrdersFromFirebase = async () => {
+    if (!dbRef.current) {
+      console.warn('⚠️ Firebase not initialized');
+      return [];
+    }
+
+    try {
+      console.log('📥 Loading orders from Firebase...');
+      const snapshot = await dbRef.current.ref('orders').once('value');
+      const data = snapshot.val();
+      
+      if (!data || !data.orders) {
+        console.log('⚠️ No orders found in Firebase');
+        return [];
+      }
+      
+      console.log(`✅ Loaded ${data.orders.length} orders from Firebase (synced: ${data.lastSync})`);
+      return data.orders;
+    } catch (error) {
+      console.error('❌ Failed to load orders from Firebase:', error);
+      return [];
+    }
+  };
+
+  // Load ONLY product IDs from Firebase (lightweight, for correlations)
+  const getOrderProductIdsFromFirebase = async () => {
+    if (!dbRef.current) {
+      console.warn('⚠️ Firebase not initialized');
+      return [];
+    }
+
+    try {
+      console.log('📥 Loading order product IDs from Firebase (lightweight query)...');
+      const snapshot = await dbRef.current.ref('orders/orders').once('value');
+      const orders = snapshot.val();
+      
+      if (!orders || orders.length === 0) {
+        console.log('⚠️ No orders found in Firebase');
+        return [];
+      }
+      
+      // Extract only what we need for correlations
+      const lightweightOrders = orders.map(order => ({
+        id: order.id || order.order_number,
+        line_items: (order.line_items || []).map(item => ({
+          product_id: item.product_id
+        }))
+      }));
+      
+      console.log(`✅ Loaded product IDs from ${orders.length} orders for correlation calculation`);
+      return lightweightOrders;
+    } catch (error) {
+      console.error('❌ Failed to load order product IDs from Firebase:', error);
+      return [];
+    }
+  };
+
   // Calculate product correlations from order data (CLIENT-SIDE)
-  const calculateCorrelationsFromOrders = (productsArray = []) => {
+  const calculateCorrelationsFromOrders = async (productsArray = [], ordersParam = null) => {
     console.log('🔄 ═══════════════════════════════════════════════');
     console.log('🔄 CALCULATING PRODUCT CORRELATIONS');
     console.log('🔄 ═══════════════════════════════════════════════');
     
-    // Get order data from localStorage
-    const ordersJson = localStorage.getItem('planogram_order_data');
-    if (!ordersJson) {
-      console.log('⚠️ No order data found in localStorage');
-      console.log('⚠️ Run Order Blitz first to load order data');
-      return;
-    }
+    // Get orders from parameter or Firebase
+    let orders = ordersParam;
     
-    let orders = [];
-    try {
-      orders = JSON.parse(ordersJson);
-    } catch (e) {
-      console.error('❌ Failed to parse order data:', e);
-      return;
+    if (!orders) {
+      console.log('📥 No orders provided, fetching from Firebase...');
+      orders = await getOrderProductIdsFromFirebase();
     }
     
     if (!orders || orders.length === 0) {
       console.log('⚠️ No orders to analyze (orders array is empty)');
-      return;
+      console.log('⚠️ Run Order Blitz first to load order data');
+      return [];
     }
     
     console.log(`📦 Analyzing ${orders.length} orders for product correlations...`);
@@ -12195,14 +12243,15 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   <p className="text-sm text-gray-500 mt-1">Products actually bought together (from order data)</p>
                 </div>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     console.log('🔘 Manual correlation calculation triggered');
                     if (!products || products.length === 0) {
                       setFeedback('⚠️ Products not loaded yet. Please wait or refresh products from Settings.');
                       setTimeout(() => setFeedback(''), 5000);
                       return;
                     }
-                    const result = calculateCorrelationsFromOrders(products);
+                    setFeedback('🔄 Calculating correlations...');
+                    const result = await calculateCorrelationsFromOrders(products);
                     if (result && result.length > 0) {
                       setFeedback(`✅ Calculated ${result.length} product correlations!`);
                     } else {
