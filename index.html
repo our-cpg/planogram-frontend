@@ -5256,9 +5256,23 @@ const PlanogramProfitTracker = () => {
 
   // 📦 FIREBASE ORDER MANAGEMENT - No more localStorage limits!
   const saveOrdersToFirebase = async (orders) => {
-    if (!dbRef.current) {
-      console.warn('⚠️ Firebase not initialized');
-      return false;
+    // Check if dbRef is available, if not try to get it directly from firebase
+    let db = dbRef.current;
+    
+    if (!db) {
+      console.warn('⚠️ dbRef not set, attempting to get database directly from firebase...');
+      try {
+        if (typeof firebase !== 'undefined' && firebase.database) {
+          db = firebase.database();
+          console.log('✅ Got database directly from firebase');
+        } else {
+          console.error('❌ Firebase not available');
+          return false;
+        }
+      } catch (e) {
+        console.error('❌ Failed to get Firebase database:', e);
+        return false;
+      }
     }
 
     try {
@@ -5266,7 +5280,7 @@ const PlanogramProfitTracker = () => {
       const startTime = Date.now();
       
       // Save to Firebase at root level (matching your existing structure)
-      await dbRef.current.ref('orders').set({
+      await db.ref('orders').set({
         orders: orders,
         lastSync: new Date().toISOString(),
         count: orders.length
@@ -5283,14 +5297,26 @@ const PlanogramProfitTracker = () => {
 
   // Load full orders from Firebase (for analytics)
   const getOrdersFromFirebase = async () => {
-    if (!dbRef.current) {
-      console.warn('⚠️ Firebase not initialized');
-      return [];
+    let db = dbRef.current;
+    
+    if (!db) {
+      console.warn('⚠️ dbRef not set, attempting to get database directly...');
+      try {
+        if (typeof firebase !== 'undefined' && firebase.database) {
+          db = firebase.database();
+        } else {
+          console.error('❌ Firebase not available');
+          return [];
+        }
+      } catch (e) {
+        console.error('❌ Failed to get Firebase database:', e);
+        return [];
+      }
     }
 
     try {
       console.log('📥 Loading orders from Firebase...');
-      const snapshot = await dbRef.current.ref('orders').once('value');
+      const snapshot = await db.ref('orders').once('value');
       const data = snapshot.val();
       
       if (!data || !data.orders) {
@@ -5308,14 +5334,26 @@ const PlanogramProfitTracker = () => {
 
   // Load ONLY product IDs from Firebase (lightweight, for correlations)
   const getOrderProductIdsFromFirebase = async () => {
-    if (!dbRef.current) {
-      console.warn('⚠️ Firebase not initialized');
-      return [];
+    let db = dbRef.current;
+    
+    if (!db) {
+      console.warn('⚠️ dbRef not set, attempting to get database directly...');
+      try {
+        if (typeof firebase !== 'undefined' && firebase.database) {
+          db = firebase.database();
+        } else {
+          console.error('❌ Firebase not available');
+          return [];
+        }
+      } catch (e) {
+        console.error('❌ Failed to get Firebase database:', e);
+        return [];
+      }
     }
 
     try {
       console.log('📥 Loading order product IDs from Firebase (lightweight query)...');
-      const snapshot = await dbRef.current.ref('orders/orders').once('value');
+      const snapshot = await db.ref('orders/orders').once('value');
       const orders = snapshot.val();
       
       if (!orders || orders.length === 0) {
