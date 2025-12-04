@@ -4568,6 +4568,16 @@ const PlanogramProfitTracker = () => {
                 // Update orderAnalyticsData for Order Analytics page
                 if (statusData.lastResult.orders) {
                   const orders = statusData.lastResult.orders;
+                  
+                  // CRITICAL: Save orders to localStorage for correlation calculation
+                  console.log(`💾 Saving ${orders.length} orders to localStorage...`);
+                  try {
+                    localStorage.setItem('planogram_order_data', JSON.stringify(orders));
+                    console.log('✅ Orders saved to localStorage');
+                  } catch (e) {
+                    console.error('❌ Failed to save orders to localStorage:', e);
+                  }
+                  
                   const now = new Date();
                   
                   // Create date boundaries in LOCAL timezone
@@ -4686,6 +4696,17 @@ const PlanogramProfitTracker = () => {
             localStorage.setItem('planogram_order_analytics', JSON.stringify(data.analytics));
           }
           
+          // CRITICAL: Save orders to localStorage if provided
+          if (data.orders) {
+            console.log(`💾 Saving ${data.orders.length} orders to localStorage...`);
+            try {
+              localStorage.setItem('planogram_order_data', JSON.stringify(data.orders));
+              console.log('✅ Orders saved to localStorage');
+            } catch (e) {
+              console.error('❌ Failed to save orders to localStorage:', e);
+            }
+          }
+          
           // Calculate correlations from order data (CLIENT-SIDE)
           calculateCorrelationsFromOrders();
           
@@ -4797,6 +4818,15 @@ const PlanogramProfitTracker = () => {
           console.log(`  Month: ${ordersMonth} orders, $${salesMonth.toFixed(2)}`);
           console.log(`  Year: ${ordersYear} orders, $${salesYear.toFixed(2)}`);
           
+          // CRITICAL: Save orders to localStorage for correlation calculation
+          console.log(`💾 Saving ${orders.length} orders to localStorage...`);
+          try {
+            localStorage.setItem('planogram_order_data', JSON.stringify(orders));
+            console.log('✅ Orders saved to localStorage');
+          } catch (e) {
+            console.error('❌ Failed to save orders to localStorage:', e);
+          }
+          
           // Combine: use analytics data for recent orders (WITH line items),
           // but use full order list for pattern analysis AND recalculated periods
           setOrderAnalyticsData({
@@ -4831,6 +4861,17 @@ const PlanogramProfitTracker = () => {
       }
       
       // If getOrders failed, just use analytics data
+      // BUT save the recentOrders for correlation calculation
+      if (analyticsData.recentOrders && analyticsData.recentOrders.length > 0) {
+        console.log(`💾 Saving ${analyticsData.recentOrders.length} recent orders to localStorage...`);
+        try {
+          localStorage.setItem('planogram_order_data', JSON.stringify(analyticsData.recentOrders));
+          console.log('✅ Recent orders saved to localStorage');
+        } catch (e) {
+          console.error('❌ Failed to save orders to localStorage:', e);
+        }
+      }
+      
       setOrderAnalyticsData({
         totalOrders: analyticsData.totalOrders || 0,
         totalSales: analyticsData.totalSales || 0,
