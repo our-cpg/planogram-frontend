@@ -4480,6 +4480,14 @@ const PlanogramProfitTracker = () => {
     
     try {
       console.log('📡 Calling backend /api/shopify with action: refreshOrders');
+      
+      // Add timeout to prevent hanging forever
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        console.log('⏱️ Request timed out after 3 minutes');
+      }, 3 * 60 * 1000); // 3 minute timeout
+      
       const response = await fetch(`${BACKEND_URL}/api/shopify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -4487,8 +4495,11 @@ const PlanogramProfitTracker = () => {
           storeName: shopifyConfig.storeName,
           accessToken: shopifyConfig.accessToken,
           action: 'refreshOrders'
-        })
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId); // Clear timeout if request completes
 
       const data = await response.json();
       console.log('✅ Backend response:', data);
@@ -4690,8 +4701,14 @@ const PlanogramProfitTracker = () => {
     } catch (error) {
       console.error('❌ Order import error:', error);
       setSyncProgress({ message: '', current: 0, total: 0 });
-      setFeedback(`❌ Order import failed: ${error.message}`);
-      setTimeout(() => setFeedback(''), 5000);
+      
+      // Check if it was a timeout/abort
+      if (error.name === 'AbortError') {
+        setFeedback(`⏱️ Request timed out after 3 minutes. Backend may be overloaded. Try again or check backend logs.`);
+      } else {
+        setFeedback(`❌ Order import failed: ${error.message}`);
+      }
+      setTimeout(() => setFeedback(''), 8000);
     }
   };
 
