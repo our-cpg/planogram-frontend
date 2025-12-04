@@ -343,6 +343,7 @@ const PlanogramProfitTracker = () => {
   const [unknownProducts, setUnknownProducts] = useState([]);
   const [badStockProducts, setBadStockProducts] = useState([]); // NEW: Separate list for negative stock items
   const [allDatabaseProducts, setAllDatabaseProducts] = useState([]); // NEW: All products from database for forecasting
+  const [products, setProducts] = useState([]); // Shopify products for correlations and metrics
   const [loadingAllProducts, setLoadingAllProducts] = useState(false); // NEW: Loading state
   const [loadingMessage, setLoadingMessage] = useState(''); // For bulk UPC sync loading state
   const [showUnknownProducts, setShowUnknownProducts] = useState(true);
@@ -1874,8 +1875,8 @@ const PlanogramProfitTracker = () => {
     );
     
     // Get detailed product info
-    const products = Array.from(productIds).map(id => 
-      inventory.find(p => p.id === id)
+    const productsData = Array.from(productIds).map(id => 
+      products.find(p => p.id === id)
     ).filter(Boolean);
     
     // Calculate section size (square footage)
@@ -1900,7 +1901,7 @@ const PlanogramProfitTracker = () => {
     }, 0);
     
     // Calculate profit
-    const totalProfit = products.reduce((sum, product) => {
+    const totalProfit = productsData.reduce((sum, product) => {
       if (!product.price || !product.cost) return sum;
       const productRevenue = relevantOrders.reduce((orderSum, order) => {
         const item = order.line_items?.find(i => i.product_id?.toString() === product.id);
@@ -1914,7 +1915,7 @@ const PlanogramProfitTracker = () => {
     }, 0);
     
     // Product-level performance
-    const productPerformance = products.map(product => {
+    const productPerformance = productsData.map(product => {
       const productRevenue = relevantOrders.reduce((sum, order) => {
         const item = order.line_items?.find(i => i.product_id?.toString() === product.id);
         return sum + (item ? parseFloat(item.price) * item.quantity : 0);
@@ -1938,26 +1939,26 @@ const PlanogramProfitTracker = () => {
     }).sort((a, b) => b.revenue - a.revenue);
     
     // Inventory turnover
-    const averageInventory = products.reduce((sum, p) => sum + (parseFloat(p.inventory) || 0), 0);
+    const averageInventory = productsData.reduce((sum, p) => sum + (parseFloat(p.inventory) || 0), 0);
     const turnoverRate = averageInventory > 0 ? totalUnits / averageInventory : 0;
     
     return {
       revenue: {
         total: totalRevenue,
-        perProduct: products.length > 0 ? totalRevenue / products.length : 0,
+        perProduct: productsData.length > 0 ? totalRevenue / productsData.length : 0,
         perSquareFoot: squareFeet > 0 ? totalRevenue / squareFeet : 0,
         perOrder: relevantOrders.length > 0 ? totalRevenue / relevantOrders.length : 0
       },
       units: {
         total: totalUnits,
-        perProduct: products.length > 0 ? totalUnits / products.length : 0,
+        perProduct: productsData.length > 0 ? totalUnits / productsData.length : 0,
         perOrder: relevantOrders.length > 0 ? totalUnits / relevantOrders.length : 0
       },
       profit: {
         total: totalProfit,
         margin: totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0,
         perSquareFoot: squareFeet > 0 ? totalProfit / squareFeet : 0,
-        perProduct: products.length > 0 ? totalProfit / products.length : 0
+        perProduct: productsData.length > 0 ? totalProfit / productsData.length : 0
       },
       inventory: {
         turnoverRate: turnoverRate,
@@ -1969,18 +1970,18 @@ const PlanogramProfitTracker = () => {
         averageValue: relevantOrders.length > 0 ? totalRevenue / relevantOrders.length : 0
       },
       products: {
-        count: products.length,
+        count: productsData.length,
         performance: productPerformance,
         topPerformers: productPerformance.slice(0, 5),
         lowPerformers: productPerformance.slice(-5).reverse()
       },
       assortment: {
-        vendors: [...new Set(products.map(p => p.vendor).filter(Boolean))].length,
-        categories: [...new Set(products.map(p => p.category).filter(Boolean))].length,
+        vendors: [...new Set(productsData.map(p => p.vendor).filter(Boolean))].length,
+        categories: [...new Set(productsData.map(p => p.category).filter(Boolean))].length,
         priceRange: {
-          min: Math.min(...products.map(p => parseFloat(p.price) || 0).filter(p => p > 0)),
-          max: Math.max(...products.map(p => parseFloat(p.price) || 0)),
-          avg: products.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0) / products.length
+          min: Math.min(...productsData.map(p => parseFloat(p.price) || 0).filter(p => p > 0)),
+          max: Math.max(...productsData.map(p => parseFloat(p.price) || 0)),
+          avg: productsData.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0) / productsData.length
         }
       }
     };
@@ -2596,9 +2597,21 @@ const PlanogramProfitTracker = () => {
     badStockProductsRef.current = badStockProducts;
   }, [badStockProducts]);
 
-  // Load correlations when connected to Shopify
+  // Load correlations and products when connected to Shopify
   useEffect(() => {
     if (shopifyConfig.connected) {
+      // Load products from localStorage first
+      const savedProducts = localStorage.getItem('planogram_products');
+      if (savedProducts) {
+        try {
+          const productsArray = JSON.parse(savedProducts);
+          setProducts(productsArray);
+          console.log(`✅ Loaded ${productsArray.length} products from localStorage`);
+        } catch (e) {
+          console.warn('Failed to load saved products:', e);
+        }
+      }
+      
       // Try to load saved correlations from localStorage first
       const savedCorrelations = localStorage.getItem('planogram_product_correlations');
       if (savedCorrelations) {
@@ -3313,6 +3326,30 @@ const PlanogramProfitTracker = () => {
       console.log('✅ Backend response:', data);
 
       if (data.success) {
+        // Fetch products to store in state for correlations and metrics
+        try {
+          const productsResponse = await fetch(`${BACKEND_URL}/api/shopify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              storeName: shopifyConfig.storeName,
+              accessToken: shopifyConfig.accessToken,
+              action: 'getProducts'
+            })
+          });
+          
+          if (productsResponse.ok) {
+            const productsData = await productsResponse.json();
+            if (productsData.products) {
+              console.log(`📦 Fetched ${productsData.products.length} products for state`);
+              setProducts(productsData.products);
+              localStorage.setItem('planogram_products', JSON.stringify(productsData.products));
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ Could not fetch products for state:', err);
+        }
+        
         if (data.totalProducts && !isAutoRefresh) {
           console.log(`📦 Loaded ${data.totalProducts} products`);
           setSyncProgress({ message: 'Products loaded', current: data.totalProducts, total: data.totalProducts });
