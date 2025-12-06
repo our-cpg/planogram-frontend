@@ -343,7 +343,6 @@ const PlanogramProfitTracker = () => {
   const [unknownProducts, setUnknownProducts] = useState([]);
   const [badStockProducts, setBadStockProducts] = useState([]); // NEW: Separate list for negative stock items
   const [allDatabaseProducts, setAllDatabaseProducts] = useState([]); // NEW: All products from database for forecasting
-  const [products, setProducts] = useState([]); // Shopify products for correlations and metrics
   const [loadingAllProducts, setLoadingAllProducts] = useState(false); // NEW: Loading state
   const [loadingMessage, setLoadingMessage] = useState(''); // For bulk UPC sync loading state
   const [showUnknownProducts, setShowUnknownProducts] = useState(true);
@@ -534,45 +533,43 @@ const PlanogramProfitTracker = () => {
               try {
                 console.log('🔄 Auto-loading most recent layout...');
                 
-                // FIX: Don't load ALL planograms at once - Firebase payload too large
-                // Instead, use shallow query to get just the list, then load individual items
-                console.log('🔧 Using LIMITED Firebase query for auto-load...');
-                
-                const userId = window.firebaseService.currentUser.uid;
-                const planogramsRef = window.firebaseService.db.ref(`users/${userId}/planograms`);
-                
-                // Get list with metadata only (shallow = true)
-                const snapshot = await planogramsRef.orderByChild('timestamp').limitToLast(20).once('value');
+                // WORKAROUND: firebaseService.listPlanograms() is broken
+                // Use direct Firebase query instead
+                console.log('🔧 Using DIRECT Firebase query for auto-load...');
                 
                 let planograms = [];
+                const userId = window.firebaseService.currentUser.uid;
+                const planogramsRef = window.firebaseService.db.ref(`users/${userId}/planograms`);
+                const snapshot = await planogramsRef.once('value');
+                
                 if (snapshot.exists()) {
                   const planogramsData = snapshot.val();
                   planograms = Object.entries(planogramsData).map(([id, data]) => ({
                     id,
-                    name: data.name,
-                    timestamp: data.timestamp,
-                    isSavedLayout: data.isSavedLayout,
-                    isSectionVersion: data.isSectionVersion,
-                    metadata: data.metadata
+                    ...data
                   }));
                 }
                 
-                console.log(`📂 Found ${planograms.length} recent items (limited to 20)`);
+                console.log(`📂 Found ${planograms.length} total items in Firebase`);
                 
-                // Filter for SAVED LAYOUTS
+                // Filter for SAVED LAYOUTS (including those without explicit flag)
+                // Accept: isSavedLayout === true OR (not a section version AND has fixtures/sections)
                 const savedLayouts = planograms.filter(p => {
+                  // Explicitly marked as saved layout
                   if (p.isSavedLayout === true) return true;
-                  if (p.isSectionVersion !== true && p.metadata) return true;
+                  
+                  // Not a section version AND has content
+                  if (p.isSectionVersion !== true && (p.fixtures || p.sections)) {
+                    console.log(`✅ Including layout without flag: ${p.name || p.id}`);
+                    return true;
+                  }
+                  
                   return false;
                 });
-                
-                // Sort by timestamp descending
-                savedLayouts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                
                 console.log(`📂 Found ${savedLayouts.length} saved layouts`);
                 
                 if (savedLayouts.length > 0) {
-                  // Load the most recent saved layout (THIS is now a single small query)
+                  // Load the most recent saved layout
                   const mostRecent = savedLayouts[0];
                   console.log(`📂 Auto-loading: ${mostRecent.name || mostRecent.id}`);
                   
@@ -924,43 +921,37 @@ const PlanogramProfitTracker = () => {
 
     try {
       setLoadingLayouts(true);
-      console.log('📂 Fetching planogram list (metadata only)...');
+      console.log('📂 Fetching all planograms...');
       
       let allPlanograms = [];
       try {
-        // FIX: Don't load full planogram data - just get metadata for the list
-        console.log('🔧 Using LIMITED Firebase query (metadata only)...');
+        // WORKAROUND: firebaseService.listPlanograms() is broken
+        // Use direct Firebase query instead
+        console.log('🔧 Using DIRECT Firebase query (bypassing listPlanograms)...');
         
         const userId = window.firebaseService.currentUser.uid;
         const planogramsRef = window.firebaseService.db.ref(`users/${userId}/planograms`);
-        
-        // Limit to recent 50 items to avoid payload issues
-        const snapshot = await planogramsRef.orderByChild('timestamp').limitToLast(50).once('value');
+        const snapshot = await planogramsRef.once('value');
         
         if (snapshot.exists()) {
           const planogramsData = snapshot.val();
           console.log(`📂 Raw Firebase keys: ${Object.keys(planogramsData).length}`);
           
-          // Convert to array format - ONLY extract metadata fields
+          // Convert to array format
           allPlanograms = Object.entries(planogramsData).map(([id, data]) => ({
             id,
-            name: data.name,
-            timestamp: data.timestamp,
-            isSavedLayout: data.isSavedLayout,
-            isSectionVersion: data.isSectionVersion,
-            metadata: data.metadata
-            // Don't include fixtures, sections, or other large data!
+            ...data
           }));
           
-          console.log(`📂 Got ${allPlanograms.length} planograms (limited to 50 most recent)`);
+          console.log(`📂 Got ${allPlanograms.length} total planograms`);
         } else {
           console.log('📂 No planograms found in Firebase');
         }
       } catch (fetchError) {
         if (fetchError.message && fetchError.message.includes('payload is too large')) {
-          console.warn('⚠️ WARNING: Firebase payload still too large even with limits');
-          console.warn('⚠️ Use the Cleanup tool to delete old items');
-          alert('⚠️ WARNING: Too much data in Firebase!\n\nEven with limits, the data is too large.\n\nClick "🗑️ Cleanup Firebase" to delete old items.');
+          console.warn('⚠️ WARNING: Some items in Firebase are too large to load');
+          console.warn('⚠️ Use the Cleanup tool to delete oversized items');
+          alert('⚠️ WARNING: Firebase has oversized items!\n\nSome saved data is too large to load.\n\nClick "🗑️ Cleanup Firebase" to delete oversized items.');
           setLoadingLayouts(false);
           return;
         }
@@ -973,14 +964,15 @@ const PlanogramProfitTracker = () => {
           // Explicitly marked as saved layout
           if (p.isSavedLayout === true) return true;
           
-          // Not a section version AND has metadata
-          if (p.isSectionVersion !== true && p.metadata) {
+          // Not a section version AND has content
+          if (p.isSectionVersion !== true && (p.fixtures || p.sections)) {
+            console.log(`✅ Including layout without flag: ${p.name || p.id}`);
             return true;
           }
           
           // Skip section versions
-          if (p.isSectionVersion === true) {
-            console.log(`⏭️ Skipping section version: ${p.name || p.id}`);
+          if (p.isSectionVersion === true && p.name) {
+            console.log(`⏭️ Skipping section version: ${p.name}`);
           }
           
           return false;
@@ -1875,8 +1867,8 @@ const PlanogramProfitTracker = () => {
     );
     
     // Get detailed product info
-    const productsData = Array.from(productIds).map(id => 
-      products.find(p => p.id === id)
+    const products = Array.from(productIds).map(id => 
+      inventory.find(p => p.id === id)
     ).filter(Boolean);
     
     // Calculate section size (square footage)
@@ -1901,7 +1893,7 @@ const PlanogramProfitTracker = () => {
     }, 0);
     
     // Calculate profit
-    const totalProfit = productsData.reduce((sum, product) => {
+    const totalProfit = products.reduce((sum, product) => {
       if (!product.price || !product.cost) return sum;
       const productRevenue = relevantOrders.reduce((orderSum, order) => {
         const item = order.line_items?.find(i => i.product_id?.toString() === product.id);
@@ -1915,7 +1907,7 @@ const PlanogramProfitTracker = () => {
     }, 0);
     
     // Product-level performance
-    const productPerformance = productsData.map(product => {
+    const productPerformance = products.map(product => {
       const productRevenue = relevantOrders.reduce((sum, order) => {
         const item = order.line_items?.find(i => i.product_id?.toString() === product.id);
         return sum + (item ? parseFloat(item.price) * item.quantity : 0);
@@ -1939,26 +1931,26 @@ const PlanogramProfitTracker = () => {
     }).sort((a, b) => b.revenue - a.revenue);
     
     // Inventory turnover
-    const averageInventory = productsData.reduce((sum, p) => sum + (parseFloat(p.inventory) || 0), 0);
+    const averageInventory = products.reduce((sum, p) => sum + (parseFloat(p.inventory) || 0), 0);
     const turnoverRate = averageInventory > 0 ? totalUnits / averageInventory : 0;
     
     return {
       revenue: {
         total: totalRevenue,
-        perProduct: productsData.length > 0 ? totalRevenue / productsData.length : 0,
+        perProduct: products.length > 0 ? totalRevenue / products.length : 0,
         perSquareFoot: squareFeet > 0 ? totalRevenue / squareFeet : 0,
         perOrder: relevantOrders.length > 0 ? totalRevenue / relevantOrders.length : 0
       },
       units: {
         total: totalUnits,
-        perProduct: productsData.length > 0 ? totalUnits / productsData.length : 0,
+        perProduct: products.length > 0 ? totalUnits / products.length : 0,
         perOrder: relevantOrders.length > 0 ? totalUnits / relevantOrders.length : 0
       },
       profit: {
         total: totalProfit,
         margin: totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0,
         perSquareFoot: squareFeet > 0 ? totalProfit / squareFeet : 0,
-        perProduct: productsData.length > 0 ? totalProfit / productsData.length : 0
+        perProduct: products.length > 0 ? totalProfit / products.length : 0
       },
       inventory: {
         turnoverRate: turnoverRate,
@@ -1970,18 +1962,18 @@ const PlanogramProfitTracker = () => {
         averageValue: relevantOrders.length > 0 ? totalRevenue / relevantOrders.length : 0
       },
       products: {
-        count: productsData.length,
+        count: products.length,
         performance: productPerformance,
         topPerformers: productPerformance.slice(0, 5),
         lowPerformers: productPerformance.slice(-5).reverse()
       },
       assortment: {
-        vendors: [...new Set(productsData.map(p => p.vendor).filter(Boolean))].length,
-        categories: [...new Set(productsData.map(p => p.category).filter(Boolean))].length,
+        vendors: [...new Set(products.map(p => p.vendor).filter(Boolean))].length,
+        categories: [...new Set(products.map(p => p.category).filter(Boolean))].length,
         priceRange: {
-          min: Math.min(...productsData.map(p => parseFloat(p.price) || 0).filter(p => p > 0)),
-          max: Math.max(...productsData.map(p => parseFloat(p.price) || 0)),
-          avg: productsData.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0) / productsData.length
+          min: Math.min(...products.map(p => parseFloat(p.price) || 0).filter(p => p > 0)),
+          max: Math.max(...products.map(p => parseFloat(p.price) || 0)),
+          avg: products.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0) / products.length
         }
       }
     };
@@ -2597,36 +2589,12 @@ const PlanogramProfitTracker = () => {
     badStockProductsRef.current = badStockProducts;
   }, [badStockProducts]);
 
-  // Load correlations and products when connected to Shopify
+  // Load correlations when connected to Shopify
   useEffect(() => {
     if (shopifyConfig.connected) {
-      // Load products from localStorage first
-      const savedProducts = localStorage.getItem('planogram_products');
-      if (savedProducts) {
-        try {
-          const productsArray = JSON.parse(savedProducts);
-          setProducts(productsArray);
-          console.log(`✅ Loaded ${productsArray.length} products from localStorage`);
-        } catch (e) {
-          console.warn('Failed to load saved products:', e);
-        }
-      }
-      
-      // Try to load saved correlations from localStorage first
-      const savedCorrelations = localStorage.getItem('planogram_product_correlations');
-      if (savedCorrelations) {
-        try {
-          const correlations = JSON.parse(savedCorrelations);
-          setProductCorrelations(correlations);
-          console.log(`✅ Loaded ${correlations.length} product correlations from localStorage`);
-        } catch (e) {
-          console.warn('Failed to load saved correlations:', e);
-        }
-      }
-      
-      // Note: Order data now stored in Firebase, correlations calculated on-demand
+      fetchCorrelations();
     }
-  }, [shopifyConfig.connected, products.length]); // Added products.length as dependency
+  }, [shopifyConfig.connected]);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -3316,30 +3284,6 @@ const PlanogramProfitTracker = () => {
       console.log('✅ Backend response:', data);
 
       if (data.success) {
-        // Fetch products to store in state for correlations and metrics
-        try {
-          const productsResponse = await fetch(`${BACKEND_URL}/api/shopify`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              storeName: shopifyConfig.storeName,
-              accessToken: shopifyConfig.accessToken,
-              action: 'getProducts'
-            })
-          });
-          
-          if (productsResponse.ok) {
-            const productsData = await productsResponse.json();
-            if (productsData.products) {
-              console.log(`📦 Fetched ${productsData.products.length} products for state`);
-              setProducts(productsData.products);
-              localStorage.setItem('planogram_products', JSON.stringify(productsData.products));
-            }
-          }
-        } catch (err) {
-          console.warn('⚠️ Could not fetch products for state:', err);
-        }
-        
         if (data.totalProducts && !isAutoRefresh) {
           console.log(`📦 Loaded ${data.totalProducts} products`);
           setSyncProgress({ message: 'Products loaded', current: data.totalProducts, total: data.totalProducts });
@@ -3399,22 +3343,21 @@ const PlanogramProfitTracker = () => {
       }
 
       const data = await response.json();
-      const productsData = data.products || [];
+      const products = data.products || [];
       
-      console.log(`✅ Loaded ${productsData.length} products with sales data from database`);
+      console.log(`✅ Loaded ${products.length} products with sales data from database`);
       console.log(`📊 Summary:`, data.summary);
-      setAllDatabaseProducts(productsData);
-      setProducts(productsData); // CRITICAL: Also update products for correlations
-      setFeedback(`✅ Loaded ${productsData.length} products with sales data (${data.summary?.criticalAlerts || 0} critical alerts)`);
+      setAllDatabaseProducts(products);
+      setFeedback(`✅ Loaded ${products.length} products with sales data (${data.summary?.criticalAlerts || 0} critical alerts)`);
       
       // Save timestamp
       localStorage.setItem('lastInventoryLoadTime', Date.now().toString());
       
       // AUTO-SYNC 1: Update distributor values in planogram (silent)
-      setTimeout(() => autoSyncDistributors(productsData), 500);
+      setTimeout(() => autoSyncDistributors(products), 500);
       
       // AUTO-SYNC 2: Check for negative stock and add to Bad Stock list (with notification)
-      setTimeout(() => autoSyncBadStock(productsData), 1000);
+      setTimeout(() => autoSyncBadStock(products), 1000);
 
     } catch (error) {
       console.error('❌ Error loading all products:', error);
@@ -4513,14 +4456,6 @@ const PlanogramProfitTracker = () => {
     
     try {
       console.log('📡 Calling backend /api/shopify with action: refreshOrders');
-      
-      // Add timeout to prevent hanging forever
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-        console.log('⏱️ Request timed out after 3 minutes');
-      }, 3 * 60 * 1000); // 3 minute timeout
-      
       const response = await fetch(`${BACKEND_URL}/api/shopify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -4528,11 +4463,8 @@ const PlanogramProfitTracker = () => {
           storeName: shopifyConfig.storeName,
           accessToken: shopifyConfig.accessToken,
           action: 'refreshOrders'
-        }),
-        signal: controller.signal
+        })
       });
-
-      clearTimeout(timeoutId); // Clear timeout if request completes
 
       const data = await response.json();
       console.log('✅ Backend response:', data);
@@ -4601,11 +4533,6 @@ const PlanogramProfitTracker = () => {
                 // Update orderAnalyticsData for Order Analytics page
                 if (statusData.lastResult.orders) {
                   const orders = statusData.lastResult.orders;
-                  
-                  // CRITICAL: Save orders to Firebase (no localStorage limits!)
-                  console.log(`💾 Saving ${orders.length} orders to Firebase...`);
-                  await saveOrdersToFirebase(orders);
-                  
                   const now = new Date();
                   
                   // Create date boundaries in LOCAL timezone
@@ -4698,8 +4625,8 @@ const PlanogramProfitTracker = () => {
                 setLastOrdersRefresh(new Date(statusData.lastCompleted));
                 localStorage.setItem('planogram_last_orders_refresh', statusData.lastCompleted);
                 
-                // Calculate correlations from order data (will load products if needed)
-                ensureProductsAndCalculateCorrelations();
+                // Fetch correlations after orders are processed
+                fetchCorrelations();
                 
                 setFeedback(`✅ COMPLETE: ${statusData.lastResult.ordersProcessed} orders, ${statusData.lastResult.itemsProcessed} items analyzed!`);
                 setTimeout(() => setFeedback(''), 8000);
@@ -4724,14 +4651,8 @@ const PlanogramProfitTracker = () => {
             localStorage.setItem('planogram_order_analytics', JSON.stringify(data.analytics));
           }
           
-          // CRITICAL: Save orders to Firebase (no localStorage limits!)
-          if (data.orders) {
-            console.log(`💾 Saving ${data.orders.length} orders to Firebase...`);
-            await saveOrdersToFirebase(data.orders);
-          }
-          
-          // Calculate correlations from order data (will load products if needed)
-          ensureProductsAndCalculateCorrelations();
+          // Fetch correlations after orders are processed
+          fetchCorrelations();
           
           setFeedback(`✅ Order Blitz: ${data.ordersProcessed || '?'} orders, ${data.itemsProcessed || '?'} items analyzed!`);
           setTimeout(() => setFeedback(''), 8000);
@@ -4745,127 +4666,7 @@ const PlanogramProfitTracker = () => {
     } catch (error) {
       console.error('❌ Order import error:', error);
       setSyncProgress({ message: '', current: 0, total: 0 });
-      
-      // Check if it was a timeout/abort
-      if (error.name === 'AbortError') {
-        setFeedback(`⏱️ Request timed out after 3 minutes. Backend may be overloaded. Try again or check backend logs.`);
-      } else {
-        setFeedback(`❌ Order import failed: ${error.message}`);
-      }
-      setTimeout(() => setFeedback(''), 8000);
-    }
-  };
-
-  // 📊 NEW: Fetch orders from database (instant, no Shopify API call!)
-  const fetchOrdersFromDatabase = async () => {
-    console.log('📊 Fetching orders from database...');
-    setFeedback('📊 Loading orders from database...');
-    
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/orders/from-database?limit=20000`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      console.log(`✅ Got ${data.orders.length} orders from database`);
-      console.log(`📅 Last synced: ${data.lastSync}`);
-      
-      // Save orders to Firebase (no localStorage limits!)
-      await saveOrdersToFirebase(data.orders);
-      console.log(`💾 Saved ${data.orders.length} orders to Firebase`);
-      
-      // Calculate analytics
-      const now = new Date();
-      const analytics = {
-        today: { count: 0, revenue: 0 },
-        week: { count: 0, revenue: 0 },
-        month: { count: 0, revenue: 0 },
-        year: { count: 0, revenue: 0 }
-      };
-      
-      data.orders.forEach(order => {
-        const orderDate = new Date(order.created_at);
-        const daysDiff = Math.floor((now - orderDate) / (1000 * 60 * 60 * 24));
-        const revenue = parseFloat(order.total_price) || 0;
-        
-        if (daysDiff === 0) {
-          analytics.today.count++;
-          analytics.today.revenue += revenue;
-        }
-        if (daysDiff <= 7) {
-          analytics.week.count++;
-          analytics.week.revenue += revenue;
-        }
-        if (daysDiff <= 30) {
-          analytics.month.count++;
-          analytics.month.revenue += revenue;
-        }
-        if (daysDiff <= 365) {
-          analytics.year.count++;
-          analytics.year.revenue += revenue;
-        }
-      });
-      
-      console.log('📊 CALCULATED ANALYTICS:');
-      console.log(`  Today: ${analytics.today.count} orders, $${analytics.today.revenue.toFixed(2)}`);
-      console.log(`  Week: ${analytics.week.count} orders, $${analytics.week.revenue.toFixed(2)}`);
-      console.log(`  Month: ${analytics.month.count} orders, $${analytics.month.revenue.toFixed(2)}`);
-      console.log(`  Year: ${analytics.year.count} orders, $${analytics.year.revenue.toFixed(2)}`);
-      
-      // Save analytics
-      localStorage.setItem('planogram_order_analytics', JSON.stringify(analytics));
-      
-      // Update state
-      setOrderAnalytics(analytics);
-      
-      setFeedback(`✅ Loaded ${data.orders.length} orders from database!`);
-      setTimeout(() => setFeedback(''), 3000);
-      
-      // Trigger correlation calculation (will load products if needed)
-      console.log('🔄 Triggering correlation calculation...');
-      ensureProductsAndCalculateCorrelations();
-      
-      return { orders: data.orders, analytics };
-      
-    } catch (error) {
-      console.error('❌ Error fetching orders from database:', error);
-      setFeedback(`❌ Error: ${error.message}`);
-      setTimeout(() => setFeedback(''), 5000);
-    }
-  };
-
-  // 🔄 NEW: Trigger background sync (pulls fresh data from Shopify)
-  const triggerBackgroundSync = async () => {
-    console.log('🔄 Triggering background sync...');
-    setFeedback('🔄 Syncing orders from Shopify... (takes ~30 sec)');
-    
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/orders/sync-now`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('✅ Sync triggered:', data);
-      
-      setFeedback('✅ Syncing in background... Will auto-reload in 30 seconds');
-      
-      // Wait 30 seconds then fetch from database
-      setTimeout(() => {
-        console.log('⏰ Auto-reloading orders from database after sync...');
-        fetchOrdersFromDatabase();
-      }, 30000);
-      
-    } catch (error) {
-      console.error('❌ Sync trigger error:', error);
-      setFeedback(`❌ Error: ${error.message}`);
+      setFeedback(`❌ Order import failed: ${error.message}`);
       setTimeout(() => setFeedback(''), 5000);
     }
   };
@@ -4955,10 +4756,6 @@ const PlanogramProfitTracker = () => {
           console.log(`  Month: ${ordersMonth} orders, $${salesMonth.toFixed(2)}`);
           console.log(`  Year: ${ordersYear} orders, $${salesYear.toFixed(2)}`);
           
-          // CRITICAL: Save orders to Firebase (no localStorage limits!)
-          console.log(`💾 Saving ${orders.length} orders to Firebase...`);
-          await saveOrdersToFirebase(orders);
-          
           // Combine: use analytics data for recent orders (WITH line items),
           // but use full order list for pattern analysis AND recalculated periods
           setOrderAnalyticsData({
@@ -4993,12 +4790,6 @@ const PlanogramProfitTracker = () => {
       }
       
       // If getOrders failed, just use analytics data
-      // BUT save the recentOrders to Firebase for correlation calculation
-      if (analyticsData.recentOrders && analyticsData.recentOrders.length > 0) {
-        console.log(`💾 Saving ${analyticsData.recentOrders.length} recent orders to Firebase...`);
-        await saveOrdersToFirebase(analyticsData.recentOrders);
-      }
-      
       setOrderAnalyticsData({
         totalOrders: analyticsData.totalOrders || 0,
         totalSales: analyticsData.totalSales || 0,
@@ -5214,325 +5005,6 @@ const PlanogramProfitTracker = () => {
     } catch (error) {
       console.error('Failed to fetch correlations:', error);
     }
-  };
-
-  // Helper: Ensure products are loaded, then calculate correlations
-  const ensureProductsAndCalculateCorrelations = async () => {
-    console.log('🔍 Ensuring products are loaded before calculating correlations...');
-    
-    // Check if products are already loaded
-    if (products && products.length > 0) {
-      console.log(`✅ Products already loaded (${products.length} products)`);
-      await calculateCorrelationsFromOrders(products);
-      return;
-    }
-    
-    // Products not loaded - try to load them first
-    console.log('📦 Products not loaded, loading now...');
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/products/all`);
-      if (!response.ok) {
-        throw new Error(`Failed to load products: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const productsData = data.products || [];
-      console.log(`✅ Loaded ${productsData.length} products for correlation calculation`);
-      
-      // Update both state variables
-      setProducts(productsData);
-      setAllDatabaseProducts(productsData);
-      
-      // Now calculate correlations (will fetch orders from Firebase)
-      if (productsData.length > 0) {
-        await calculateCorrelationsFromOrders(productsData);
-      } else {
-        console.warn('⚠️ No products found in database');
-      }
-    } catch (error) {
-      console.error('❌ Failed to load products for correlation:', error);
-    }
-  };
-
-  // 📦 FIREBASE ORDER MANAGEMENT - No more localStorage limits!
-  const saveOrdersToFirebase = async (orders) => {
-    // Check if dbRef is available, if not try to get it directly from firebase
-    let db = dbRef.current;
-    
-    if (!db) {
-      console.warn('⚠️ dbRef not set, attempting to get database directly from firebase...');
-      try {
-        if (typeof firebase !== 'undefined' && firebase.database) {
-          db = firebase.database();
-          console.log('✅ Got database directly from firebase');
-        } else {
-          console.error('❌ Firebase not available');
-          return false;
-        }
-      } catch (e) {
-        console.error('❌ Failed to get Firebase database:', e);
-        return false;
-      }
-    }
-
-    try {
-      console.log(`💾 Saving ${orders.length} orders to Firebase...`);
-      const startTime = Date.now();
-      
-      // Save to Firebase at root level (matching your existing structure)
-      await db.ref('orders').set({
-        orders: orders,
-        lastSync: new Date().toISOString(),
-        count: orders.length
-      });
-      
-      const duration = Date.now() - startTime;
-      console.log(`✅ Saved ${orders.length} orders to Firebase in ${duration}ms`);
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to save orders to Firebase:', error);
-      return false;
-    }
-  };
-
-  // Load full orders from Firebase (for analytics)
-  const getOrdersFromFirebase = async () => {
-    let db = dbRef.current;
-    
-    if (!db) {
-      console.warn('⚠️ dbRef not set, attempting to get database directly...');
-      try {
-        if (typeof firebase !== 'undefined' && firebase.database) {
-          db = firebase.database();
-        } else {
-          console.error('❌ Firebase not available');
-          return [];
-        }
-      } catch (e) {
-        console.error('❌ Failed to get Firebase database:', e);
-        return [];
-      }
-    }
-
-    try {
-      console.log('📥 Loading orders from Firebase...');
-      const snapshot = await db.ref('orders').once('value');
-      const data = snapshot.val();
-      
-      if (!data || !data.orders) {
-        console.log('⚠️ No orders found in Firebase');
-        return [];
-      }
-      
-      console.log(`✅ Loaded ${data.orders.length} orders from Firebase (synced: ${data.lastSync})`);
-      return data.orders;
-    } catch (error) {
-      console.error('❌ Failed to load orders from Firebase:', error);
-      return [];
-    }
-  };
-
-  // Load ONLY product IDs from Firebase (lightweight, for correlations)
-  const getOrderProductIdsFromFirebase = async () => {
-    let db = dbRef.current;
-    
-    if (!db) {
-      console.warn('⚠️ dbRef not set, attempting to get database directly...');
-      try {
-        if (typeof firebase !== 'undefined' && firebase.database) {
-          db = firebase.database();
-        } else {
-          console.error('❌ Firebase not available');
-          return [];
-        }
-      } catch (e) {
-        console.error('❌ Failed to get Firebase database:', e);
-        return [];
-      }
-    }
-
-    try {
-      console.log('📥 Loading order product IDs from Firebase (lightweight query)...');
-      const snapshot = await db.ref('orders/orders').once('value');
-      const orders = snapshot.val();
-      
-      if (!orders || orders.length === 0) {
-        console.log('⚠️ No orders found in Firebase');
-        return [];
-      }
-      
-      // Extract only what we need for correlations
-      const lightweightOrders = orders.map(order => ({
-        id: order.id || order.order_number,
-        line_items: (order.line_items || []).map(item => ({
-          product_id: item.product_id
-        }))
-      }));
-      
-      console.log(`✅ Loaded product IDs from ${orders.length} orders for correlation calculation`);
-      return lightweightOrders;
-    } catch (error) {
-      console.error('❌ Failed to load order product IDs from Firebase:', error);
-      return [];
-    }
-  };
-
-  // Calculate product correlations from order data (CLIENT-SIDE)
-  const calculateCorrelationsFromOrders = async (productsArray = [], ordersParam = null) => {
-    console.log('🔄 ═══════════════════════════════════════════════');
-    console.log('🔄 CALCULATING PRODUCT CORRELATIONS');
-    console.log('🔄 ═══════════════════════════════════════════════');
-    
-    // Get orders from parameter or Firebase
-    let orders = ordersParam;
-    
-    if (!orders) {
-      console.log('📥 No orders provided, fetching from Firebase...');
-      orders = await getOrderProductIdsFromFirebase();
-    }
-    
-    if (!orders || orders.length === 0) {
-      console.log('⚠️ No orders to analyze (orders array is empty)');
-      console.log('⚠️ Run Order Blitz first to load order data');
-      return [];
-    }
-    
-    console.log(`📦 Analyzing ${orders.length} orders for product correlations...`);
-    
-    // Use the passed-in products array (defaults to empty array if not provided)
-    console.log(`📦 Products provided: ${productsArray.length}`);
-    if (productsArray.length === 0) {
-      console.warn('⚠️ WARNING: No products provided!');
-      console.warn('⚠️ Correlations will not have product details');
-      console.warn('⚠️ Make sure products are loaded before calculating correlations');
-    }
-    
-    // Map to track product pairs and their frequency
-    const pairMap = new Map();
-    let ordersWithMultipleItems = 0;
-    let totalPairsFound = 0;
-    
-    // Process each order
-    orders.forEach(order => {
-      if (!order.line_items || order.line_items.length < 2) {
-        return; // Skip orders with 0 or 1 item (no pairs possible)
-      }
-      
-      ordersWithMultipleItems++;
-      
-      // Get all product IDs in this order
-      const productIds = order.line_items
-        .filter(item => item.product_id)
-        .map(item => item.product_id.toString());
-      
-      if (productIds.length < 2) return;
-      
-      // Generate all pairs (combinations) from this order
-      for (let i = 0; i < productIds.length; i++) {
-        for (let j = i + 1; j < productIds.length; j++) {
-          const idA = productIds[i];
-          const idB = productIds[j];
-          
-          // Create a sorted pair key (so A-B and B-A are the same)
-          const pairKey = [idA, idB].sort().join('-');
-          
-          // Increment counter for this pair
-          pairMap.set(pairKey, (pairMap.get(pairKey) || 0) + 1);
-          totalPairsFound++;
-        }
-      }
-    });
-    
-    console.log(`📊 Orders with 2+ items: ${ordersWithMultipleItems}`);
-    console.log(`📊 Total pair instances found: ${totalPairsFound}`);
-    console.log(`📊 Unique product pairs: ${pairMap.size}`);
-    
-    if (pairMap.size === 0) {
-      console.warn('⚠️ No product pairs found! All orders have only 1 item.');
-      return;
-    }
-    
-    // Convert map to array and enrich with product data
-    const correlations = [];
-    const allProducts = productsArray; // Use products from parameter
-    
-    console.log(`🔍 Enriching pairs with product data...`);
-    let matchedPairs = 0;
-    let unmatchedPairs = 0;
-    
-    pairMap.forEach((count, pairKey) => {
-      const [idA, idB] = pairKey.split('-');
-      
-      const productA = allProducts.find(p => p.id === idA);
-      const productB = allProducts.find(p => p.id === idB);
-      
-      // Only include if we have both products
-      if (productA && productB) {
-        matchedPairs++;
-        correlations.push({
-          productA: {
-            id: productA.id,
-            name: productA.title,
-            price: parseFloat(productA.variants?.[0]?.price || 0),
-            sku: productA.variants?.[0]?.sku || ''
-          },
-          productB: {
-            id: productB.id,
-            name: productB.title,
-            price: parseFloat(productB.variants?.[0]?.price || 0),
-            sku: productB.variants?.[0]?.sku || ''
-          },
-          timesBoughtTogether: count
-        });
-      } else {
-        unmatchedPairs++;
-        if (unmatchedPairs <= 5) { // Only log first 5 to avoid spam
-          console.warn(`⚠️ Could not find products for pair: ${idA} + ${idB}`);
-          if (!productA) console.warn(`   Missing product A: ${idA}`);
-          if (!productB) console.warn(`   Missing product B: ${idB}`);
-        }
-      }
-    });
-    
-    console.log(`✅ Matched ${matchedPairs} pairs with product details`);
-    console.log(`⚠️ Unmatched ${unmatchedPairs} pairs (products not in catalog)`);
-    
-    // Sort by frequency (most common first)
-    correlations.sort((a, b) => b.timesBoughtTogether - a.timesBoughtTogether);
-    
-    console.log(`✅ ═══════════════════════════════════════════════`);
-    console.log(`✅ CALCULATED ${correlations.length} PRODUCT CORRELATIONS`);
-    console.log(`✅ ═══════════════════════════════════════════════`);
-    
-    if (correlations.length > 0) {
-      console.log(`🏆 Top 3 combos:`);
-      correlations.slice(0, 3).forEach((corr, idx) => {
-        console.log(`   ${idx + 1}. ${corr.productA.name} + ${corr.productB.name} (${corr.timesBoughtTogether}x)`);
-      });
-    } else {
-      console.warn('⚠️ No correlations found! Check if:');
-      console.warn('   1. Products exist in your catalog');
-      console.warn('   2. Orders have 2+ line items');
-      console.warn('   3. Product IDs match between orders and catalog');
-    }
-    
-    // Update state
-    setProductCorrelations(correlations);
-    console.log(`📌 Updated state with ${correlations.length} correlations`);
-    
-    // Save to localStorage for persistence
-    try {
-      localStorage.setItem('planogram_product_correlations', JSON.stringify(correlations));
-      console.log('💾 Saved correlations to localStorage');
-    } catch (e) {
-      console.warn('❌ Failed to save correlations to localStorage:', e);
-    }
-    
-    console.log('🔄 ═══════════════════════════════════════════════');
-    console.log(`🔄 CORRELATION CALCULATION COMPLETE`);
-    console.log('🔄 ═══════════════════════════════════════════════');
-    
-    return correlations;
   };
 
 
@@ -12275,34 +11747,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
             {/* 🤝 Best Upsell Combinations */}
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <h2 className="text-xl font-bold">🤝 Best Upsell Combinations</h2>
-                  <p className="text-sm text-gray-500 mt-1">Products actually bought together (from order data)</p>
-                </div>
-                <button
-                  onClick={async () => {
-                    console.log('🔘 Manual correlation calculation triggered');
-                    if (!products || products.length === 0) {
-                      setFeedback('⚠️ Products not loaded yet. Please wait or refresh products from Settings.');
-                      setTimeout(() => setFeedback(''), 5000);
-                      return;
-                    }
-                    setFeedback('🔄 Calculating correlations...');
-                    const result = await calculateCorrelationsFromOrders(products);
-                    if (result && result.length > 0) {
-                      setFeedback(`✅ Calculated ${result.length} product correlations!`);
-                    } else {
-                      setFeedback('⚠️ No correlations found. Check console for details.');
-                    }
-                    setTimeout(() => setFeedback(''), 5000);
-                  }}
-                  className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-semibold flex items-center gap-2"
-                  title="Manually calculate correlations from order data"
-                >
-                  🔄 Calculate Now
-                </button>
-              </div>
+              <h2 className="text-xl font-bold mb-2">🤝 Best Upsell Combinations</h2>
+              <p className="text-sm text-gray-500 mb-4">Products actually bought together (from order data)</p>
               
               {(() => {
                 // Get all unique fixtures from planogram - with safety check
@@ -13583,10 +13029,36 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   <p className="text-gray-600 mt-1">Real-time order data from Shopify</p>
                 </div>
                 
-                {/* Removed buttons - now in Settings page */}
-                <p className="text-sm text-gray-600 mb-4">
-                  💡 Use the <strong>Settings</strong> page to load and sync order data
-                </p>
+                {/* Refresh Button */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={refreshOrders}
+                    disabled={feedback.includes('Order Blitz') || feedback.includes('Importing')}
+                    className={`px-4 py-2 ${
+                      feedback.includes('Order Blitz') || feedback.includes('Importing')
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-orange-500 hover:bg-orange-600'
+                    } text-white rounded-lg font-semibold flex items-center gap-2 transition-all`}
+                    title="Import latest orders from Shopify"
+                  >
+                    {feedback.includes('Order Blitz') || feedback.includes('Importing') ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Refresh Orders
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Loading Banner */}
@@ -15126,73 +14598,23 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                       💰 Sales
                     </button>
 
-                    {/* Orders Section - Load & Sync */}
-                    <div className="md:col-span-3 space-y-3">
-                      <div className="flex gap-3">
-                        {/* Load Orders from Database (Instant) */}
-                        <button
-                          onClick={fetchOrdersFromDatabase}
-                          disabled={feedback.includes('Loading') || feedback.includes('Syncing')}
-                          className={`flex-1 px-4 py-3 ${
-                            feedback.includes('Loading') || feedback.includes('Syncing')
-                              ? 'bg-gray-400 cursor-not-allowed'
-                              : 'bg-blue-500 hover:bg-blue-600'
-                          } text-white rounded-xl font-medium transition-all shadow-md flex items-center justify-center gap-2`}
-                          title="Load orders from database (instant!)"
-                        >
-                          {feedback.includes('Loading') ? (
-                            <>
-                              <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              Loading...
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-                              </svg>
-                              📊 Load Orders
-                            </>
-                          )}
-                        </button>
-                        
-                        {/* Sync Fresh from Shopify */}
-                        <button
-                          onClick={triggerBackgroundSync}
-                          disabled={feedback.includes('Syncing') || feedback.includes('Order Blitz')}
-                          className={`flex-1 px-4 py-3 ${
-                            feedback.includes('Syncing') || feedback.includes('Order Blitz')
-                              ? 'bg-gray-400 cursor-not-allowed'
-                              : 'bg-orange-500 hover:bg-orange-600'
-                          } text-white rounded-xl font-medium transition-all shadow-md flex items-center justify-center gap-2`}
-                          title="Sync fresh data from Shopify (~30 sec)"
-                        >
-                          {feedback.includes('Syncing') ? (
-                            <>
-                              <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              Syncing...
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                              🔄 Sync Fresh
-                            </>
-                          )}
-                        </button>
-                      </div>
-                      
-                      {/* Info Text */}
-                      <p className="text-xs" style={{ color: '#86868b' }}>
-                        💡 <strong>Load Orders</strong> = instant (reads from database) • <strong>Sync Fresh</strong> = pulls latest from Shopify (~30 sec)
-                      </p>
-                    </div>
+                    {/* Orders Button */}
+                    <button
+                      onClick={async () => {
+                        setFeedback('📊 Syncing orders...');
+                        try {
+                          await refreshOrders();
+                          setFeedback('✅ Orders synced!');
+                          setTimeout(() => setFeedback(''), 3000);
+                        } catch (error) {
+                          setFeedback('❌ Failed: ' + error.message);
+                        }
+                      }}
+                      className="px-4 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 font-medium transition-all shadow-md"
+                      title="Import full order data for analytics"
+                    >
+                      📊 Orders
+                    </button>
                   </div>
 
                   {/* Status Display */}
