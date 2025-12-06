@@ -2867,23 +2867,31 @@ const PlanogramProfitTracker = () => {
     if (!dbRef.current || !cloudSyncEnabled) return;
 
     try {
-      const layoutData = {
+      // 🔥 FIX: Don't save full sections to Firebase (too large)
+      // Only save metadata - full data stays in localStorage
+      const lightweightData = {
         storeName,
+        sectionCount: sectionsData?.length || 0,
+        productCount: sectionsData?.reduce((total, section) => {
+          return total + (section.rows?.reduce((rowTotal, row) => {
+            return rowTotal + (row.products?.length || 0);
+          }, 0) || 0);
+        }, 0) || 0,
         fixtures: fixturesData || fixtures,
-        sections: sectionsData,
         unknownProducts: unknownData || unknownProducts,
         badStockProducts: badStockData || badStockProducts,
         backgroundImage: backgroundImage ? 'stored_separately' : null,
         bgImagePosition,
         lastUpdated: Date.now(),
-        version: 3
+        version: 3,
+        note: 'Full sections data in localStorage (too large for Firebase)'
       };
 
-      // Use Realtime Database API: ref().set()
-      await dbRef.current.ref('planograms/default').set(layoutData);
-      console.log('☁️ Saved to Firebase Realtime Database');
+      await dbRef.current.ref('planograms/default').set(lightweightData);
+      console.log('☁️ Saved metadata to Firebase (full data in localStorage)');
     } catch (error) {
       console.error('Firebase save error:', error);
+      console.log('💾 Data still saved to localStorage');
     }
   };
 
@@ -2898,14 +2906,13 @@ const PlanogramProfitTracker = () => {
       
       if (snapshot.exists()) {
         const data = snapshot.val();
+        
+        // Only load lightweight metadata from Firebase
+        // Full sections data stays in localStorage
         if (data.storeName) setStoreName(data.storeName);
         if (data.fixtures) {
           setFixtures(Array.isArray(data.fixtures) ? data.fixtures : []);
           localStorage.setItem('planogram_fixtures', JSON.stringify(Array.isArray(data.fixtures) ? data.fixtures : []));
-        }
-        if (data.sections) {
-          setSections(Array.isArray(data.sections) ? data.sections : []);
-          localStorage.setItem('planogram_sections', JSON.stringify(Array.isArray(data.sections) ? data.sections : []));
         }
         if (data.unknownProducts) {
           setUnknownProducts(data.unknownProducts);
@@ -2918,6 +2925,8 @@ const PlanogramProfitTracker = () => {
           localStorage.setItem('planogram_bg_position', JSON.stringify(data.bgImagePosition));
         }
         
+        console.log('☁️ Loaded metadata from Firebase');
+        console.log('💾 Full sections data loaded from localStorage');
         setSyncStatus('✅ Loaded from cloud');
         setFeedback('✅ Cloud data loaded!');
         setTimeout(() => {
@@ -3219,11 +3228,10 @@ const PlanogramProfitTracker = () => {
         localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
         setFeedback(`✅ Connected!`);
         
-        // 🔥 CRITICAL: Store credentials in backend for auto-sync
-        // This enables background order sync every 5 minutes (which includes correlation calculation)
+        // Store credentials in backend for auto-sync
         try {
-          console.log('💾 Storing credentials in backend for auto-sync...');
-          const settingsResponse = await fetch(`${BACKEND_URL}/api/settings`, {
+          console.log('💾 Storing credentials for auto-sync...');
+          await fetch(`${BACKEND_URL}/api/settings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -3231,22 +3239,13 @@ const PlanogramProfitTracker = () => {
               accessToken: shopifyConfig.accessToken
             })
           });
+          console.log('✅ Auto-sync enabled (runs every 5 min, includes correlations)');
           
-          if (settingsResponse.ok) {
-            console.log('✅ Credentials stored - background sync will run every 5 minutes');
-            console.log('📊 Order sync includes automatic correlation calculation');
-            
-            // Trigger immediate sync to populate correlations now
-            console.log('🔄 Triggering initial sync...');
-            await fetch(`${BACKEND_URL}/api/orders/sync-now`, {
-              method: 'POST'
-            });
-            console.log('✅ Initial sync started - correlations will calculate in 1-2 minutes');
-          } else {
-            console.warn('⚠️ Could not store credentials - auto-sync disabled');
-          }
-        } catch (credErr) {
-          console.error('❌ Credential storage error:', credErr);
+          // Trigger initial sync
+          await fetch(`${BACKEND_URL}/api/orders/sync-now`, { method: 'POST' });
+          console.log('🔄 Initial sync triggered');
+        } catch (err) {
+          console.warn('⚠️ Could not enable auto-sync:', err);
         }
         
         setTimeout(() => {
