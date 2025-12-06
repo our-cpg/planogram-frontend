@@ -3218,6 +3218,37 @@ const PlanogramProfitTracker = () => {
         setShopifyConfig(updatedConfig);
         localStorage.setItem('planogram_shopify', JSON.stringify(updatedConfig));
         setFeedback(`✅ Connected!`);
+        
+        // 🔥 CRITICAL: Store credentials in backend for auto-sync
+        // This enables background order sync every 5 minutes (which includes correlation calculation)
+        try {
+          console.log('💾 Storing credentials in backend for auto-sync...');
+          const settingsResponse = await fetch(`${BACKEND_URL}/api/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              storeName: shopifyConfig.storeName,
+              accessToken: shopifyConfig.accessToken
+            })
+          });
+          
+          if (settingsResponse.ok) {
+            console.log('✅ Credentials stored - background sync will run every 5 minutes');
+            console.log('📊 Order sync includes automatic correlation calculation');
+            
+            // Trigger immediate sync to populate correlations now
+            console.log('🔄 Triggering initial sync...');
+            await fetch(`${BACKEND_URL}/api/orders/sync-now`, {
+              method: 'POST'
+            });
+            console.log('✅ Initial sync started - correlations will calculate in 1-2 minutes');
+          } else {
+            console.warn('⚠️ Could not store credentials - auto-sync disabled');
+          }
+        } catch (credErr) {
+          console.error('❌ Credential storage error:', credErr);
+        }
+        
         setTimeout(() => {
           setFeedback('');
           setShowSettings(false);
