@@ -2589,6 +2589,21 @@ const PlanogramProfitTracker = () => {
     badStockProductsRef.current = badStockProducts;
   }, [badStockProducts]);
 
+  // 🚀 Load correlations from cache FIRST (instant), then fetch fresh data
+  useEffect(() => {
+    // Load from cache immediately for instant display
+    const cachedCorrelations = localStorage.getItem('planogram_correlations');
+    if (cachedCorrelations) {
+      try {
+        const parsed = JSON.parse(cachedCorrelations);
+        setProductCorrelations(parsed);
+        console.log(`⚡ Loaded ${parsed.length} correlations from cache (instant)`);
+      } catch (e) {
+        console.error('Failed to parse cached correlations:', e);
+      }
+    }
+  }, []);
+
   // Load correlations when connected to Shopify
   useEffect(() => {
     if (shopifyConfig.connected) {
@@ -5021,8 +5036,16 @@ const PlanogramProfitTracker = () => {
       const response = await fetch(`${BACKEND_URL}/api/correlations`);
       if (response.ok) {
         const data = await response.json();
-        setProductCorrelations(data.correlations || []);
-        console.log(`✅ Loaded ${data.correlations?.length || 0} product correlations`);
+        const correlations = data.correlations || [];
+        
+        // Save to state
+        setProductCorrelations(correlations);
+        
+        // 🚀 CACHE in localStorage for instant loading next time
+        localStorage.setItem('planogram_correlations', JSON.stringify(correlations));
+        localStorage.setItem('planogram_correlations_timestamp', Date.now().toString());
+        
+        console.log(`✅ Loaded ${correlations.length} product correlations (cached)`);
       }
     } catch (error) {
       console.error('Failed to fetch correlations:', error);
