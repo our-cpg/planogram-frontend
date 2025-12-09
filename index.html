@@ -2627,7 +2627,7 @@ const PlanogramProfitTracker = () => {
   useEffect(() => {
     if (currentPage === 'dashboard' && !orderAnalyticsData.totalOrders) {
       console.log('📊 Auto-loading Order Analytics for Dashboard...');
-      fetchAllOrders().catch(err => {
+      loadOrderAnalyticsFromBackend().catch(err => {
         console.log('⚠️ Could not auto-load orders:', err.message);
       });
     }
@@ -4479,7 +4479,7 @@ const PlanogramProfitTracker = () => {
     }
   };
 
-  // 🔥 Order Blitz: Refresh order data
+  // 🔥 Order Blitz: Refresh order data (FIXED - memory efficient)
   const refreshOrders = async () => {
     if (!shopifyConfig.connected || !shopifyConfig.accessToken) {
       setFeedback('⚠️ Connect to Shopify first');
@@ -4492,14 +4492,14 @@ const PlanogramProfitTracker = () => {
     setFeedback('🔥 Order Blitz: Starting...');
     
     try {
-      console.log('📡 Calling backend /api/shopify with action: refreshOrders');
-      const response = await fetch(`${BACKEND_URL}/api/shopify`, {
+      // Call the new optimized /api/order-blitz endpoint
+      console.log('📡 Calling backend /api/order-blitz');
+      const response = await fetch(`${BACKEND_URL}/api/order-blitz`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           storeName: shopifyConfig.storeName,
-          accessToken: shopifyConfig.accessToken,
-          action: 'refreshOrders'
+          accessToken: shopifyConfig.accessToken
         })
       });
 
@@ -4511,546 +4511,101 @@ const PlanogramProfitTracker = () => {
         setLastOrdersRefresh(now);
         localStorage.setItem('planogram_last_orders_refresh', now.toISOString());
         
-        // Check if processing in background
-        if (data.processing) {
-          console.log(`📊 Processing ${data.totalOrders || '...'} orders in background`);
-          setSyncProgress({ message: '🔥 Processing orders...', current: 0, total: data.totalOrders || 0 });
-          setFeedback(`🔥 Order Blitz: Processing ${data.totalOrders || '...'} orders...`);
-          
-          // Poll every 2 seconds to check progress
-          console.log('⏱️ Starting progress polling every 2 seconds...');
-          let pollCount = 0;
-          const maxPolls = 150; // Stop after 5 minutes (150 polls x 2 seconds)
-          const checkStatus = setInterval(async () => {
-            try {
-              pollCount++;
-              console.log(`🔄 Poll #${pollCount}/${maxPolls} - Checking order status...`);
-              
-              // Safety: Stop polling after max attempts
-              if (pollCount > maxPolls) {
-                console.log('⚠️ Max polling attempts reached, stopping...');
-                clearInterval(checkStatus);
-                setSyncProgress({ message: '', current: 0, total: 0 });
-                setFeedback('⚠️ Order processing took too long. Check Settings > Data Management.');
-                setTimeout(() => setFeedback(''), 5000);
-                return;
-              }
-              
-              const statusRes = await fetch(`${BACKEND_URL}/api/orders/status`);
-              const statusData = await statusRes.json();
-              console.log(`📥 Status response:`, statusData);
-              
-              // Update progress if backend provides it
-              if (statusData.progress) {
-                const { processed, total } = statusData.progress;
-                console.log(`📊 Progress: ${processed}/${total} orders processed`);
-                setSyncProgress({ 
-                  message: `Processing orders`, 
-                  current: processed || 0, 
-                  total: total || 0 
-                });
-                setFeedback(`🔥 Order Blitz: ${processed || 0}/${total || 0} orders processed`);
-              } else {
-                // Backend doesn't report progress - just show we're still processing
-                console.log(`⏳ No progress data from backend, still processing...`);
-                setFeedback(`🔥 Order Blitz: Processing... (${pollCount * 2}s elapsed)`);
-              }
-              
-              if (!statusData.isProcessing && statusData.lastResult) {
-                console.log('✅ Order processing complete!');
-                clearInterval(checkStatus);
-                setSyncProgress({ message: '', current: 0, total: 0 });
-                
-                // Update with results
-                if (statusData.lastResult.analytics) {
-                  setOrderAnalytics(statusData.lastResult.analytics);
-                  localStorage.setItem('planogram_order_analytics', JSON.stringify(statusData.lastResult.analytics));
-                }
-                
-                // Update orderAnalyticsData for Order Analytics page
-                if (statusData.lastResult.orders) {
-                  const orders = statusData.lastResult.orders;
-                  const now = new Date();
-                  
-                  // Create date boundaries in LOCAL timezone
-                  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-                  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-                  
-                  // Week starts on Monday
-                  const dayOfWeek = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
-                  const daysBackToMonday = (dayOfWeek + 6) % 7; // Days back to most recent Monday
-                  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysBackToMonday, 0, 0, 0, 0);
-                  
-                  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-                  const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-                  
-                  console.log('📅 Background Processing Date Debug:');
-                  console.log('  Current time (now):', now.toLocaleString());
-                  console.log('  now.getMonth():', now.getMonth(), '(0=Jan, 11=Dec)');
-                  console.log('  Current month name:', now.toLocaleString('en-US', { month: 'long' }));
-                  console.log('  Today range:', todayStart.toLocaleString(), 'to', todayEnd.toLocaleString());
-                  console.log('  Week start:', weekStart.toLocaleString());
-                  console.log('  Month start:', monthStart.toLocaleString());
-                  console.log('  Month start month name:', monthStart.toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }));
-                  console.log('  Year start:', yearStart.toLocaleString());
-                  
-                  let totalSales = 0;
-                  let salesToday = 0, salesWeek = 0, salesMonth = 0, salesYear = 0;
-                  let ordersToday = 0, ordersWeek = 0, ordersMonth = 0, ordersYear = 0;
-                  
-                  const monthOrders = []; // Debug: track which orders count as "this month"
-                  
-                  orders.forEach(order => {
-                    const orderDate = new Date(order.created_at);
-                    const orderTotal = parseFloat(order.total_price || 0);
-                    totalSales += orderTotal;
-                    
-                    // Use proper date range for "today" (start to end of day)
-                    const isToday = orderDate >= todayStart && orderDate < todayEnd;
-                    if (isToday) {
-                      salesToday += orderTotal;
-                      ordersToday++;
-                    }
-                    if (orderDate >= weekStart) {
-                      salesWeek += orderTotal;
-                      ordersWeek++;
-                    }
-                    if (orderDate >= monthStart) {
-                      salesMonth += orderTotal;
-                      ordersMonth++;
-                      // Debug: save first 5 orders
-                      if (monthOrders.length < 5) {
-                        monthOrders.push({
-                          id: order.order_number || order.id,
-                          date: orderDate.toLocaleString(),
-                          total: orderTotal
-                        });
-                      }
-                    }
-                    if (orderDate >= yearStart) {
-                      salesYear += orderTotal;
-                      ordersYear++;
-                    }
-                  });
-                  
-                  console.log(`  💰 Background calc: ${ordersToday} orders today, $${salesToday.toFixed(2)}`);
-                  console.log(`  📊 Month calc: ${ordersMonth} orders this month, $${salesMonth.toFixed(2)}`);
-                  console.log(`  📦 Sample month orders:`, monthOrders);
-                  
-                  setOrderAnalyticsData({
-                    totalOrders: orders.length,
-                    totalSales: totalSales,
-                    lastRefresh: now.toLocaleString(),
-                    status: 'Complete',
-                    recentOrders: orders.slice(0, 50),
-                    allOrders: orders,  // Store ALL orders for pattern analysis
-                    salesByPeriod: {
-                      today: salesToday,
-                      week: salesWeek,
-                      month: salesMonth,
-                      year: salesYear
-                    },
-                    ordersByPeriod: {
-                      today: ordersToday,
-                      week: ordersWeek,
-                      month: ordersMonth,
-                      year: ordersYear
-                    }
-                  });
-                }
-                
-                setLastOrdersRefresh(new Date(statusData.lastCompleted));
-                localStorage.setItem('planogram_last_orders_refresh', statusData.lastCompleted);
-                
-                // Fetch correlations after orders are processed
-                fetchCorrelations();
-                
-                setFeedback(`✅ COMPLETE: ${statusData.lastResult.ordersProcessed} orders, ${statusData.lastResult.itemsProcessed} items analyzed!`);
-                setTimeout(() => setFeedback(''), 8000);
-              }
-            } catch (err) {
-              console.error('❌ Status check failed:', err);
-              setFeedback(`⚠️ Status check error: ${err.message}`);
-            }
-          }, 2000); // Check every 2 seconds (was 10 seconds)
-          
-          // Also set a timeout to stop polling after 5 minutes
-          setTimeout(() => {
-            clearInterval(checkStatus);
-          }, 5 * 60 * 1000);
-        } else {
-          // Old response format (immediate completion) OR backend doesn't support background processing
-          console.log('⚡ Immediate completion (no background processing)');
-          setSyncProgress({ message: '', current: 0, total: 0 });
-          
-          if (data.analytics) {
-            setOrderAnalytics(data.analytics);
-            localStorage.setItem('planogram_order_analytics', JSON.stringify(data.analytics));
-          }
-          
-          // Fetch correlations after orders are processed
-          fetchCorrelations();
-          
-          setFeedback(`✅ Order Blitz: ${data.ordersProcessed || '?'} orders, ${data.itemsProcessed || '?'} items analyzed!`);
-          setTimeout(() => setFeedback(''), 8000);
-        }
+        // Load fresh analytics from database
+        await loadOrderAnalyticsFromBackend();
+        
+        // Fetch correlations
+        await fetchCorrelations();
+        
+        setFeedback(`✅ Order Blitz Complete: ${data.ordersProcessed} orders, ${data.itemsProcessed} items!`);
+        setTimeout(() => setFeedback(''), 8000);
+        
       } else {
         console.error('❌ Backend error:', data);
-        setSyncProgress({ message: '', current: 0, total: 0 });
         setFeedback(`❌ ${data.error || 'Order import failed'}`);
         setTimeout(() => setFeedback(''), 5000);
       }
     } catch (error) {
       console.error('❌ Order import error:', error);
-      setSyncProgress({ message: '', current: 0, total: 0 });
       setFeedback(`❌ Order import failed: ${error.message}`);
       setTimeout(() => setFeedback(''), 5000);
+    } finally {
+      setSyncProgress({ message: '', current: 0, total: 0 });
     }
   };
 
-  const fetchAllOrders = async () => {
+  // Load order analytics from backend database (FIXED - no memory issues)
+  const loadOrderAnalyticsFromBackend = async () => {
+    console.log('📊 Loading order analytics from backend...');
     setOrderAnalyticsData(prev => ({ ...prev, status: 'Loading...' }));
     
     try {
-      // ALWAYS call getOrderAnalytics to get recent orders WITH line items
-      const analyticsResponse = await fetch(`${BACKEND_URL}/api/shopify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          storeName: '1m3tfh-xt.myshopify.com',
-          accessToken: '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',
-          action: 'getOrderAnalytics'
-        })
-      });
-
-      if (!analyticsResponse.ok) {
-        throw new Error(`HTTP ${analyticsResponse.status}: Backend error`);
+      const response = await fetch(`${BACKEND_URL}/api/order-analytics`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Backend error`);
       }
 
-      const analyticsData = await analyticsResponse.json();
-      console.log('✅ Got analytics with line items:', analyticsData.recentOrders?.length, 'orders');
+      const data = await response.json();
+      console.log('✅ Got analytics from backend:', data);
       
-      // Try to also get full order list for analysis
-      try {
-        const ordersResponse = await fetch(`${BACKEND_URL}/api/shopify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            storeName: '1m3tfh-xt.myshopify.com',
-            accessToken: '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',
-            action: 'getOrders'
-          })
-        });
-
-        if (ordersResponse.ok) {
-          const ordersData = await ordersResponse.json();
-          console.log('✅ Got full order list:', ordersData.orders?.length, 'orders');
-          
-          // RECALCULATE salesByPeriod on frontend to ensure accuracy
-          const orders = ordersData.orders || [];
-          const now = new Date();
-          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-          const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-          
-          // Week starts on Monday
-          const dayOfWeek = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
-          const daysBackToMonday = (dayOfWeek + 6) % 7; // Days back to most recent Monday
-          const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysBackToMonday, 0, 0, 0, 0);
-          
-          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-          const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-          
-          let totalSales = 0;
-          let salesToday = 0, salesWeek = 0, salesMonth = 0, salesYear = 0;
-          let ordersToday = 0, ordersWeek = 0, ordersMonth = 0, ordersYear = 0;
-          
-          orders.forEach(order => {
-            const orderDate = new Date(order.created_at);
-            const orderTotal = parseFloat(order.total_price || 0);
-            totalSales += orderTotal;
-            
-            if (orderDate >= todayStart && orderDate < todayEnd) {
-              salesToday += orderTotal;
-              ordersToday++;
-            }
-            if (orderDate >= weekStart) {
-              salesWeek += orderTotal;
-              ordersWeek++;
-            }
-            if (orderDate >= monthStart) {
-              salesMonth += orderTotal;
-              ordersMonth++;
-            }
-            if (orderDate >= yearStart) {
-              salesYear += orderTotal;
-              ordersYear++;
-            }
-          });
-          
-          console.log('📊 FRONTEND RECALCULATED:');
-          console.log(`  Today: ${ordersToday} orders, $${salesToday.toFixed(2)}`);
-          console.log(`  Week: ${ordersWeek} orders, $${salesWeek.toFixed(2)}`);
-          console.log(`  Month: ${ordersMonth} orders, $${salesMonth.toFixed(2)}`);
-          console.log(`  Year: ${ordersYear} orders, $${salesYear.toFixed(2)}`);
-          
-          // Combine: use analytics data for recent orders (WITH line items),
-          // but use full order list for pattern analysis AND recalculated periods
-          setOrderAnalyticsData({
-            totalOrders: orders.length,
-            totalSales: totalSales,
-            avgOrderValue: totalSales / orders.length,
-            uniqueCustomers: analyticsData.uniqueCustomers || 0,
-            processingStatus: 'Complete',
-            lastRefresh: new Date().toLocaleString(),
-            status: 'Complete',
-            recentOrders: analyticsData.recentOrders || [], // FROM ANALYTICS (has line items!)
-            allOrders: orders, // FROM getOrders (for pattern analysis)
-            topProducts: analyticsData.topProducts || [],
-            salesByPeriod: {
-              today: salesToday,
-              week: salesWeek,
-              month: salesMonth,
-              year: salesYear
-            },
-            ordersByPeriod: {
-              today: ordersToday,
-              week: ordersWeek,
-              month: ordersMonth,
-              year: ordersYear
-            }
-          });
-          
-          return;
-        }
-      } catch (ordersErr) {
-        console.log('⚠️ Could not fetch full order list, using analytics only:', ordersErr.message);
-      }
-      
-      // If getOrders failed, just use analytics data
+      // Update state with backend data
       setOrderAnalyticsData({
-        totalOrders: analyticsData.totalOrders || 0,
-        totalSales: analyticsData.totalSales || 0,
-        avgOrderValue: analyticsData.avgOrderValue || 0,
-        uniqueCustomers: analyticsData.uniqueCustomers || 0,
-        processingStatus: 'Complete',
+        totalOrders: data.totalOrders,
+        totalSales: data.totalRevenue,
         lastRefresh: new Date().toLocaleString(),
         status: 'Complete',
-        recentOrders: analyticsData.recentOrders || [],
-        topProducts: analyticsData.topProducts || [],
-        salesByPeriod: analyticsData.salesByPeriod || {
-          today: { orders: 0, sales: 0 },
-          week: { orders: 0, sales: 0 },
-          month: { orders: 0, sales: 0 },
-          year: { orders: 0, sales: 0 }
-        }
+        recentOrders: data.recentOrders || [],
+        allOrders: data.recentOrders || [],
+        salesByPeriod: data.salesByPeriod,
+        ordersByPeriod: data.ordersByPeriod
       });
       
-      // Check if we got orders array or analytics object
-      if (data.orders) {
-        // Full orders data - process it
-        const orders = data.orders;
-        console.log('📊 Got full orders, total:', orders.length);
-        if (orders.length > 0) {
-          console.log('📊 Sample order:', orders[0]);
-        }
-        
-        const now = new Date();
-        
-        // Create date boundaries in LOCAL timezone (Denver/Mountain Time)
-        // This ensures "today" means today in YOUR timezone, not UTC
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-        const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-        
-        // Week starts on Monday
-        const dayOfWeek = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
-        const daysBackToMonday = (dayOfWeek + 6) % 7; // Days back to most recent Monday
-        const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysBackToMonday, 0, 0, 0, 0);
-        
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-        const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-        
-        console.log('📅 Date Filtering Debug:');
-        console.log('  Current time:', now.toLocaleString());
-        console.log('  Today range:', todayStart.toLocaleString(), 'to', todayEnd.toLocaleString());
-        console.log('  todayStart timestamp:', todayStart.getTime());
-        console.log('  todayEnd timestamp:', todayEnd.getTime());
-        
-        let totalSales = 0;
-        let salesToday = 0, salesWeek = 0, salesMonth = 0, salesYear = 0;
-        let ordersToday = 0, ordersWeek = 0, ordersMonth = 0, ordersYear = 0;
-        
-        let todayOrders = [];
-        const orderIdsSeen = new Set(); // Track duplicates
-        
-        // USER SAYS: Today's orders begin at #10763
-        const TODAYS_FIRST_ORDER = 10763;
-        
-        console.log('\n🔍 DETAILED ORDER ANALYSIS:');
-        console.log('⚠️ USER CONFIRMED: Today\'s orders begin at #' + TODAYS_FIRST_ORDER);
-        console.log('Checking each order against today range...\n');
-        
-        orders.forEach((order, index) => {
-          // Parse order date and convert to local timezone for comparison
-          const orderDate = new Date(order.created_at);
-          const orderTotal = parseFloat(order.total_price || 0);
-          const orderId = order.order_number || order.id;
-          
-          totalSales += orderTotal;
-          
-          // Check if this is a duplicate
-          const isDuplicate = orderIdsSeen.has(orderId);
-          if (isDuplicate) {
-            console.log(`⚠️ DUPLICATE ORDER DETECTED: #${orderId}`);
-          }
-          orderIdsSeen.add(orderId);
-          
-          // Check if order number is before today's range
-          const isBeforeTodayRange = orderId < TODAYS_FIRST_ORDER;
-          
-          // Compare dates (both are now in local timezone)
-          const orderTimestamp = orderDate.getTime();
-          const todayStartTimestamp = todayStart.getTime();
-          const todayEndTimestamp = todayEnd.getTime();
-          
-          const isToday = orderDate >= todayStart && orderDate < todayEnd;
-          
-          // Log first 40 orders to see what's happening
-          if (index < 40) {
-            console.log(`Order #${orderId}:`);
-            console.log(`  created_at: ${order.created_at}`);
-            console.log(`  Parsed date: ${orderDate.toLocaleString()}`);
-            console.log(`  Timestamp: ${orderTimestamp}`);
-            console.log(`  >= todayStart? ${orderTimestamp >= todayStartTimestamp} (${orderTimestamp} >= ${todayStartTimestamp})`);
-            console.log(`  < todayEnd? ${orderTimestamp < todayEndTimestamp} (${orderTimestamp} < ${todayEndTimestamp})`);
-            console.log(`  ✅ Counted as TODAY? ${isToday}`);
-            if (isToday && isBeforeTodayRange) {
-              console.log(`  🚨 WARNING: Order #${orderId} < #${TODAYS_FIRST_ORDER} but counted as TODAY! (WRONG DATE)`);
-            }
-            console.log(`  Total: $${orderTotal.toFixed(2)}`);
-            console.log('');
-          }
-          
-          if (isToday) {
-            salesToday += orderTotal;
-            ordersToday++;
-            todayOrders.push({
-              orderNumber: orderId,
-              created_at: order.created_at,
-              date: orderDate.toLocaleString(),
-              timestamp: orderTimestamp,
-              total: orderTotal,
-              isDuplicate: isDuplicate,
-              shouldNotBeToday: isBeforeTodayRange
-            });
-          }
-          if (orderDate >= weekStart) {
-            salesWeek += orderTotal;
-            ordersWeek++;
-          }
-          if (orderDate >= monthStart) {
-            salesMonth += orderTotal;
-            ordersMonth++;
-          }
-          if (orderDate >= yearStart) {
-            salesYear += orderTotal;
-            ordersYear++;
-          }
-        });
-        
-        // Find orders wrongly counted as today
-        const wrongOrders = todayOrders.filter(o => o.shouldNotBeToday);
-        
-        console.log(`\n📊 TODAY'S ORDERS (${ordersToday} total):`);
-        console.log('All orders counted as today:');
-        console.table(todayOrders);
-        console.log(`\n💰 Today's total: ${ordersToday} orders, $${salesToday.toFixed(2)}`);
-        console.log(`⚠️ Duplicates detected: ${todayOrders.filter(o => o.isDuplicate).length}`);
-        console.log(`🚨 Orders < #${TODAYS_FIRST_ORDER} wrongly counted: ${wrongOrders.length}`);
-        
-        if (wrongOrders.length > 0) {
-          console.log(`\n🚨 THESE ORDERS SHOULD NOT BE COUNTED AS TODAY:`);
-          console.table(wrongOrders);
-        }
-        
-        setOrderAnalyticsData({
-          totalOrders: orders.length,
-          totalSales: totalSales,
-          avgOrderValue: orders.length > 0 ? totalSales / orders.length : 0,
-          uniqueCustomers: new Set(orders.map(o => o.customer?.id).filter(Boolean)).size,
-          processingStatus: 'Complete',
-          lastRefresh: new Date().toLocaleString(),
-          status: 'Complete',
-          recentOrders: orders.slice(0, 50).sort((a, b) => 
-            new Date(b.created_at) - new Date(a.created_at)
-          ),
-          allOrders: orders,  // Store ALL orders for pattern analysis
-          topProducts: [],
-          salesByPeriod: {
-            today: { orders: ordersToday, sales: salesToday },
-            week: { orders: ordersWeek, sales: salesWeek },
-            month: { orders: ordersMonth, sales: salesMonth },
-            year: { orders: ordersYear, sales: salesYear }
-          }
-        });
-        
-        console.log('✅ Processed full order data');
-        
-      } else {
-        // Analytics summary data - use directly
-        console.log('📊 Got analytics summary');
-        setOrderAnalyticsData({
-          totalOrders: data.totalOrders || 0,
-          totalSales: data.totalSales || 0,
-          avgOrderValue: data.avgOrderValue || 0,
-          uniqueCustomers: data.uniqueCustomers || 0,
-          processingStatus: 'Complete',
-          lastRefresh: new Date().toLocaleString(),
-          status: 'Complete',
-          recentOrders: data.recentOrders || [],
-          topProducts: data.topProducts || [],
-          salesByPeriod: data.salesByPeriod || {
-            today: { orders: 0, sales: 0 },
-            week: { orders: 0, sales: 0 },
-            month: { orders: 0, sales: 0 },
-            year: { orders: 0, sales: 0 }
-          }
-        });
-        
-        console.log('✅ Used analytics summary');
-      }
+      console.log('✅ Order analytics loaded successfully');
       
-    } catch (err) {
-      console.error('❌ Failed to fetch order analytics:', err);
+    } catch (error) {
+      console.error('❌ Error loading order analytics:', error);
       setOrderAnalyticsData(prev => ({ 
         ...prev, 
-        status: 'Error: ' + err.message,
-        lastRefresh: new Date().toLocaleString()
+        status: `Error: ${error.message}` 
       }));
+      setFeedback(`❌ Failed to load order analytics: ${error.message}`);
     }
   };
 
+  // Fetch correlations from backend (FIXED)
   const fetchCorrelations = async () => {
     if (!shopifyConfig.connected) return;
     
+    console.log('🤝 Fetching correlations from backend...');
+    
     try {
       const response = await fetch(`${BACKEND_URL}/api/correlations`);
-      if (response.ok) {
-        const data = await response.json();
-        const correlations = data.correlations || [];
-        
-        // Save to state
-        setProductCorrelations(correlations);
-        
-        // 🚀 CACHE in localStorage for instant loading next time
-        localStorage.setItem('planogram_correlations', JSON.stringify(correlations));
-        localStorage.setItem('planogram_correlations_timestamp', Date.now().toString());
-        
-        console.log(`✅ Loaded ${correlations.length} product correlations (cached)`);
+      
+      if (!response.ok) {
+        console.error('❌ Failed to fetch correlations');
+        return;
       }
+
+      const data = await response.json();
+      console.log(`✅ Got ${data.correlations?.length || 0} correlations from backend`);
+      
+      const correlations = data.correlations || [];
+      
+      // Save to state
+      setProductCorrelations(correlations);
+      
+      // Cache in localStorage for instant loading next time
+      localStorage.setItem('planogram_correlations', JSON.stringify(correlations));
+      localStorage.setItem('planogram_correlations_timestamp', Date.now().toString());
+      
+      console.log(`✅ Loaded ${correlations.length} product correlations (cached)`);
+      
     } catch (error) {
-      console.error('Failed to fetch correlations:', error);
+      console.error('❌ Error fetching correlations:', error);
     }
   };
+
 
 
   const addProductToSection = async () => {
