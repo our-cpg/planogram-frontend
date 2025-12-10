@@ -312,6 +312,121 @@ const getHandlePosition = (position) => {
   return positions[position];
 };
 
+// Hot Products Component - Loads from backend API
+const HotProductsFromBackend = () => {
+  const BACKEND_URL = 'https://planogram-backend-gx85.onrender.com';
+  const [hotProducts, setHotProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState({ total: 0, critical: 0, low: 0 });
+
+  useEffect(() => {
+    const fetchHotProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${BACKEND_URL}/api/products/hot-out-of-stock`);
+        const data = await response.json();
+        
+        setHotProducts(data.hotProducts || []);
+        setSummary(data.summary || { total: 0, critical: 0, low: 0 });
+      } catch (error) {
+        console.error('❌ Error loading hot products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHotProducts();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="text-center py-8 bg-white rounded-lg">
+        <div className="animate-spin h-8 w-8 border-4 border-red-600 border-t-transparent rounded-full mx-auto mb-3"></div>
+        <div className="text-gray-600">Loading hot products...</div>
+      </div>
+    );
+  }
+
+  if (hotProducts.length === 0) {
+    return (
+      <div className="text-center py-8 bg-white rounded-lg">
+        <div className="text-4xl mb-3">✅</div>
+        <div className="font-bold text-lg text-green-700 mb-2">All Hot Products In Stock!</div>
+        <div className="text-sm text-gray-600">
+          Your best-selling products are all stocked. Keep it up! 🎉
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Summary Banner */}
+      <div className="bg-white rounded-lg p-4 mb-4 border-2 border-red-200">
+        <div className="flex items-center justify-between">
+          <div className="text-2xl font-bold text-red-700">{summary.total} Products Need Restocking</div>
+          <div className="flex gap-4 text-sm">
+            <div className="text-center">
+              <div className="font-bold text-red-600 text-xl">{summary.critical}</div>
+              <div className="text-gray-600">Critical</div>
+            </div>
+            <div className="text-center">
+              <div className="font-bold text-orange-600 text-xl">{summary.low}</div>
+              <div className="text-gray-600">Low Stock</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Product List */}
+      <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+        {hotProducts.map((product, idx) => {
+          const urgency = product.urgency === 'critical' ? 'CRITICAL' : 'LOW';
+          const urgencyColor = urgency === 'CRITICAL' ? 'from-red-600 to-red-700' : 'from-orange-500 to-orange-600';
+          const urgencyBg = urgency === 'CRITICAL' ? 'bg-red-100 border-red-300' : 'bg-orange-100 border-orange-300';
+          
+          return (
+            <div key={product.variant_id} 
+                 className={`p-4 ${urgencyBg} rounded-lg border-2 hover:shadow-lg transition-all`}>
+              <div className="flex items-start gap-3">
+                {/* Urgency Badge */}
+                <div className={`px-3 py-1 bg-gradient-to-r ${urgencyColor} text-white rounded-full text-xs font-bold shrink-0`}>
+                  #{idx + 1} {urgency}
+                </div>
+                
+                {/* Product Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-gray-900">{product.name}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {product.barcode && <span className="mr-3">UPC: {product.barcode}</span>}
+                    {product.sku && <span>SKU: {product.sku}</span>}
+                  </div>
+                  
+                  {/* Stock & Sales Info */}
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <span className={`px-2 py-1 ${product.current_stock <= 0 ? 'bg-red-600' : 'bg-orange-600'} text-white text-xs font-bold rounded`}>
+                      {product.current_stock <= 0 ? '⚠️ OUT OF STOCK' : `⚡ STOCK: ${product.current_stock}`}
+                    </span>
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      🔥 {product.times_ordered} orders
+                    </span>
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">
+                      📦 {product.total_sold} sold
+                    </span>
+                    <span className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded">
+                      💰 ${product.avg_price.toFixed(2)} avg
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const PlanogramProfitTracker = () => {
   console.log('🚀 Store Planner Pro - Component Loaded');
   console.log('📅 Timestamp:', new Date().toISOString());
@@ -11118,180 +11233,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 Products with <strong>low/zero stock</strong> that have strong sales history - prioritize restocking!
               </p>
               
-              {(() => {
-                // Use same data source as Forecasting tab - allDatabaseProducts with velocity
-                if (!allDatabaseProducts || allDatabaseProducts.length === 0) {
-                  return (
-                    <div className="text-center py-8 bg-white rounded-lg">
-                      <div className="text-4xl mb-3">📊</div>
-                      <div className="font-bold text-lg text-gray-700 mb-2">Load Product Data First</div>
-                      <div className="text-sm text-gray-600 mb-4">
-                        Click the button below to load all products from Shopify and see hot products analysis.
-                      </div>
-                      <button
-                        onClick={loadAllProductsFromDatabase}
-                        disabled={loadingAllProducts || !shopifyConfig.connected}
-                        className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto text-base font-semibold shadow-lg"
-                      >
-                        {loadingAllProducts ? (
-                          <>
-                            <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                            Loading...
-                          </>
-                        ) : (
-                          <>
-                            <Icons.Download />
-                            Load All Products ({allDatabaseProducts.length > 0 ? `${allDatabaseProducts.length} loaded` : 'from Shopify'})
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  );
-                }
-                
-                // Calculate velocity and filter for critical products (same logic as Forecasting)
-                const criticalProducts = allDatabaseProducts
-                  .map(p => {
-                    const currentStock = p.stock !== null && p.stock !== undefined ? p.stock : 0;
-                    
-                    // Calculate daily velocity - prefer longer periods for low stock items
-                    let salesVolume = 0;
-                    let daysInPeriod = 30;
-                    
-                    if (currentStock <= 5) {
-                      // Low stock - use all-time for better accuracy
-                      if (p.allTimeSales && p.allTimeSales > 0) {
-                        salesVolume = p.allTimeSales;
-                        daysInPeriod = 180; // Assume 6 months history
-                      } else if (p.monthlySales && p.monthlySales > 0) {
-                        salesVolume = p.monthlySales;
-                        daysInPeriod = 30;
-                      }
-                    } else {
-                      // Normal stock - use monthly
-                      salesVolume = p.monthlySales || 0;
-                      daysInPeriod = 30;
-                    }
-                    
-                    const dailyVelocity = daysInPeriod > 0 ? salesVolume / daysInPeriod : 0;
-                    const daysUntilOut = dailyVelocity > 0 ? currentStock / dailyVelocity : (currentStock > 0 ? 999 : 0);
-                    
-                    return {
-                      name: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
-                      upc: p.barcode,
-                      vendor: p.vendor,
-                      stock: currentStock,
-                      dailyVelocity: dailyVelocity,
-                      daysUntilOut: daysUntilOut,
-                      monthlySales: p.monthlySales || 0,
-                      allTimeSales: p.allTimeSales || 0,
-                      revenuePerDay: dailyVelocity * (p.price || 0)
-                    };
-                  })
-                  // Filter: must have velocity AND (out of stock OR critically low)
-                  .filter(p => p.dailyVelocity > 0 && (p.stock === 0 || p.daysUntilOut < 7))
-                  // Sort by velocity (highest sellers first)
-                  .sort((a, b) => b.dailyVelocity - a.dailyVelocity)
-                  .slice(0, 20); // Top 20
-                
-                if (criticalProducts.length === 0) {
-                  return (
-                    <div className="text-center py-8 bg-white rounded-lg">
-                      <div className="text-4xl mb-3">✅</div>
-                      <div className="font-bold text-lg text-green-700 mb-2">All Hot Products In Stock!</div>
-                      <div className="text-sm text-gray-600">
-                        Your best-selling products are all stocked. Keep it up! 🎉
-                      </div>
-                    </div>
-                  );
-                }
-                
-                return (
-                  <div className="space-y-3 max-h-[800px] overflow-y-auto pr-2">
-                    {criticalProducts.map((product, idx) => {
-                      const isOutOfStock = product.stock === 0;
-                      const urgency = idx < 5 ? 'CRITICAL' : idx < 10 ? 'HIGH' : 'MEDIUM';
-                      const urgencyColor = urgency === 'CRITICAL' ? 'from-red-600 to-red-700' : 
-                                          urgency === 'HIGH' ? 'from-orange-500 to-orange-600' : 
-                                          'from-yellow-500 to-yellow-600';
-                      const urgencyBg = urgency === 'CRITICAL' ? 'bg-red-100 border-red-300' : 
-                                       urgency === 'HIGH' ? 'bg-orange-100 border-orange-300' : 
-                                       'bg-yellow-100 border-yellow-300';
-                      
-                      return (
-                        <div key={idx} 
-                             className={`p-4 ${urgencyBg} rounded-lg border-2 hover:shadow-lg transition-all`}>
-                          <div className="flex items-start gap-3">
-                            {/* Urgency Badge */}
-                            <div className={`px-3 py-1 bg-gradient-to-r ${urgencyColor} text-white rounded-full text-xs font-bold shrink-0`}>
-                              #{idx + 1} {urgency}
-                            </div>
-                            
-                            {/* Product Info */}
-                            <div className="flex-1 min-w-0">
-                              <div className="font-bold text-gray-900">{product.name}</div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                {product.upc && <span className="mr-3">UPC: {product.upc}</span>}
-                                {product.vendor && <span className="mr-2">• {product.vendor}</span>}
-                              </div>
-                              
-                              {/* Stock Status */}
-                              <div className="mt-2 flex items-center gap-2">
-                                {isOutOfStock ? (
-                                  <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded">
-                                    ⚠️ OUT OF STOCK
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-1 bg-orange-600 text-white text-xs font-bold rounded">
-                                    ⚡ LOW STOCK: {product.stock} units
-                                  </span>
-                                )}
-                                {product.daysUntilOut < 7 && product.daysUntilOut > 0 && (
-                                  <span className="px-2 py-1 bg-yellow-600 text-white text-xs font-bold rounded">
-                                    📅 {Math.round(product.daysUntilOut)} days left
-                                  </span>
-                                )}
-                              </div>
-                              
-                              {/* Sales Performance */}
-                              <div className="mt-2 grid grid-cols-4 gap-2">
-                                <div className="bg-white/80 rounded px-2 py-1">
-                                  <div className="text-xs text-gray-500">Velocity</div>
-                                  <div className="font-bold text-blue-600">{product.dailyVelocity.toFixed(1)}/day</div>
-                                </div>
-                                <div className="bg-white/80 rounded px-2 py-1">
-                                  <div className="text-xs text-gray-500">Monthly</div>
-                                  <div className="font-bold text-green-600">{product.monthlySales}</div>
-                                </div>
-                                <div className="bg-white/80 rounded px-2 py-1">
-                                  <div className="text-xs text-gray-500">All-Time</div>
-                                  <div className="font-bold text-purple-600">{product.allTimeSales}</div>
-                                </div>
-                                <div className="bg-white/80 rounded px-2 py-1">
-                                  <div className="text-xs text-gray-500">$/Day</div>
-                                  <div className="font-bold text-red-600">${product.revenuePerDay.toFixed(0)}</div>
-                                </div>
-                              </div>
-                              
-                              {/* Action Item */}
-                              <div className="mt-2 p-2 bg-white rounded flex items-center gap-2">
-                                <span className="text-lg">💡</span>
-                                <span className="text-xs font-semibold text-gray-700">
-                                  {isOutOfStock 
-                                    ? `Losing ~$${product.revenuePerDay.toFixed(0)}/day while out of stock!`
-                                    : `Restock ASAP - only ${Math.round(product.daysUntilOut)} days of inventory left!`
-                                  }
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-              
+              <HotProductsFromBackend />
+            </div>
               {/* Summary Stats */}
               {(() => {
                 const allProducts = [];
