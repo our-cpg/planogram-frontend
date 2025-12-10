@@ -13297,8 +13297,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 seasonalTrend,
                 salesVolume
               };
-            })
-            .filter(p => p.dailyVelocity > 0); // ✅ ONLY show products that actually sell (velocity > 0)
+            });
+            // NOTE: Showing ALL products including zero-velocity for full inventory visibility
 
             // Group products based on filter
             let groupedData = {};
