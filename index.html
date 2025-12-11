@@ -272,7 +272,8 @@ const FIXTURE_TYPES = {
     icon: 'DoorClosed',
     color: '#8b7355',
     defaultWidth: 36,  // 36 inches (standard door)
-    defaultHeight: 80  // 80 inches (standard door height)
+    defaultHeight: 80,  // 80 inches (standard door height)
+    isDecoration: true
   },
   DOOR_DOUBLE: {
     id: 'door_double',
@@ -280,7 +281,8 @@ const FIXTURE_TYPES = {
     icon: 'DoorOpen',
     color: 'transparent',
     defaultWidth: 72,  // 72 inches (double door width)
-    defaultHeight: 4   // 4 inches (door thickness in floor plan view)
+    defaultHeight: 4,   // 4 inches (door thickness in floor plan view)
+    isDecoration: true
   },
   DOOR_EXIT: {
     id: 'door_exit',
@@ -288,7 +290,8 @@ const FIXTURE_TYPES = {
     icon: 'DoorOpen',
     color: '#dc2626',
     defaultWidth: 42,  // 42 inches (exit door)
-    defaultHeight: 84
+    defaultHeight: 84,
+    isDecoration: true
   }
 };
 
@@ -5009,13 +5012,19 @@ const PlanogramProfitTracker = () => {
       width: fixtureType.defaultWidth,
       height: fixtureType.defaultHeight,
       color: fixtureType.color,
+      isDecoration: fixtureType.isDecoration || false,
       sections: []
     };
     
     const updatedFixtures = [...fixtures, newFixture];
     setFixtures(updatedFixtures);
     localStorage.setItem('planogram_fixtures', JSON.stringify(updatedFixtures));
-    setSelectedFixture(newFixture.id);
+    
+    // Only auto-select if NOT a decoration
+    if (!fixtureType.isDecoration) {
+      setSelectedFixture(newFixture.id);
+    }
+    
     autoSave(sections, updatedFixtures, 'Auto-saved after adding fixture');
   };
 
@@ -9492,6 +9501,16 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             </div>
           )}
 
+        {/* Only show section controls if NOT a decoration */}
+        {(() => {
+          const currentFixture = fixtures.find(f => f.id === selectedFixture);
+          const fixtureTypeKey = Object.keys(FIXTURE_TYPES).find(
+            key => FIXTURE_TYPES[key].id === currentFixture?.type
+          );
+          const isDecoration = currentFixture?.isDecoration || FIXTURE_TYPES[fixtureTypeKey]?.isDecoration;
+          return !isDecoration;
+        })() && (
+          <>
         <button
             onClick={() => addSection(selectedFixture)}
             className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 mb-2 flex items-center justify-center gap-2"
@@ -9565,6 +9584,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
           >
             {dimensionsMasterLock ? '🔒 DIMENSIONS LOCKED - Click to Unlock' : '🔓 Lock All Dimensions'}
           </button>
+          </>
+        )}
 
           <div className="space-y-4">
             {sections
