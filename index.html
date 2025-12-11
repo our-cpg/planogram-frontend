@@ -12981,6 +12981,124 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             </button>
           </div>
 
+          {/* Product Count Diagnostic */}
+          <div className={`${allDatabaseProducts.length === 0 ? 'bg-yellow-50 border-yellow-300' : 'bg-blue-50 border-blue-200'} border rounded-lg p-4 mb-4`}>
+            {allDatabaseProducts.length === 0 ? (
+              <div>
+                <div className="text-sm font-semibold text-yellow-900 mb-2">⚠️ No Products Loaded</div>
+                <div className="text-sm text-yellow-800">
+                  Click the <strong>"Load All Products"</strong> button above to sync products from Shopify.
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="text-sm font-semibold text-blue-900 mb-3">📊 Product Count Diagnostic</div>
+                
+                {/* UPC Lookup Test */}
+                <div className="bg-white border border-blue-300 rounded p-3 mb-4">
+                  <div className="text-sm font-semibold text-blue-900 mb-2">🔍 Test UPC Lookup</div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      id="upc-test-input"
+                      placeholder="Enter UPC to test..."
+                      className="flex-1 px-3 py-2 border rounded text-sm"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          const upc = e.target.value.trim();
+                          const found = allDatabaseProducts.find(p => 
+                            p.barcode === upc || 
+                            (p.barcode || '').toLowerCase() === upc.toLowerCase() ||
+                            p.sku === upc ||
+                            (p.sku || '').toLowerCase() === upc.toLowerCase()
+                          );
+                          if (found) {
+                            alert(`✅ FOUND!\n\nProduct: ${found.title}${found.variantTitle ? ' - ' + found.variantTitle : ''}\nUPC: ${found.barcode}\nSKU: ${found.sku}\nStock: ${found.stock}\nVendor: ${found.vendor || 'None'}\nDistributor: ${found.distributor || 'None'}\n30-Day Sales: ${found.monthlySales || 0}`);
+                          } else {
+                            alert(`❌ NOT FOUND\n\nUPC "${upc}" is not in the database.\n\nPossible reasons:\n1. Product not synced from Shopify\n2. UPC doesn't match exactly\n3. Product archived/deleted in Shopify\n\nTry clicking "Load All Products" to refresh.`);
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        const upc = document.getElementById('upc-test-input').value.trim();
+                        if (!upc) {
+                          alert('Please enter a UPC first');
+                          return;
+                        }
+                        const found = allDatabaseProducts.find(p => 
+                          p.barcode === upc || 
+                          (p.barcode || '').toLowerCase() === upc.toLowerCase() ||
+                          p.sku === upc ||
+                          (p.sku || '').toLowerCase() === upc.toLowerCase()
+                        );
+                        if (found) {
+                          alert(`✅ FOUND!\n\nProduct: ${found.title}${found.variantTitle ? ' - ' + found.variantTitle : ''}\nUPC: ${found.barcode}\nSKU: ${found.sku}\nStock: ${found.stock}\nVendor: ${found.vendor || 'None'}\nDistributor: ${found.distributor || 'None'}\n30-Day Sales: ${found.monthlySales || 0}`);
+                        } else {
+                          alert(`❌ NOT FOUND\n\nUPC "${upc}" is not in the database.\n\nPossible reasons:\n1. Product not synced from Shopify\n2. UPC doesn't match exactly\n3. Product archived/deleted in Shopify\n\nTry clicking "Load All Products" to refresh.`);
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 whitespace-nowrap"
+                    >
+                      Test UPC
+                    </button>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    Enter a UPC and press Enter or click Test to see if it's in the database
+                  </div>
+                </div>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <div className="text-gray-600">Total in Database:</div>
+                <div className="text-2xl font-bold text-blue-600">{allDatabaseProducts.length}</div>
+                <div className="text-xs text-gray-500 mt-1">All synced products</div>
+              </div>
+              <div>
+                <div className="text-gray-600">After Filters:</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {(() => {
+                    let filtered = allDatabaseProducts.map(p => ({
+                      ...p,
+                      fixtureId: null, // Database products don't have fixtureId
+                      vendor: p.vendor,
+                      distributor: p.distributor,
+                      title: p.variantTitle ? `${p.title} - ${p.variantTitle}` : p.title,
+                      barcode: p.barcode,
+                      sku: p.sku
+                    }));
+                    
+                    if (forecastFilterFixture !== 'all') filtered = filtered.filter(p => p.fixtureId === forecastFilterFixture);
+                    if (forecastFilterBrand !== 'all') filtered = filtered.filter(p => (p.vendor?.trim() || 'Unknown Brand') === forecastFilterBrand);
+                    if (forecastFilterDistributor !== 'all') filtered = filtered.filter(p => (p.distributor?.trim() || 'Unknown Distributor') === forecastFilterDistributor);
+                    if (forecastSearchQuery.trim() !== '') {
+                      const query = forecastSearchQuery.toLowerCase().trim();
+                      filtered = filtered.filter(p => 
+                        (p.barcode || '').toLowerCase().includes(query) || 
+                        (p.sku || '').toLowerCase().includes(query) || 
+                        (p.title || '').toLowerCase().includes(query)
+                      );
+                    }
+                    return filtered.length;
+                  })()}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">Matching your filters</div>
+              </div>
+              <div>
+                <div className="text-gray-600">Active Filters:</div>
+                <div className="text-sm text-gray-700 space-y-1">
+                  {forecastFilterFixture !== 'all' && <div>✓ Fixture Filter</div>}
+                  {forecastFilterBrand !== 'all' && <div>✓ Brand: {forecastFilterBrand}</div>}
+                  {forecastFilterDistributor !== 'all' && <div>✓ Distributor: {forecastFilterDistributor}</div>}
+                  {forecastSearchQuery !== '' && <div>✓ Search: "{forecastSearchQuery}"</div>}
+                  {forecastFilterFixture === 'all' && forecastFilterBrand === 'all' && forecastFilterDistributor === 'all' && forecastSearchQuery === '' && <div className="text-green-600 font-semibold">✓ No filters (showing all)</div>}
+                </div>
+              </div>
+            </div>
+            </>
+            )}
+          </div>
+
           {/* Filters */}
           <div className="bg-white rounded-lg shadow-lg p-4 mb-6">
             <div className="flex gap-4 flex-wrap items-center">
