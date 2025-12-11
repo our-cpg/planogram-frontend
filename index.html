@@ -12540,6 +12540,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   );
                 })()}
               </div>
+            </div>
 
             {/* 🔥 ORDER ANALYTICS */}
             <div className="mt-8 -mx-8 px-8 py-8 bg-white">
@@ -12628,6 +12629,60 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   </div>
                 </div>
               )}
+
+              {/* Sales by Time Period */}
+              <div className="bg-gray-50 rounded-xl shadow-lg p-6 mb-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">Sales by Time Period</h3>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
+                    <div className="text-sm font-semibold text-gray-600 mb-1">Today</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      ${(typeof orderAnalyticsData.salesByPeriod?.today === 'number' 
+                        ? orderAnalyticsData.salesByPeriod.today 
+                        : orderAnalyticsData.salesByPeriod?.today?.sales || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {orderAnalyticsData.ordersByPeriod?.today || orderAnalyticsData.salesByPeriod?.today?.orders || 0} orders
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
+                    <div className="text-sm font-semibold text-gray-600 mb-1">This Week</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      ${(typeof orderAnalyticsData.salesByPeriod?.week === 'number' 
+                        ? orderAnalyticsData.salesByPeriod.week 
+                        : orderAnalyticsData.salesByPeriod?.week?.sales || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {orderAnalyticsData.ordersByPeriod?.week || orderAnalyticsData.salesByPeriod?.week?.orders || 0} orders
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
+                    <div className="text-sm font-semibold text-gray-600 mb-1">This Month</div>
+                    <div className="text-2xl font-bold text-purple-600">
+                      ${(typeof orderAnalyticsData.salesByPeriod?.month === 'number' 
+                        ? orderAnalyticsData.salesByPeriod.month 
+                        : orderAnalyticsData.salesByPeriod?.month?.sales || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {orderAnalyticsData.ordersByPeriod?.month || orderAnalyticsData.salesByPeriod?.month?.orders || 0} orders
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
+                    <div className="text-sm font-semibold text-gray-600 mb-1">This Year</div>
+                    <div className="text-2xl font-bold text-orange-600">
+                      ${(typeof orderAnalyticsData.salesByPeriod?.year === 'number' 
+                        ? orderAnalyticsData.salesByPeriod.year 
+                        : orderAnalyticsData.salesByPeriod?.year?.sales || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {orderAnalyticsData.ordersByPeriod?.year || orderAnalyticsData.salesByPeriod?.year?.orders || 0} orders
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Recent Orders Table */}
               <div className="bg-gray-50 rounded-xl shadow-lg overflow-hidden">
