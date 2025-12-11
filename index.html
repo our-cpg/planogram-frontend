@@ -459,6 +459,7 @@ const PlanogramProfitTracker = () => {
     connected: false
   });
   const [firebaseReady, setFirebaseReady] = useState(false);
+  const [currentPlanogramId, setCurrentPlanogramId] = useState(null); // Track current planogram for updates
   const [stickyRowMode, setStickyRowMode] = useState(true); // NEW: Sticky row scanning mode
   const [unknownProducts, setUnknownProducts] = useState([]);
   const [badStockProducts, setBadStockProducts] = useState([]); // NEW: Separate list for negative stock items
@@ -672,6 +673,35 @@ const PlanogramProfitTracker = () => {
           };
           console.log('✅ listPlanograms() patched successfully');
           
+          // 🔧 FIX: Override savePlanogram() to UPDATE instead of CREATE when ID provided
+          const originalSavePlanogram = window.firebaseService.savePlanogram;
+          window.firebaseService.savePlanogram = async function(data, existingId = null) {
+            try {
+              const db = window.firebaseService.db;
+              const userId = window.firebaseService.currentUser.uid;
+              
+              if (existingId) {
+                // UPDATE existing planogram
+                console.log('📝 Updating existing planogram:', existingId);
+                const planogramRef = db.ref(`users/${userId}/planograms/${existingId}`);
+                await planogramRef.update({
+                  ...data,
+                  lastModified: Date.now()
+                });
+                console.log('✅ Updated planogram:', existingId);
+                return existingId; // Return same ID
+              } else {
+                // CREATE new planogram (original behavior)
+                console.log('📝 Creating new planogram');
+                return await originalSavePlanogram.call(this, data);
+              }
+            } catch (error) {
+              console.error('❌ savePlanogram error:', error);
+              throw error;
+            }
+          };
+          console.log('✅ savePlanogram() patched to support updates');
+          
           // Auto-load the most recent planogram from cloud
           // EMERGENCY FIX: Skip auto-load if URL has ?skipload=true
           const urlParams = new URLSearchParams(window.location.search);
@@ -725,6 +755,10 @@ const PlanogramProfitTracker = () => {
                   const data = await window.firebaseService.loadPlanogram(mostRecent.id);
                 
                 if (data) {
+                  // Track this planogram ID so future auto-saves update it
+                  setCurrentPlanogramId(mostRecent.id);
+                  console.log('📌 Auto-loaded planogram ID:', mostRecent.id);
+                  
                   setStoreName(data.name || 'Loaded Layout');
                   setFixtures(Array.isArray(data.fixtures) ? data.fixtures : []);
                   
@@ -863,12 +897,20 @@ const PlanogramProfitTracker = () => {
         }
       };
 
-      const id = await window.firebaseService.savePlanogram(planogramData);
+      // If we have a current planogram ID, update it instead of creating new
+      const id = await window.firebaseService.savePlanogram(planogramData, currentPlanogramId);
+      
+      // Store the ID so future saves update instead of create
+      if (id && !currentPlanogramId) {
+        setCurrentPlanogramId(id);
+        console.log('📌 Saved new planogram with ID:', id);
+      }
+      
       if (id) {
         const timestamp = new Date().toLocaleTimeString();
         setSyncStatus(`☁️ Saved at ${timestamp}`);
         setTimeout(() => setSyncStatus(''), 3000);
-        console.log(`☁️ ${silent ? 'Auto-saved' : 'Saved'} at ${timestamp}`);
+        console.log(`☁️ ${silent ? 'Auto-saved' : 'Saved'} ${currentPlanogramId ? '(updated)' : '(new)'} at ${timestamp}`);
       }
     } catch (error) {
       console.error('Save failed:', error);
@@ -914,6 +956,10 @@ const PlanogramProfitTracker = () => {
           const data = await window.firebaseService.loadPlanogram(selectedPlanogram.id);
           
           if (data) {
+            // Track this planogram ID so future saves update it
+            setCurrentPlanogramId(selectedPlanogram.id);
+            console.log('📌 Loaded planogram ID:', selectedPlanogram.id);
+            
             setStoreName(data.name || 'Loaded Layout');
             
             // Ensure fixtures is always an array
@@ -6597,9 +6643,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     setBadStockProducts(prev => prev.filter(b => b.id !== id));
   };
 
-  // Auto-save sections when they change - DISABLED to prevent duplicates
-  // TODO: Re-enable once we have proper update logic instead of creating new planograms
-  /*
+  // Auto-save sections when they change
   useEffect(() => {
     if (!initialLoadComplete.current) return; // Skip first render
     
@@ -6607,16 +6651,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       console.log('Auto-saving sections to Firebase...');
       localStorage.setItem('planogram_sections', JSON.stringify(sections));
       if (firebaseReady) {
-        saveToCloud(true); // silent mode
+        saveToCloud(true); // silent mode - now updates instead of creating duplicates
       }
     }, 2000); // 2 second delay
     return () => clearTimeout(timeoutId);
   }, [sections]);
-  */
 
-  // Auto-save fixtures when they change - DISABLED to prevent duplicates
-  // TODO: Re-enable once we have proper update logic instead of creating new planograms
-  /*
+  // Auto-save fixtures when they change
   useEffect(() => {
     if (!initialLoadComplete.current) return; // Skip first render
     
@@ -6624,12 +6665,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
       console.log('Auto-saving fixtures to Firebase...');
       localStorage.setItem('planogram_fixtures', JSON.stringify(fixtures));
       if (firebaseReady) {
-        saveToCloud(true); // silent mode
+        saveToCloud(true); // silent mode - now updates instead of creating duplicates
       }
     }, 2000); // 2 second delay
     return () => clearTimeout(timeoutId);
   }, [fixtures]);
-  */
 
   const resolveBadStock = (id) => {
     setBadStockProducts(prev =>
