@@ -3986,7 +3986,7 @@ const PlanogramProfitTracker = () => {
             ? product.inventoryQuantity 
             : 0;
           
-          // If stock is very low (≤5), look at longer history for more accurate velocity
+          // If stock is very low (≤5) OR NEGATIVE (oversold), look at longer history for more accurate velocity
           if (currentStock <= 5) {
             // Try quarterly first, then yearly, then allTime
             if (product.quarterlySales && product.quarterlySales > 0) {
@@ -13220,7 +13220,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                   ? product.inventoryQuantity 
                   : 0;
                 
-                // If stock is very low (≤5), look at longer history for more accurate velocity
+                // If stock is very low (≤5) OR NEGATIVE (oversold), look at longer history for more accurate velocity
                 if (currentStock <= 5) {
                   // Try quarterly first, then yearly, then allTime
                   if (product.quarterlySales && product.quarterlySales > 0) {
@@ -13283,7 +13283,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 if (currentStock > 0) {
                   daysUntilOut = 999; // Infinite supply (no sales)
                 } else if (currentStock < 0) {
-                  daysUntilOut = currentStock; // Show negative as-is (oversold)
+                  daysUntilOut = -999; // OVERSOLD - use large negative to flag it
                 } else {
                   daysUntilOut = 0; // Zero stock, zero sales
                 }
@@ -13478,7 +13478,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                       product.daysUntilOut < 14 ? 'text-yellow-600' :
                                       'text-green-600'
                                     }`}>
-                                      {product.daysUntilOut >= 999 ? '∞' : Math.floor(product.daysUntilOut)}
+                                      {product.daysUntilOut >= 999 
+                                        ? '∞' 
+                                        : product.daysUntilOut <= -999 
+                                          ? 'OUT' 
+                                          : Math.floor(product.daysUntilOut)}
                                     </div>
                                     <div className="text-xs text-gray-500">days</div>
                                   </td>
