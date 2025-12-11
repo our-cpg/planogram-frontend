@@ -14,9 +14,172 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   
-  <!-- Firebase Configuration and Service -->
-  <script src="firebase-config.js"></script>
-  <script src="firebase-service.js"></script>
+  <!-- EMBEDDED Firebase Configuration and Service (Standalone Version) -->
+  <script>
+    // Firebase Configuration for Store Planner Pro
+    const firebaseConfig = {
+      apiKey: "AIzaSyBZ6qLt8KVgV877K6IBy0pwZ5a9y1FqGLY",
+      authDomain: "storeplannerpro.firebaseapp.com",
+      projectId: "storeplannerpro",
+      storageBucket: "storeplannerpro.firebasestorage.app",
+      messagingSenderId: "339443807903",
+      appId: "1:339443807903:web:f24e76cc784f7177b494aa",
+      measurementId: "G-KJQBWV6LBD",
+      databaseURL: "https://storeplannerpro-default-rtdb.firebaseio.com"
+    };
+
+    // Initialize Firebase immediately
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+      console.log('🔥 Firebase initialized successfully');
+    } else {
+      console.log('🔥 Firebase already initialized');
+    }
+  </script>
+
+  <script>
+    // Firebase Service for Store Planner Pro
+    window.firebaseService = {
+      db: null,
+      auth: null,
+      currentUser: null,
+      autoSaveInterval: null,
+
+      async initialize() {
+        try {
+          if (!firebase.apps.length) {
+            console.error('Firebase not initialized.');
+            return false;
+          }
+          this.db = firebase.database();
+          this.auth = firebase.auth();
+          console.log('🔥 Firebase service initialized');
+          return true;
+        } catch (error) {
+          console.error('Firebase service initialization error:', error);
+          return false;
+        }
+      },
+
+      async signInAnonymously() {
+        try {
+          const result = await this.auth.signInAnonymously();
+          this.currentUser = result.user;
+          console.log('👤 User authenticated:', this.currentUser.uid);
+          return this.currentUser;
+        } catch (error) {
+          console.error('Anonymous sign-in error:', error);
+          throw error;
+        }
+      },
+
+      isAuthenticated() {
+        return this.currentUser !== null;
+      },
+
+      async savePlanogram(data) {
+        try {
+          if (!this.isAuthenticated()) throw new Error('User not authenticated');
+          const userId = this.currentUser.uid;
+          const planogramId = data.id || `planogram_${Date.now()}`;
+          const planogramData = {
+            id: planogramId,
+            name: data.name || 'Untitled Planogram',
+            storeName: data.storeName || 'My Store',
+            lastModified: Date.now(),
+            version: 2,
+            fixturesCount: data.fixtures ? data.fixtures.length : 0,
+            sectionsCount: data.sections ? data.sections.length : 0,
+            isSectionVersion: data.isSectionVersion || false,
+            isSavedLayout: data.isSavedLayout || false,
+            sectionName: data.sectionName || null,
+            versionName: data.versionName || null,
+            timestamp: data.timestamp || new Date().toISOString(),
+            fixtures: data.fixtures || [],
+            sections: data.sections || [],
+            metadata: data.metadata || {},
+            shopifyConfig: data.shopifyConfig || null,
+            unknownProducts: data.unknownProducts || []
+          };
+          const basePath = `users/${userId}/planograms/${planogramId}`;
+          await this.db.ref(basePath).set(planogramData);
+          console.log('💾 Planogram saved:', planogramId);
+          return planogramId;
+        } catch (error) {
+          console.error('Save planogram error:', error);
+          throw error;
+        }
+      },
+
+      async loadPlanogram(planogramId) {
+        try {
+          if (!this.isAuthenticated()) throw new Error('User not authenticated');
+          const userId = this.currentUser.uid;
+          const snapshot = await this.db.ref(`users/${userId}/planograms/${planogramId}`).once('value');
+          if (!snapshot.exists()) return null;
+          return { id: planogramId, ...snapshot.val() };
+        } catch (error) {
+          console.error('Load planogram error:', error);
+          throw error;
+        }
+      },
+
+      async listPlanograms() {
+        try {
+          if (!this.isAuthenticated()) return [];
+          const userId = this.currentUser.uid;
+          const snapshot = await this.db.ref(`users/${userId}/planograms`).once('value');
+          if (!snapshot.exists()) return [];
+          const planograms = [];
+          Object.entries(snapshot.val()).forEach(([id, data]) => {
+            planograms.push({
+              id: id,
+              name: data.name || 'Untitled',
+              storeName: data.storeName || 'My Store',
+              lastModified: data.lastModified || Date.now(),
+              sectionsCount: data.sectionsCount || 0,
+              fixturesCount: data.fixturesCount || 0,
+              isSectionVersion: data.isSectionVersion || false,
+              isSavedLayout: data.isSavedLayout || false,
+              sectionName: data.sectionName || null,
+              versionName: data.versionName || null
+            });
+          });
+          planograms.sort((a, b) => b.lastModified - a.lastModified);
+          return planograms;
+        } catch (error) {
+          console.error('List planograms error:', error);
+          throw error;
+        }
+      },
+
+      async deletePlanogram(planogramId) {
+        try {
+          if (!this.isAuthenticated()) throw new Error('User not authenticated');
+          const userId = this.currentUser.uid;
+          await this.db.ref(`users/${userId}/planograms/${planogramId}`).remove();
+          console.log('🗑️ Planogram deleted:', planogramId);
+          return true;
+        } catch (error) {
+          console.error('Delete planogram error:', error);
+          throw error;
+        }
+      },
+
+      startAutoSave(saveFunction, intervalMinutes = 2) {
+        if (this.autoSaveInterval) clearInterval(this.autoSaveInterval);
+        this.autoSaveInterval = setInterval(saveFunction, intervalMinutes * 60 * 1000);
+      },
+
+      stopAutoSave() {
+        if (this.autoSaveInterval) {
+          clearInterval(this.autoSaveInterval);
+          this.autoSaveInterval = null;
+        }
+      }
+    };
+    console.log('🔥 Firebase service ready');
+  </script>
   
   <!-- D3.js for network visualizations -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
