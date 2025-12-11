@@ -9001,96 +9001,112 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               </select>
             )}
 
-            {/* FULL LAYOUT BUTTONS - Green/Blue */}
-            <button
-              onClick={async () => {
-                // If there's a current planogram, ask if they want to update or create new
-                if (currentPlanogramId) {
-                  const choice = prompt(
-                    `📌 Currently editing: "${storeName}"\n\n` +
-                    `Type "new" to save as NEW planogram\n` +
-                    `Or press ENTER to UPDATE existing planogram\n` +
-                    `Or press ESC to cancel`,
-                    ""
-                  );
-                  
-                  if (choice === null) {
-                    // User pressed ESC/Cancel - do nothing
-                    return;
-                  } else if (choice.toLowerCase().trim() === 'new') {
-                    // Create new planogram
-                    const newName = prompt('Enter name for NEW planogram:', storeName + ' (Copy)');
-                    if (newName) {
-                      setStoreName(newName);
-                      // Wait for state to update, then save as new
-                      setTimeout(() => saveToCloud(false, true), 100);
+            {/* LAYOUT DROPDOWN - Green */}
+            <div className="relative group">
+              <button
+                className="px-3 py-2 bg-green-600 text-white rounded flex items-center gap-2 text-sm hover:bg-green-700"
+              >
+                📋 Layout ▾
+              </button>
+              <div className="hidden group-hover:block absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 min-w-[160px]">
+                <button
+                  onClick={async () => {
+                    // If there's a current planogram, ask if they want to update or create new
+                    if (currentPlanogramId) {
+                      const choice = prompt(
+                        `📌 Currently editing: "${storeName}"\n\n` +
+                        `Type "new" to save as NEW planogram\n` +
+                        `Or press ENTER to UPDATE existing planogram\n` +
+                        `Or press ESC to cancel`,
+                        ""
+                      );
+                      
+                      if (choice === null) {
+                        // User pressed ESC/Cancel - do nothing
+                        return;
+                      } else if (choice.toLowerCase().trim() === 'new') {
+                        // Create new planogram
+                        const newName = prompt('Enter name for NEW planogram:', storeName + ' (Copy)');
+                        if (newName) {
+                          setStoreName(newName);
+                          // Wait for state to update, then save as new
+                          setTimeout(() => saveToCloud(false, true), 100);
+                        }
+                      } else {
+                        // Empty or anything else = Update existing
+                        await saveToCloud(false, false);
+                      }
+                    } else {
+                      // No current planogram, just save as new
+                      await saveToCloud(false, false);
                     }
-                  } else {
-                    // Empty or anything else = Update existing
-                    await saveToCloud(false, false);
-                  }
-                } else {
-                  // No current planogram, just save as new
-                  await saveToCloud(false, false);
-                }
-              }}
-              className="px-3 py-2 bg-green-600 text-white rounded flex items-center gap-2 text-sm hover:bg-green-700"
-              title="Save entire store layout (all fixtures + all sections)"
-            >
-              💾 Save Layout
-            </button>
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-green-50 text-gray-700 text-sm flex items-center gap-2"
+                  title="Save entire store layout (all fixtures + all sections)"
+                >
+                  💾 Save Layout
+                </button>
+                <button
+                  onClick={() => {
+                    if (!window.firebaseService) {
+                      alert('⚠️ Firebase not initialized!\n\nPlease refresh the page and check your Firebase settings.');
+                      return;
+                    }
+                    if (!window.firebaseService.isAuthenticated()) {
+                      alert('⚠️ Firebase not authenticated!\n\nPlease check your Firebase connection in Settings.');
+                      return;
+                    }
+                    console.log('✅ Firebase ready - fetching saved layouts...');
+                    getAllSavedLayouts();
+                    setShowLoadLayoutModal(true);
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700 text-sm flex items-center gap-2 border-t border-gray-200"
+                  title="Load complete store layout"
+                >
+                  📂 Load Layout
+                </button>
+              </div>
+            </div>
 
-            <button
-              onClick={() => {
-                if (!window.firebaseService) {
-                  alert('⚠️ Firebase not initialized!\n\nPlease refresh the page and check your Firebase settings.');
-                  return;
-                }
-                if (!window.firebaseService.isAuthenticated()) {
-                  alert('⚠️ Firebase not authenticated!\n\nPlease check your Firebase connection in Settings.');
-                  return;
-                }
-                console.log('✅ Firebase ready - fetching saved layouts...');
-                getAllSavedLayouts();
-                setShowLoadLayoutModal(true);
-              }}
-              className="px-3 py-2 bg-blue-600 text-white rounded flex items-center gap-2 text-sm hover:bg-blue-700"
-              title="Load complete store layout"
-            >
-              📂 Load Layout
-            </button>
-
-            {/* SECTION BUTTONS - Purple/Orange */}
-            <button
-              onClick={() => {
-                if (!window.firebaseService) {
-                  alert('⚠️ Firebase not initialized!\n\nPlease refresh the page and check your Firebase settings.');
-                  return;
-                }
-                if (!window.firebaseService.isAuthenticated()) {
-                  alert('⚠️ Firebase not authenticated!\n\nPlease check your Firebase connection in Settings.');
-                  return;
-                }
-                console.log('✅ Firebase ready - opening Save Section modal');
-                setShowSaveLayoutModal(true);
-              }}
-              className="px-3 py-2 bg-purple-600 text-white rounded flex items-center gap-2 text-sm hover:bg-purple-700"
-              title="Save one section version (for comparison)"
-            >
-              💾 Save Section
-            </button>
-
-            <button
-              onClick={() => {
-                console.log('🔵 Load Section button clicked');
-                setShowLoadModal(true);
-                getAllSectionVersions();
-              }}
-              className="px-3 py-2 bg-orange-600 text-white rounded flex items-center gap-2 text-sm hover:bg-orange-700"
-              title="Load one section version"
-            >
-              📂 Load Section
-            </button>
+            {/* SECTION DROPDOWN - Purple */}
+            <div className="relative group">
+              <button
+                className="px-3 py-2 bg-purple-600 text-white rounded flex items-center gap-2 text-sm hover:bg-purple-700"
+              >
+                📐 Section ▾
+              </button>
+              <div className="hidden group-hover:block absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 min-w-[160px]">
+                <button
+                  onClick={() => {
+                    if (!window.firebaseService) {
+                      alert('⚠️ Firebase not initialized!\n\nPlease refresh the page and check your Firebase settings.');
+                      return;
+                    }
+                    if (!window.firebaseService.isAuthenticated()) {
+                      alert('⚠️ Firebase not authenticated!\n\nPlease check your Firebase connection in Settings.');
+                      return;
+                    }
+                    console.log('✅ Firebase ready - opening Save Section modal');
+                    setShowSaveLayoutModal(true);
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-purple-50 text-gray-700 text-sm flex items-center gap-2"
+                  title="Save one section version (for comparison)"
+                >
+                  💾 Save Section
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('🔵 Load Section button clicked');
+                    setShowLoadModal(true);
+                    getAllSectionVersions();
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-orange-50 text-gray-700 text-sm flex items-center gap-2 border-t border-gray-200"
+                  title="Load one section version"
+                >
+                  📂 Load Section
+                </button>
+              </div>
+            </div>
 
             {syncStatus && (
               <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
