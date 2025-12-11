@@ -278,9 +278,9 @@ const FIXTURE_TYPES = {
     id: 'door_double',
     name: '🚪 Double Door',
     icon: 'DoorOpen',
-    color: '#6b5444',
-    defaultWidth: 72,  // 72 inches (double door)
-    defaultHeight: 80
+    color: 'transparent',
+    defaultWidth: 72,  // 72 inches (double door width)
+    defaultHeight: 4   // 4 inches (door thickness in floor plan view)
   },
   DOOR_EXIT: {
     id: 'door_exit',
@@ -6264,7 +6264,13 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
             left: 0,
             width: '100%',
             height: '100%',
-            backgroundColor: heatMapMode ? '#e5e7eb' : fixture.color,
+            backgroundColor: heatMapMode ? '#e5e7eb' : (fixture.type === 'door_double' ? '#ffffff' : fixture.color),
+            backgroundImage: fixture.type === 'door_double' 
+              ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 50'%3E%3Crect x='2' y='22' width='4' height='6' fill='black'/%3E%3Crect x='6' y='5' width='2' height='40' fill='white' stroke='black' stroke-width='1'/%3E%3Cpath d='M 8 5 A 40 40 0 0 1 48 45' fill='none' stroke='black' stroke-width='1'/%3E%3Crect x='94' y='22' width='4' height='6' fill='black'/%3E%3Crect x='92' y='5' width='2' height='40' fill='white' stroke='black' stroke-width='2'/%3E%3Cpath d='M 92 5 A 40 40 0 0 0 52 45' fill='none' stroke='black' stroke-width='1'/%3E%3Cline x1='8' y1='5' x2='92' y2='5' stroke='black' stroke-width='1.5'/%3E%3Cline x1='8' y1='45' x2='92' y2='45' stroke='black' stroke-width='1.5'/%3E%3Cline x1='50' y1='4' x2='50' y2='46' stroke='black' stroke-width='0.5' stroke-dasharray='2,2'/%3E%3C/svg%3E")`
+              : 'none',
+            backgroundSize: 'contain',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
             border: selectedFixtures.includes(fixture.id)
               ? '4px solid #fbbf24'
               : isSelected 
