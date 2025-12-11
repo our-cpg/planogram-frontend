@@ -9006,24 +9006,28 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               onClick={async () => {
                 // If there's a current planogram, ask if they want to update or create new
                 if (currentPlanogramId) {
-                  const choice = confirm(
-                    `📌 You're currently editing: "${storeName}"\n\n` +
-                    `✅ OK = Update existing planogram\n` +
-                    `❌ Cancel = Save as NEW planogram\n\n` +
-                    `Choose your action:`
+                  const choice = prompt(
+                    `📌 Currently editing: "${storeName}"\n\n` +
+                    `Type "new" to save as NEW planogram\n` +
+                    `Or press ENTER to UPDATE existing planogram\n` +
+                    `Or press ESC to cancel`,
+                    ""
                   );
                   
-                  if (choice) {
-                    // Update existing
-                    await saveToCloud(false, false);
-                  } else {
-                    // Create new
+                  if (choice === null) {
+                    // User pressed ESC/Cancel - do nothing
+                    return;
+                  } else if (choice.toLowerCase().trim() === 'new') {
+                    // Create new planogram
                     const newName = prompt('Enter name for NEW planogram:', storeName + ' (Copy)');
                     if (newName) {
                       setStoreName(newName);
                       // Wait for state to update, then save as new
                       setTimeout(() => saveToCloud(false, true), 100);
                     }
+                  } else {
+                    // Empty or anything else = Update existing
+                    await saveToCloud(false, false);
                   }
                 } else {
                   // No current planogram, just save as new
