@@ -871,7 +871,7 @@ const PlanogramProfitTracker = () => {
   }, [stickyRowMode, newProduct, sections]);
 
   // Save to Firebase Cloud
-  const saveToCloud = async (silent = false) => {
+  const saveToCloud = async (silent = false, forceNew = false) => {
     if (!firebaseReady) {
       if (!silent) alert('Firebase not ready. Please wait a moment and try again.');
       return;
@@ -897,11 +897,14 @@ const PlanogramProfitTracker = () => {
         }
       };
 
-      // If we have a current planogram ID, update it instead of creating new
-      const id = await window.firebaseService.savePlanogram(planogramData, currentPlanogramId);
+      // If forceNew is true, always create a new planogram (ignore currentPlanogramId)
+      const idToUpdate = forceNew ? null : currentPlanogramId;
+      
+      // If we have a current planogram ID and not forcing new, update it instead of creating new
+      const id = await window.firebaseService.savePlanogram(planogramData, idToUpdate);
       
       // Store the ID so future saves update instead of create
-      if (id && !currentPlanogramId) {
+      if (id && (!currentPlanogramId || forceNew)) {
         setCurrentPlanogramId(id);
         console.log('📌 Saved new planogram with ID:', id);
       }
@@ -910,7 +913,7 @@ const PlanogramProfitTracker = () => {
         const timestamp = new Date().toLocaleTimeString();
         setSyncStatus(`☁️ Saved at ${timestamp}`);
         setTimeout(() => setSyncStatus(''), 3000);
-        console.log(`☁️ ${silent ? 'Auto-saved' : 'Saved'} ${currentPlanogramId ? '(updated)' : '(new)'} at ${timestamp}`);
+        console.log(`☁️ ${silent ? 'Auto-saved' : 'Saved'} ${idToUpdate ? '(updated)' : '(new)'} at ${timestamp}`);
       }
     } catch (error) {
       console.error('Save failed:', error);
@@ -6596,17 +6599,15 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     console.log('Updated unknown products:', updatedProducts);
   };
 
-  // Auto-save unknown products when they change
+  // Auto-save unknown products to localStorage only
   useEffect(() => {
     if (!initialLoadComplete.current) return; // Skip first render
     
     const timeoutId = setTimeout(() => {
       if (unknownProducts.length >= 0) {
-        console.log('Auto-saving unknown products...');
+        console.log('Auto-saving unknown products to localStorage...');
         localStorage.setItem('planogram_unknown_products', JSON.stringify(unknownProducts));
-        if (firebaseReady) {
-          saveToCloud(true); // silent mode
-        }
+        // Firebase save removed - only updates when you click "Save to Cloud" button
       }
     }, 2000);
     return () => clearTimeout(timeoutId);
@@ -6623,17 +6624,15 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     console.log('Updated bad stock products:', updatedProducts);
   };
 
-  // Auto-save bad stock products when they change
+  // Auto-save bad stock products to localStorage only
   useEffect(() => {
     if (!initialLoadComplete.current) return; // Skip first render
     
     const timeoutId = setTimeout(() => {
       if (badStockProducts.length >= 0) {
-        console.log('Auto-saving bad stock products...');
+        console.log('Auto-saving bad stock products to localStorage...');
         localStorage.setItem('planogram_bad_stock_products', JSON.stringify(badStockProducts));
-        if (firebaseReady) {
-          saveToCloud(true); // silent mode
-        }
+        // Firebase save removed - only updates when you click "Save to Cloud" button
       }
     }, 2000);
     return () => clearTimeout(timeoutId);
@@ -6643,29 +6642,29 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     setBadStockProducts(prev => prev.filter(b => b.id !== id));
   };
 
-  // Auto-save sections when they change
+  // Auto-save sections to localStorage only (Firebase saves on manual "Save to Cloud" button)
   useEffect(() => {
     if (!initialLoadComplete.current) return; // Skip first render
     
     const timeoutId = setTimeout(() => {
-      console.log('Auto-saving sections to Firebase...');
+      console.log('💾 Auto-saving sections...');
       localStorage.setItem('planogram_sections', JSON.stringify(sections));
       if (firebaseReady) {
-        saveToCloud(true); // silent mode - now updates instead of creating duplicates
+        saveToCloud(true); // Silent auto-save - overwrites current planogram
       }
     }, 2000); // 2 second delay
     return () => clearTimeout(timeoutId);
   }, [sections]);
 
-  // Auto-save fixtures when they change
+  // Auto-save fixtures - saves to localStorage AND Firebase (overwrites current planogram)
   useEffect(() => {
     if (!initialLoadComplete.current) return; // Skip first render
     
     const timeoutId = setTimeout(() => {
-      console.log('Auto-saving fixtures to Firebase...');
+      console.log('💾 Auto-saving fixtures...');
       localStorage.setItem('planogram_fixtures', JSON.stringify(fixtures));
       if (firebaseReady) {
-        saveToCloud(true); // silent mode - now updates instead of creating duplicates
+        saveToCloud(true); // Silent auto-save - overwrites current planogram
       }
     }, 2000); // 2 second delay
     return () => clearTimeout(timeoutId);
@@ -9004,7 +9003,33 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
 
             {/* FULL LAYOUT BUTTONS - Green/Blue */}
             <button
-              onClick={saveToCloud}
+              onClick={async () => {
+                // If there's a current planogram, ask if they want to update or create new
+                if (currentPlanogramId) {
+                  const choice = confirm(
+                    `📌 You're currently editing: "${storeName}"\n\n` +
+                    `✅ OK = Update existing planogram\n` +
+                    `❌ Cancel = Save as NEW planogram\n\n` +
+                    `Choose your action:`
+                  );
+                  
+                  if (choice) {
+                    // Update existing
+                    await saveToCloud(false, false);
+                  } else {
+                    // Create new
+                    const newName = prompt('Enter name for NEW planogram:', storeName + ' (Copy)');
+                    if (newName) {
+                      setStoreName(newName);
+                      // Wait for state to update, then save as new
+                      setTimeout(() => saveToCloud(false, true), 100);
+                    }
+                  }
+                } else {
+                  // No current planogram, just save as new
+                  await saveToCloud(false, false);
+                }
+              }}
               className="px-3 py-2 bg-green-600 text-white rounded flex items-center gap-2 text-sm hover:bg-green-700"
               title="Save entire store layout (all fixtures + all sections)"
             >
