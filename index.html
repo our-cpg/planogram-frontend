@@ -3607,24 +3607,22 @@ const PlanogramProfitTracker = () => {
       console.log(`✅ Auto-synced ${updatedCount} distributor values`);
       
       // Save silently to Firebase
-      if (firebaseUser) {
-        try {
-          const planogramData = {
-            name: storeName,
-            fixtures: fixtures,
-            sections: updatedSections,
-            unknownProducts: unknownProducts,
-            badStockProducts: badStockProducts,
-            shopifyConfig: {
-              storeName: shopifyConfig.storeName,
-              connected: shopifyConfig.connected
-            }
-          };
-          await window.firebaseService.savePlanogram(planogramData);
-          console.log('💾 Distributor updates saved to Firebase');
-        } catch (error) {
-          console.error('❌ Failed to save distributor updates:', error);
-        }
+      try {
+        const planogramData = {
+          name: storeName,
+          fixtures: fixtures,
+          sections: updatedSections,
+          unknownProducts: unknownProducts,
+          badStockProducts: badStockProducts,
+          shopifyConfig: {
+            storeName: shopifyConfig.storeName,
+            connected: shopifyConfig.connected
+          }
+        };
+        await window.firebaseService.savePlanogram(planogramData);
+        console.log('💾 Distributor updates saved to Firebase');
+      } catch (error) {
+        console.error('❌ Failed to save distributor updates:', error);
       }
     }
   };
@@ -3741,7 +3739,7 @@ const PlanogramProfitTracker = () => {
     console.log(`✅ Fixed ${totalFixed} distributor values`);
     setSections(fixedSections);
     
-    if (firebaseUser && totalFixed > 0) {
+    if (totalFixed > 0) {
       try {
         setFeedback('💾 Saving fixes to Firebase...');
         const planogramData = {
@@ -3891,7 +3889,7 @@ const PlanogramProfitTracker = () => {
     setSections(updatedSections);
 
     // Then save using the same method as regular save
-    if (firebaseUser && updatedCount > 0) {
+    if (updatedCount > 0) {
       try {
         setFeedback(`💾 Saving ${updatedCount} updates to Firebase...`);
         
