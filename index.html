@@ -13404,11 +13404,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
               const safetyStock = targetSupply * 0.25;
               const reorderQty = Math.max(0, Math.ceil(targetSupply + safetyStock - currentStock));
 
-              // Seasonal pattern (simplified - compare to average)
-              const avgSales = (product.monthlySales || 0);
-              const seasonalTrend = salesVolume > avgSales * 1.2 ? '📈 Trending Up' : 
-                                   salesVolume < avgSales * 0.8 ? '📉 Trending Down' : 
-                                   '➡️ Stable';
+              // Get 30-day sales data (use monthlySales for consistency)
+              const sales30Days = product.monthlySales || 0;
 
               return {
                 ...product,
@@ -13418,7 +13415,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                 stockoutRisk,
                 riskColor,
                 reorderQty,
-                seasonalTrend,
+                sales30Days, // Replace seasonalTrend with actual sales data
                 salesVolume
               };
             });
@@ -13529,7 +13526,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                 <th className="text-center p-3 text-xs font-bold text-gray-700">DAYS LEFT</th>
                                 <th className="text-center p-3 text-xs font-bold text-gray-700">RISK</th>
                                 <th className="text-center p-3 text-xs font-bold text-gray-700">REORDER QTY</th>
-                                <th className="text-center p-3 text-xs font-bold text-gray-700">TREND</th>
+                                <th className="text-center p-3 text-xs font-bold text-gray-700">30-DAY SALES</th>
                                 <th className="text-left p-3 text-xs font-bold text-gray-700">LOCATION</th>
                               </tr>
                             </thead>
@@ -13598,7 +13595,8 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
                                     <div className="text-xs text-gray-500">units</div>
                                   </td>
                                   <td className="text-center p-3">
-                                    <div className="text-sm">{product.seasonalTrend}</div>
+                                    <div className="text-lg font-bold text-blue-600">{product.sales30Days || 0}</div>
+                                    <div className="text-xs text-gray-500">units</div>
                                   </td>
                                   <td className="p-3">
                                     <div className="text-xs text-gray-600">{product.fixtureName}</div>
