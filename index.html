@@ -6597,7 +6597,9 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     setBadStockProducts(prev => prev.filter(b => b.id !== id));
   };
 
-  // Auto-save sections when they change
+  // Auto-save sections when they change - DISABLED to prevent duplicates
+  // TODO: Re-enable once we have proper update logic instead of creating new planograms
+  /*
   useEffect(() => {
     if (!initialLoadComplete.current) return; // Skip first render
     
@@ -6610,8 +6612,11 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     }, 2000); // 2 second delay
     return () => clearTimeout(timeoutId);
   }, [sections]);
+  */
 
-  // Auto-save fixtures when they change
+  // Auto-save fixtures when they change - DISABLED to prevent duplicates
+  // TODO: Re-enable once we have proper update logic instead of creating new planograms
+  /*
   useEffect(() => {
     if (!initialLoadComplete.current) return; // Skip first render
     
@@ -6624,6 +6629,7 @@ const Fixture = ({ fixture, onUpdate, onDelete, onSelect, isSelected }) => {
     }, 2000); // 2 second delay
     return () => clearTimeout(timeoutId);
   }, [fixtures]);
+  */
 
   const resolveBadStock = (id) => {
     setBadStockProducts(prev =>
